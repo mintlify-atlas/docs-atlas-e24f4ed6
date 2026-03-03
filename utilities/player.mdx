@@ -1,0 +1,282 @@
+---
+title: Player utilities
+description: Utility methods for player management, inventory, statistics, and more
+---
+
+The `PlayerUtil` class provides comprehensive utilities for managing players, their inventories, statistics, permissions, and various player-related operations.
+
+## Player state management
+
+### Normalizing players
+
+Reset player to default survival state:
+
+```java
+// Reset player completely (inventory + properties)
+PlayerUtil.normalize(player, true);
+
+// Reset properties only (keep inventory)
+PlayerUtil.normalize(player, false);
+
+// Reset without removing vanish
+PlayerUtil.normalize(player, true, false);
+```
+
+This resets:
+- Game mode to Survival
+- Health to 20
+- Food level to 20
+- Flight disabled
+- Potion effects cleared
+- Experience reset
+- Removes vanish (if enabled)
+
+### Saving and restoring state
+
+```java
+// Store player's current state
+PlayerUtil.storeState(player);
+
+// Later, restore the saved state
+PlayerUtil.restoreState(player);
+
+// Check if player has stored state
+if (PlayerUtil.hasStoredState(player)) {
+    PlayerUtil.restoreState(player);
+}
+```
+
+<Note>
+Stored state includes inventory, health, game mode, effects, and more.
+</Note>
+
+## Inventory management
+
+### Adding items
+
+```java
+// Add items to inventory
+Map<Integer, ItemStack> leftover = PlayerUtil.addItems(player.getInventory(), items);
+
+// Add items or drop if inventory full
+boolean allAdded = PlayerUtil.addItemsOrDrop(player, new ItemStack(Material.DIAMOND));
+```
+
+### Taking items
+
+```java
+// Take specific material and amount
+boolean success = PlayerUtil.take(player, CompMaterial.DIAMOND, 5);
+
+// Take one piece of specific material
+boolean taken = PlayerUtil.takeFirstOnePiece(player, CompMaterial.GOLD_INGOT);
+
+// Take one piece from specific item
+PlayerUtil.takeOnePiece(player, itemStack);
+```
+
+### Checking inventory
+
+```java
+// Check if player has enough of material
+boolean has = PlayerUtil.containsAtLeast(player, 10, CompMaterial.IRON_INGOT);
+
+// Check if inventory is empty
+boolean empty = PlayerUtil.hasEmptyInventory(player);
+
+// Get first similar item
+ItemStack found = PlayerUtil.getFirstItem(player, searchItem);
+```
+
+### Updating inventory
+
+```java
+// Replace item in inventory
+boolean replaced = PlayerUtil.updateInvSlot(inventory, oldItem, newItem);
+```
+
+## Statistics
+
+### Player playtime
+
+```java
+// Get total playtime (ticks on MC 1.12-, seconds on 1.13+)
+long playtime = PlayerUtil.getPlayTimeTicksOrSeconds(player);
+```
+
+### Getting statistics
+
+```java
+// Get specific statistic
+long kills = PlayerUtil.getStatistic(player, Statistic.MOB_KILLS);
+
+// Get statistic with material
+long mined = PlayerUtil.getStatistic(player, Statistic.MINE_BLOCK, Material.STONE);
+
+// Get statistic with entity type
+long zombieKills = PlayerUtil.getStatistic(player, Statistic.KILL_ENTITY, EntityType.ZOMBIE);
+
+// Get all players' statistics sorted
+TreeMap<Long, OfflinePlayer> topPlayers = PlayerUtil.getStatistics(Statistic.PLAYER_KILLS);
+```
+
+## Permissions
+
+```java
+// Check if player has permission
+if (PlayerUtil.hasPerm(player, "myplugin.use")) {
+    // Allow action
+}
+```
+
+## Vanish management
+
+### Checking vanish
+
+```java
+// Check if player is vanished
+boolean vanished = PlayerUtil.isVanished(player);
+
+// Check if vanished or other player can't see them
+boolean hidden = PlayerUtil.isVanished(player, otherPlayer);
+```
+
+### Setting vanish
+
+```java
+// Make player vanished
+PlayerUtil.setVanished(player, true);
+
+// Make player visible
+PlayerUtil.setVanished(player, false);
+```
+
+## Nickname support
+
+```java
+// Get player by nickname (supports Essentials, CMI, etc.)
+Player found = PlayerUtil.getPlayerByNick("Nick", false);
+
+// Get player by nickname, excluding vanished players
+Player visible = PlayerUtil.getPlayerByNickNoVanish("Nick");
+
+// Async offline player lookup
+PlayerUtil.lookupOfflinePlayerAsync("PlayerName", offlinePlayer -> {
+    // Handle offline player
+});
+```
+
+## Direction and facing
+
+```java
+// Get block face player is facing
+BlockFace facing = PlayerUtil.getFacing(player);
+
+// Get with sub-directions (8 directions instead of 4)
+BlockFace precise = PlayerUtil.getFacing(player, true);
+
+// Get yaw from block face
+int yaw = PlayerUtil.getFacing(BlockFace.NORTH, false);
+
+// Align yaw to nearest direction
+float aligned = PlayerUtil.alignYaw(player.getLocation().getYaw(), false);
+```
+
+## Inventory title animation
+
+```java
+// Temporarily update inventory title
+PlayerUtil.updateInventoryTitle(menu, player, 
+    "&c&lSALE!", // Temporary title
+    "&7Shop Menu", // Original title
+    40 // Duration in ticks (2 seconds)
+);
+
+// Just update title without animation
+PlayerUtil.updateInventoryTitle(player, "&eNew Title");
+```
+
+## Connection info
+
+```java
+// Get player's ping in milliseconds
+int ping = PlayerUtil.getPing(player);
+```
+
+## Kicking players
+
+```java
+// Kick player with colored message
+PlayerUtil.kick(player, "&cYou have been kicked!", "&7Reason: Breaking rules");
+```
+
+## Examples
+
+### Arena join handler
+
+```java
+public void onArenaJoin(Player player) {
+    // Store current state
+    PlayerUtil.storeState(player);
+    
+    // Normalize player for arena
+    PlayerUtil.normalize(player, true);
+    
+    // Give arena items
+    player.getInventory().addItem(new ItemStack(Material.IRON_SWORD));
+}
+
+public void onArenaLeave(Player player) {
+    // Restore pre-arena state
+    if (PlayerUtil.hasStoredState(player)) {
+        PlayerUtil.restoreState(player);
+    }
+}
+```
+
+### Shop purchase with item cost
+
+```java
+public void purchaseItem(Player player, int cost) {
+    // Check if player has enough diamonds
+    if (!PlayerUtil.containsAtLeast(player, cost, CompMaterial.DIAMOND)) {
+        Common.tell(player, "&cYou need " + cost + " diamonds!");
+        return;
+    }
+    
+    // Take diamonds
+    if (PlayerUtil.take(player, CompMaterial.DIAMOND, cost)) {
+        // Give purchased item
+        PlayerUtil.addItemsOrDrop(player, new ItemStack(Material.DIAMOND_SWORD));
+        Common.tell(player, "&aPurchase successful!");
+    }
+}
+```
+
+### Top playtime leaderboard
+
+```java
+public void showTopPlaytime(Player player) {
+    TreeMap<Long, OfflinePlayer> stats = PlayerUtil.getStatistics(
+        Remain.getPlayTimeStatisticName()
+    );
+    
+    Common.tell(player, "&6&l=== Top Playtime ===");
+    
+    int rank = 1;
+    for (Map.Entry<Long, OfflinePlayer> entry : stats.entrySet()) {
+        if (rank > 10) break;
+        
+        OfflinePlayer top = entry.getValue();
+        long time = entry.getKey();
+        
+        Common.tell(player, rank + ". " + top.getName() + ": " + 
+            TimeUtil.formatTime(time));
+        rank++;
+    }
+}
+```
+
+<Tip>
+Use `PlayerUtil.normalize()` before teleporting players to minigames or arenas to ensure a fair playing field.
+</Tip>

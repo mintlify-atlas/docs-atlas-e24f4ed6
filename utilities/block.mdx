@@ -1,0 +1,329 @@
+---
+title: Block utilities
+description: Utility methods for block manipulation, region selection, and world operations
+---
+
+The `BlockUtil` class provides utilities for working with blocks, including region selection, block finding, shooting blocks, and various geometric operations.
+
+## Regions and bounds
+
+### Cuboid operations
+
+```java
+// Check if location is within cuboid
+boolean inside = BlockUtil.isWithinCuboid(
+    location,
+    primaryCorner,
+    secondaryCorner
+);
+
+// Get all blocks in cuboid
+List<Block> blocks = BlockUtil.getBlocks(corner1, corner2);
+```
+
+### Bounding boxes
+
+```java
+// Get bounding box of chunk (for particle effects)
+Set<Location> bounds = BlockUtil.getBoundingBox(chunk);
+
+// Get bounding box of cuboid
+Set<Location> bounds = BlockUtil.getBoundingBox(pos1, pos2);
+
+// Configure gaps
+BlockUtil.BOUNDING_VERTICAL_GAP = 2.0;
+BlockUtil.BOUNDING_HORIZONTAL_GAP = 1.5;
+```
+
+## Spheres and circles
+
+### Sphere generation
+
+```java
+// Get all blocks in sphere
+Set<Location> sphere = BlockUtil.getSphere(center, 5, false);
+
+// Get hollow sphere
+Set<Location> hollowSphere = BlockUtil.getSphere(center, 5, true);
+
+// Example: Fill sphere with blocks
+for (Location loc : sphere) {
+    loc.getBlock().setType(Material.GLASS);
+}
+```
+
+### Circle generation
+
+```java
+// Get 2D circle
+Set<Location> circle = BlockUtil.getCircle(center, 10, false);
+
+// Get hollow circle
+Set<Location> hollowCircle = BlockUtil.getCircle(center, 10, true);
+```
+
+## Finding blocks
+
+### Get blocks in area
+
+```java
+// Get blocks in chunk
+List<Block> chunkBlocks = BlockUtil.getBlocks(chunk);
+
+// Get blocks in cylinder (height + radius)
+List<Block> blocks = BlockUtil.getBlocks(location, 5, 3);
+
+// Get chunks around location
+List<Chunk> chunks = BlockUtil.getChunks(location, 2);
+
+// Get X-Z locations in chunk
+List<Location> xzLocs = BlockUtil.getXZLocations(chunk);
+```
+
+### Find highest block
+
+```java
+// Find highest non-air block (excluding snow)
+int y = BlockUtil.findHighestBlockNoSnow(location);
+
+// Find highest block matching predicate
+int y = BlockUtil.findHighestBlock(world, x, z, 
+    material -> material.isSolid()
+);
+
+// Find highest nether air block (for mob spawning)
+int y = BlockUtil.findHighestNetherAirBlock(world, x, z);
+```
+
+### Find air block
+
+```java
+// Find air block (top-down search)
+int y = BlockUtil.findAirBlock(location, true,
+    material -> material.isSolid()
+);
+
+// Find air block (bottom-up search)
+int y = BlockUtil.findAirBlock(world, x, z, false,
+    material -> !material.isTransparent()
+);
+```
+
+## Block type checking
+
+### Material checks
+
+```java
+// Check if block is a tool
+boolean isTool = BlockUtil.isTool(Material.DIAMOND_PICKAXE);
+
+// Check if block is armor
+boolean isArmor = BlockUtil.isArmor(Material.DIAMOND_HELMET);
+
+// Check if falling block will break on this material
+boolean willBreak = BlockUtil.isBreakingFallingBlock(Material.TORCH);
+
+// Check if block is safe for selection
+boolean safe = BlockUtil.isForBlockSelection(Material.STONE);
+```
+
+### Tree operations
+
+```java
+// Check if log is on natural ground
+boolean onGround = BlockUtil.isLogOnGround(logBlock);
+
+// Get all connected tree parts upwards
+List<Block> treeParts = BlockUtil.getTreePartsUp(logBlock);
+
+// Example: Custom tree breaking
+if (BlockUtil.isLogOnGround(block)) {
+    List<Block> tree = BlockUtil.getTreePartsUp(block);
+    for (Block part : tree) {
+        part.breakNaturally();
+    }
+}
+```
+
+## Shooting blocks
+
+### Launch blocks
+
+```java
+// Shoot block with velocity
+FallingBlock falling = BlockUtil.shootBlock(
+    block,
+    player.getLocation().getDirection().multiply(2)
+);
+
+// Shoot block with burn chance on landing
+FallingBlock burning = BlockUtil.shootBlock(
+    block,
+    velocity,
+    0.5 // 50% chance to burn
+);
+
+// Spawn falling block with exact velocity
+FallingBlock falling = BlockUtil.spawnFallingBlock(block, velocity);
+```
+
+## Vector operations
+
+```java
+// Get block intersecting with vector
+Block hit = BlockUtil.getBlockIntersectionWithVector(
+    start,
+    direction
+);
+```
+
+## Closest location
+
+```java
+// Find closest location from list
+Location closest = BlockUtil.findClosestLocation(
+    playerLocation,
+    locationsList
+);
+```
+
+## Examples
+
+### Create sphere structure
+
+```java
+public void createGlassSphere(Location center, int radius) {
+    Set<Location> sphere = BlockUtil.getSphere(center, radius, true);
+    
+    for (Location loc : sphere) {
+        loc.getBlock().setType(Material.GLASS);
+    }
+    
+    Common.log("Created glass sphere with " + sphere.size() + " blocks");
+}
+```
+
+### Region protection check
+
+```java
+public boolean isInProtectedRegion(Location location) {
+    Location corner1 = new Location(world, 0, 0, 0);
+    Location corner2 = new Location(world, 100, 256, 100);
+    
+    return BlockUtil.isWithinCuboid(location, corner1, corner2);
+}
+```
+
+### Custom tree chopper
+
+```java
+@EventHandler
+public void onBlockBreak(BlockBreakEvent event) {
+    Block block = event.getBlock();
+    Player player = event.getPlayer();
+    
+    // Check if it's a log on ground
+    if (!BlockUtil.isLogOnGround(block)) {
+        return;
+    }
+    
+    // Check permission
+    if (!PlayerUtil.hasPerm(player, "myplugin.treechop")) {
+        return;
+    }
+    
+    // Get all tree parts
+    List<Block> tree = BlockUtil.getTreePartsUp(block);
+    
+    if (tree.isEmpty()) {
+        return;
+    }
+    
+    // Break entire tree
+    for (Block part : tree) {
+        part.breakNaturally(player.getInventory().getItemInMainHand());
+    }
+    
+    Common.tell(player, "&aChopped " + tree.size() + " blocks!");
+}
+```
+
+### TNT cannon effect
+
+```java
+public void shootBlockCannon(Player player, Block block) {
+    Location eyeLoc = player.getEyeLocation();
+    Vector direction = eyeLoc.getDirection().multiply(3);
+    
+    // Shoot block
+    FallingBlock falling = BlockUtil.shootBlock(
+        block,
+        direction,
+        0.8 // 80% burn chance
+    );
+    
+    if (falling != null) {
+        // Track until it lands
+        EntityUtil.trackFalling(falling, () -> {
+            Location impact = falling.getLocation();
+            
+            // Create explosion
+            impact.getWorld().createExplosion(
+                impact,
+                4.0f,
+                true,
+                true
+            );
+        });
+    }
+}
+```
+
+### Safe spawn location finder
+
+```java
+public Location findSafeSpawnLocation(World world, int x, int z) {
+    // Find highest solid block
+    int y = BlockUtil.findHighestBlock(world, x, z,
+        material -> material.isSolid() && 
+                   BlockUtil.isForBlockSelection(material)
+    );
+    
+    if (y == -1) {
+        // Try nether method
+        y = BlockUtil.findHighestNetherAirBlock(world, x, z);
+    }
+    
+    if (y != -1) {
+        return new Location(world, x + 0.5, y, z + 0.5);
+    }
+    
+    return null;
+}
+```
+
+### Particle circle effect
+
+```java
+public void drawCircleParticles(Location center, int radius) {
+    Set<Location> circle = BlockUtil.getCircle(center, radius, true);
+    
+    for (Location loc : circle) {
+        loc.getWorld().spawnParticle(
+            Particle.FLAME,
+            loc.add(0.5, 0, 0.5),
+            1,
+            0, 0, 0,
+            0
+        );
+    }
+}
+```
+
+<Note>
+Sphere and circle generation can be performance-intensive for large radiuses. Use with caution.
+</Note>
+
+<Tip>
+Use `BlockUtil.findHighestNetherAirBlock()` for nether spawn points to avoid spawning mobs on the bedrock ceiling.
+</Tip>

@@ -1,0 +1,271 @@
+---
+title: NBTEntity
+description: Access vanilla NBT tags from entities with automatic synchronization
+---
+
+The `NBTEntity` class provides access to vanilla NBT tags from entities. It extends `NBTCompound` and changes are instantly applied to the entity.
+
+<Warning>
+  Entities don't support custom tags. Use the NBTInjector for custom tags. The NBTEntity class is deprecated - use the modern `NBT` class instead.
+</Warning>
+
+<Note>
+  All NBTEntity operations must be performed on the primary thread. Attempting to access entity NBT asynchronously will throw an `NbtApiException`.
+</Note>
+
+## Constructor
+
+<ParamField path="NBTEntity(Entity entity)" type="constructor">
+  Creates a new NBTEntity for the given Bukkit entity.
+  
+  <Expandable title="parameters">
+    <ParamField path="entity" type="Entity" required>
+      Any valid Bukkit Entity. Cannot be null.
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  Entity zombie = world.spawnEntity(location, EntityType.ZOMBIE);
+  NBTEntity nbtEntity = new NBTEntity(zombie);
+  ```
+</ParamField>
+
+## Core methods
+
+### getCompound
+
+<ParamField path="getCompound()" type="Object">
+  Returns the internal NBT compound for this entity.
+  
+  <Warning>
+    This method must be called on the primary thread or it will throw an `NbtApiException`.
+  </Warning>
+  
+  ```java
+  NBTEntity nbtEntity = new NBTEntity(zombie);
+  Object compound = nbtEntity.getCompound();
+  ```
+</ParamField>
+
+### setCompound
+
+<ParamField path="setCompound(Object compound)" type="void">
+  Sets the NBT compound for this entity. Changes are instantly applied.
+  
+  <Warning>
+    This method must be called on the primary thread or it will throw an `NbtApiException`.
+  </Warning>
+  
+  <Expandable title="parameters">
+    <ParamField path="compound" type="Object" required>
+      The NBT compound to set
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTEntity nbtEntity = new NBTEntity(zombie);
+  nbtEntity.setString("CustomName", "{\"text\":\"Boss Zombie\"}");
+  // Changes are instantly applied to the entity
+  ```
+</ParamField>
+
+### getPersistentDataContainer
+
+<ParamField path="getPersistentDataContainer()" type="NBTCompound">
+  Gets the NBTCompound used by Spigot's PersistentDataAPI.
+  
+  <Note>
+    This method is only available for Minecraft 1.14+. It will throw an exception on older versions.
+  </Note>
+  
+  ```java
+  NBTEntity nbtEntity = new NBTEntity(zombie);
+  NBTCompound pdc = nbtEntity.getPersistentDataContainer();
+  
+  // Access persistent data container NBT
+  String customId = pdc.getString("myPlugin:customId");
+  ```
+</ParamField>
+
+### isReadOnly
+
+<ParamField path="isReadOnly()" type="boolean">
+  Returns whether this NBTEntity is in read-only mode.
+  
+  In read-only mode, a copy is made at initialization and only that copy is read from.
+  
+  ```java
+  // Read-only mode is set via protected constructor
+  NBTEntity nbtEntity = new NBTEntity(zombie);
+  boolean readOnly = nbtEntity.isReadOnly();
+  ```
+</ParamField>
+
+## Usage patterns
+
+### Modify entity properties
+
+```java
+Entity zombie = world.spawnEntity(location, EntityType.ZOMBIE);
+NBTEntity nbtEntity = new NBTEntity(zombie);
+
+// Set custom name
+nbtEntity.setString("CustomName", "{\"text\":\"§cBoss Zombie\"}");
+nbtEntity.setBoolean("CustomNameVisible", true);
+
+// Make entity invulnerable
+nbtEntity.setBoolean("Invulnerable", true);
+
+// Set health
+nbtEntity.setFloat("Health", 100.0f);
+
+// Changes are instantly applied to the zombie
+```
+
+### Read entity data
+
+```java
+for (Entity entity : world.getEntities()) {
+    NBTEntity nbtEntity = new NBTEntity(entity);
+    
+    if (nbtEntity.hasTag("CustomName")) {
+        String name = nbtEntity.getString("CustomName");
+        Common.log("Found entity with custom name: " + name);
+    }
+    
+    // Read entity type
+    String type = nbtEntity.getString("id");
+    Common.log("Entity type: " + type);
+}
+```
+
+### Modify mob equipment
+
+```java
+Entity skeleton = world.spawnEntity(location, EntityType.SKELETON);
+NBTEntity nbtEntity = new NBTEntity(skeleton);
+
+// Access equipment
+NBTCompoundList equipment = nbtEntity.getCompoundList("ArmorItems");
+
+// Set diamond helmet
+NBTListCompound helmet = equipment.addCompound();
+helmet.setString("id", "minecraft:diamond_helmet");
+helmet.setByte("Count", (byte) 1);
+
+// Changes are instantly applied
+```
+
+### Work with entity attributes
+
+```java
+Entity creeper = world.spawnEntity(location, EntityType.CREEPER);
+NBTEntity nbtEntity = new NBTEntity(creeper);
+
+// Set explosion radius
+nbtEntity.setByte("ExplosionRadius", (byte) 10);
+
+// Set fuse time
+nbtEntity.setShort("Fuse", (short) 100);
+
+// Make charged creeper
+nbtEntity.setBoolean("powered", true);
+```
+
+### Check entity NBT data
+
+```java
+Entity entity = event.getEntity();
+NBTEntity nbtEntity = new NBTEntity(entity);
+
+if (nbtEntity.hasTag("Invulnerable")) {
+    boolean invulnerable = nbtEntity.getBoolean("Invulnerable");
+    
+    if (invulnerable) {
+        event.setCancelled(true);
+        return;
+    }
+}
+```
+
+### Use with PersistentDataContainer
+
+```java
+Entity zombie = world.spawnEntity(location, EntityType.ZOMBIE);
+NBTEntity nbtEntity = new NBTEntity(zombie);
+
+// Access Spigot's PersistentDataAPI NBT
+NBTCompound pdc = nbtEntity.getPersistentDataContainer();
+
+// Store custom plugin data
+pdc.setString("myPlugin:bossId", "zombie_king_001");
+pdc.setInteger("myPlugin:level", 50);
+pdc.setLong("myPlugin:spawnTime", System.currentTimeMillis());
+
+// Read it back
+if (pdc.hasTag("myPlugin:bossId")) {
+    String bossId = pdc.getString("myPlugin:bossId");
+    int level = pdc.getInteger("myPlugin:level");
+    long spawnTime = pdc.getLong("myPlugin:spawnTime");
+}
+```
+
+### Batch entity modifications
+
+```java
+// Use merge to do many changes at once
+Entity villager = world.spawnEntity(location, EntityType.VILLAGER);
+NBTEntity nbtEntity = new NBTEntity(villager);
+
+// Create a container with all changes
+NBTContainer changes = new NBTContainer();
+changes.setString("CustomName", "{\"text\":\"Master Trader\"}");
+changes.setBoolean("CustomNameVisible", true);
+changes.setBoolean("Invulnerable", true);
+changes.setInteger("Age", -1000); // Baby villager
+
+// Merge all at once
+nbtEntity.mergeCompound(changes);
+```
+
+## Thread safety
+
+<Warning>
+  All NBTEntity operations must be performed on the primary server thread.
+</Warning>
+
+```java
+// BAD - Will throw NbtApiException
+Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    NBTEntity nbtEntity = new NBTEntity(entity); // THROWS EXCEPTION
+});
+
+// GOOD - Run on main thread
+Bukkit.getScheduler().runTask(plugin, () -> {
+    NBTEntity nbtEntity = new NBTEntity(entity);
+    nbtEntity.setString("CustomName", "{\"text\":\"Boss\"}");
+});
+```
+
+## Common entity NBT tags
+
+Here are some commonly used vanilla NBT tags for entities:
+
+- `CustomName` - JSON text component for custom name
+- `CustomNameVisible` - Whether custom name is always visible
+- `Invulnerable` - Makes entity invulnerable to damage
+- `Health` - Current health value
+- `Fire` - Ticks the entity is on fire
+- `Air` - Remaining air when underwater
+- `NoAI` - Disables entity AI
+- `Silent` - Makes entity silent
+- `Glowing` - Makes entity glow
+- `Tags` - List of scoreboard tags
+- `Passengers` - List of riding entities
+
+## See also
+
+- [NBTCompound](/api/nbt/nbt-compound) - Base class for NBT operations
+- [NBTItem](/api/nbt/nbt-item) - Work with item NBT data
+- [NBTBlock](/api/nbt/nbt-block) - Store NBT data at block locations
+- [NBTFile](/api/nbt/nbt-file) - Read/write NBT data from files

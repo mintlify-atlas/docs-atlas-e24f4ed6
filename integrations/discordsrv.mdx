@@ -1,0 +1,416 @@
+---
+title: DiscordSRV integration
+description: Send messages from Minecraft to Discord channels
+---
+
+DiscordSRV bridges Minecraft and Discord, allowing cross-platform communication. Foundation's integration makes it easy to send messages to Discord channels from your plugin.
+
+## Check if loaded
+
+```java
+if (HookManager.isDiscordSRVLoaded()) {
+    // DiscordSRV is available
+}
+```
+
+## Get available channels
+
+Retrieve all configured Discord channels:
+
+```java
+Set<String> channels = HookManager.getDiscordChannels();
+
+for (String channel : channels) {
+    Common.log("Available channel: " + channel);
+}
+```
+
+## Send messages to Discord
+
+### Simple message
+
+Send a message to a Discord channel:
+
+```java
+String channel = "global";
+String message = "Server has started!";
+
+HookManager.sendDiscordMessage(channel, message);
+```
+
+### Message from player
+
+Send a message from a specific player (preserves player context):
+
+```java
+Player player = ...
+String channel = "announcements";
+String message = "I just got a rare item!";
+
+HookManager.sendDiscordMessage(player, channel, message);
+```
+
+### Message from sender
+
+Works with any `CommandSender`:
+
+```java
+CommandSender sender = ...
+String channel = "admin-log";
+String message = sender.getName() + " executed a command";
+
+HookManager.sendDiscordMessage(sender, channel, message);
+```
+
+## Practical examples
+
+### Server start/stop notifications
+
+```java
+public class MyPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        if (HookManager.isDiscordSRVLoaded()) {
+            HookManager.sendDiscordMessage("global", 
+                "**" + getServerName() + "** is now online!");
+        }
+    }
+    
+    @Override
+    protected void onPluginStop() {
+        if (HookManager.isDiscordSRVLoaded()) {
+            HookManager.sendDiscordMessage("global", 
+                "**" + getServerName() + "** is shutting down!");
+        }
+    }
+}
+```
+
+### Achievement announcements
+
+```java
+@EventHandler
+public void onPlayerAdvancement(PlayerAdvancementDoneEvent event) {
+    if (!HookManager.isDiscordSRVLoaded())
+        return;
+    
+    Player player = event.getPlayer();
+    String advancement = event.getAdvancement().getKey().getKey();
+    
+    // Only announce major achievements
+    if (advancement.startsWith("story/")) {
+        String message = "**" + player.getName() + "** completed: " + 
+            formatAdvancement(advancement);
+            
+        HookManager.sendDiscordMessage("achievements", message);
+    }
+}
+```
+
+### Death notifications
+
+```java
+@EventHandler
+public void onPlayerDeath(PlayerDeathEvent event) {
+    if (!HookManager.isDiscordSRVLoaded())
+        return;
+    
+    Player player = event.getEntity();
+    String deathMessage = event.getDeathMessage();
+    
+    if (deathMessage != null) {
+        HookManager.sendDiscordMessage("deaths", deathMessage);
+    }
+}
+```
+
+### Admin action logging
+
+```java
+public class BanCommand extends SimpleCommand {
+
+    public BanCommand() {
+        super("ban");
+        setPermission("myplugin.ban");
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        checkArgs(1, "Usage: /ban <player> [reason]");
+        
+        String targetName = args[0];
+        String reason = args.length > 1 ? joinArgs(1) : "No reason specified";
+        
+        // Ban the player
+        banPlayer(targetName, reason);
+        
+        // Log to Discord
+        if (HookManager.isDiscordSRVLoaded()) {
+            String message = "**" + sender.getName() + "** banned **" + 
+                targetName + "**: " + reason;
+                
+            HookManager.sendDiscordMessage("admin-log", message);
+        }
+        
+        tellSuccess("Banned " + targetName);
+    }
+}
+```
+
+### Shop purchases
+
+```java
+public void processPurchase(Player player, String item, double price) {
+    // Process the purchase
+    HookManager.withdraw(player, price);
+    giveItem(player, item);
+    
+    // Announce to Discord
+    if (HookManager.isDiscordSRVLoaded()) {
+        String message = "**" + player.getName() + "** purchased **" + 
+            item + "** for $" + price;
+            
+        HookManager.sendDiscordMessage("economy", message);
+    }
+    
+    Common.tell(player, "Purchased " + item + "!");
+}
+```
+
+### Vote rewards
+
+```java
+@EventHandler
+public void onVote(VotifierEvent event) {
+    Vote vote = event.getVote();
+    String playerName = vote.getUsername();
+    Player player = Bukkit.getPlayerExact(playerName);
+    
+    // Give reward
+    if (player != null) {
+        giveVoteReward(player);
+    }
+    
+    // Announce to Discord
+    if (HookManager.isDiscordSRVLoaded()) {
+        String message = "**" + playerName + "** just voted for the server! " +
+            "Type `/vote` to vote too!";
+            
+        HookManager.sendDiscordMessage("votes", message);
+    }
+}
+```
+
+### Report system
+
+```java
+public class ReportCommand extends SimpleCommand {
+
+    public ReportCommand() {
+        super("report");
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        checkArgs(2, "Usage: /report <player> <reason>");
+        
+        Player player = getPlayer();
+        String reported = args[0];
+        String reason = joinArgs(1);
+        
+        // Save report to database
+        saveReport(player, reported, reason);
+        
+        // Notify staff on Discord
+        if (HookManager.isDiscordSRVLoaded()) {
+            String message = "@here **New Report**\n" +
+                "Reporter: " + player.getName() + "\n" +
+                "Reported: " + reported + "\n" +
+                "Reason: " + reason;
+                
+            HookManager.sendDiscordMessage("reports", message);
+        }
+        
+        tellSuccess("Report submitted!");
+    }
+}
+```
+
+## Discord formatting
+
+Use Discord markdown for formatting:
+
+```java
+// Bold
+HookManager.sendDiscordMessage("global", "**Important message**");
+
+// Italic
+HookManager.sendDiscordMessage("global", "*Emphasized text*");
+
+// Code
+HookManager.sendDiscordMessage("global", "`inline code`");
+
+// Code block
+String code = "```java\nSystem.out.println(\"Hello\");\n```";
+HookManager.sendDiscordMessage("dev", code);
+
+// Mentions
+HookManager.sendDiscordMessage("admin", "@here Server restarting!");
+HookManager.sendDiscordMessage("admin", "<@123456789> check this out");
+
+// Emojis
+HookManager.sendDiscordMessage("global", "Server online! :white_check_mark:");
+```
+
+## Implementation details
+
+Foundation's DiscordSRV integration:
+
+```java DiscordSRVHook.java
+Set<String> getChannels() {
+    return DiscordSRV.getPlugin().getChannels().keySet();
+}
+
+boolean sendMessage(@Nullable CommandSender sender, final String channel, 
+                    final String message) {
+    final TextChannel textChannel = DiscordSRV.getPlugin()
+        .getDestinationTextChannelForGameChannelName(channel);
+    
+    // Channel not configured
+    if (textChannel == null) {
+        Debugger.debug("discord", "[MC->Discord] Could not find Discord channel '" 
+            + channel + "'. Available: " + String.join(", ", this.getChannels()) 
+            + ". Not sending: " + message);
+        
+        return false;
+    }
+    
+    if (sender instanceof Player) {
+        final DiscordSRV instance = JavaPlugin.getPlugin(DiscordSRV.class);
+        instance.processChatMessage((Player) sender, message, channel, false);
+    } else {
+        DiscordUtil.sendMessage(textChannel, message);
+    }
+    
+    return true;
+}
+```
+
+<Note>
+Messages are only sent if the channel exists in DiscordSRV's configuration. Non-existent channels are silently ignored with a debug message.
+</Note>
+
+## Channel configuration
+
+Configure channels in DiscordSRV's `config.yml`:
+
+```yaml
+Channels:
+  global: "123456789012345678"
+  admin-log: "234567890123456789"
+  announcements: "345678901234567890"
+```
+
+Then use the channel names in your code:
+
+```java
+HookManager.sendDiscordMessage("global", "Message");
+HookManager.sendDiscordMessage("admin-log", "Admin action");
+```
+
+## Safe defaults
+
+When DiscordSRV isn't loaded:
+
+```java HookManager.java
+public static Set<String> getDiscordChannels() {
+    return isDiscordSRVLoaded() ? discordSRVHook.getChannels() : new HashSet<>();
+}
+
+public static void sendDiscordMessage(final String channel, final String message) {
+    if (isDiscordSRVLoaded() && !Common.stripColors(message).isEmpty())
+        discordSRVHook.sendMessage(channel, message);
+}
+```
+
+## Best practices
+
+**Check if loaded** - Always verify DiscordSRV is available:
+
+```java
+if (HookManager.isDiscordSRVLoaded()) {
+    HookManager.sendDiscordMessage(channel, message);
+}
+```
+
+**Validate messages** - Don't send empty messages:
+
+```java
+if (!message.isEmpty()) {
+    HookManager.sendDiscordMessage("global", message);
+}
+```
+
+**Use appropriate channels** - Send to relevant channels:
+
+```java
+// Admin actions -> admin channel
+HookManager.sendDiscordMessage("admin-log", adminAction);
+
+// Player chat -> global channel
+HookManager.sendDiscordMessage("global", chatMessage);
+
+// Economy -> economy channel
+HookManager.sendDiscordMessage("economy", transaction);
+```
+
+**Rate limiting** - Don't spam Discord:
+
+```java
+// Bad - sends on every player move
+@EventHandler
+public void onPlayerMove(PlayerMoveEvent event) {
+    HookManager.sendDiscordMessage("global", "Player moved");
+}
+
+// Good - sends on significant events
+@EventHandler
+public void onPlayerJoin(PlayerJoinEvent event) {
+    HookManager.sendDiscordMessage("global", event.getPlayer().getName() + " joined");
+}
+```
+
+**Format for Discord** - Use Discord markdown:
+
+```java
+// Bold important text
+String message = "**[WARNING]** " + warningMessage;
+HookManager.sendDiscordMessage("alerts", message);
+```
+
+<Warning>
+Avoid sending messages on high-frequency events (player move, block break, etc.) as this can spam your Discord channels and hit rate limits.
+</Warning>
+
+## Supported DiscordSRV version
+
+Foundation requires DiscordSRV 1.18.x or newer. Older versions are not supported:
+
+```java HookManager.java
+if (Common.doesPluginExist("DiscordSRV"))
+    try {
+        Class.forName("github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel");
+        discordSRVHook = new DiscordSRVHook();
+    } catch (final ClassNotFoundException ex) {
+        Common.error(ex, "Failed to hook into DiscordSRV because the plugin " +
+            "is outdated (1.18.x is supported)!");
+    }
+```
+
+## Related
+
+- [Plugin integrations overview](/integrations/overview)
+- [Chat utilities](/utilities/chat) - Format messages for Discord

@@ -1,0 +1,474 @@
+---
+title: Reflection utilities
+description: Utility methods for reflection, class manipulation, and dynamic code execution
+---
+
+The `ReflectionUtil` class provides comprehensive utilities for Java reflection, including class loading, method invocation, field access, and NMS/OBC operations.
+
+## Class operations
+
+### Load classes
+
+```java
+// Load class by full path
+Class<?> clazz = ReflectionUtil.lookupClass("org.bukkit.entity.Player");
+
+// Check if class exists
+boolean exists = ReflectionUtil.isClassAvailable(
+    "org.bukkit.entity.Phantom"
+);
+
+if (exists) {
+    // Use Phantom features
+}
+```
+
+### NMS and OBC classes
+
+```java
+// Get NMS class (auto-versioned for MC < 1.17)
+Class<?> packetClass = ReflectionUtil.getNMSClass("Packet");
+
+// Get NMS class with 1.17+ support
+Class<?> entityPlayer = ReflectionUtil.getNMSClass(
+    "EntityPlayer",
+    "net.minecraft.server.level.EntityPlayer"
+);
+
+// Get OBC (CraftBukkit) class
+Class<?> craftPlayer = ReflectionUtil.getOBCClass(
+    "entity.CraftPlayer"
+);
+```
+
+### Get all classes from plugin
+
+```java
+// Get all classes in plugin
+List<Class<?>> allClasses = ReflectionUtil.getClasses(plugin);
+
+// Get classes extending specific class
+TreeSet<Class<SimpleCommand>> commands = 
+    ReflectionUtil.getClasses(plugin, SimpleCommand.class);
+
+for (Class<SimpleCommand> cmdClass : commands) {
+    // Register command
+}
+```
+
+## Creating instances
+
+### Instantiate objects
+
+```java
+// Create instance without parameters
+MyClass instance = ReflectionUtil.instantiate(MyClass.class);
+
+// Create instance with parameters
+MyClass instance = ReflectionUtil.instantiate(
+    MyClass.class,
+    "param1",
+    123,
+    true
+);
+
+// Instantiate from class path
+MyClass instance = ReflectionUtil.instantiate(
+    "org.example.MyClass"
+);
+
+// Instantiate NMS class
+Object nmsObject = ReflectionUtil.instantiateNMS(
+    "PacketPlayOutChat",
+    chatComponent
+);
+```
+
+### Using constructors
+
+```java
+// Get constructor
+Constructor<MyClass> constructor = 
+    ReflectionUtil.getConstructor(
+        MyClass.class,
+        String.class,
+        int.class
+    );
+
+// Create instance from constructor
+MyClass instance = ReflectionUtil.instantiate(
+    constructor,
+    "test",
+    42
+);
+```
+
+## Field operations
+
+### Get field values
+
+```java
+// Get field from instance
+String value = ReflectionUtil.getFieldContent(
+    object,
+    "fieldName"
+);
+
+// Get static field
+String value = ReflectionUtil.getStaticFieldContent(
+    MyClass.class,
+    "STATIC_FIELD"
+);
+
+// Get declared field
+Field field = ReflectionUtil.getDeclaredField(
+    MyClass.class,
+    "privateField"
+);
+
+Object value = ReflectionUtil.getFieldContent(field, object);
+```
+
+### Set field values
+
+```java
+// Set instance field
+ReflectionUtil.setDeclaredField(
+    object,
+    "fieldName",
+    "newValue"
+);
+
+// Set static field
+ReflectionUtil.setStaticField(
+    MyClass.class,
+    "STATIC_FIELD",
+    "newValue"
+);
+```
+
+### Get all fields
+
+```java
+// Get all fields including from superclasses
+Field[] fields = ReflectionUtil.getAllFields(MyClass.class);
+
+for (Field field : fields) {
+    Common.log("Field: " + field.getName());
+}
+```
+
+## Method operations
+
+### Get methods
+
+```java
+// Get method
+Method method = ReflectionUtil.getMethod(
+    MyClass.class,
+    "methodName",
+    String.class,
+    int.class
+);
+
+// Get method without parameters
+Method method = ReflectionUtil.getMethod(
+    MyClass.class,
+    "simpleMethod"
+);
+
+// Get declared method (including private)
+Method method = ReflectionUtil.getDeclaredMethod(
+    MyClass.class,
+    "privateMethod",
+    String.class
+);
+```
+
+### Invoke methods
+
+```java
+// Invoke instance method
+String result = ReflectionUtil.invoke(
+    "methodName",
+    object,
+    "param1",
+    123
+);
+
+// Invoke static method
+String result = ReflectionUtil.invokeStatic(
+    MyClass.class,
+    "staticMethod",
+    "param"
+);
+
+// Invoke with method object
+Object result = ReflectionUtil.invoke(
+    method,
+    object,
+    "param1",
+    "param2"
+);
+```
+
+## Enum handling
+
+### Lookup enums
+
+```java
+// Lookup enum safely
+Material mat = ReflectionUtil.lookupEnum(
+    Material.class,
+    "DIAMOND_SWORD"
+);
+
+// Lookup with fallback names (for version compatibility)
+EntityType type = ReflectionUtil.lookupLegacyEnum(
+    EntityType.class,
+    "ZOMBIFIED_PIGLIN",
+    "PIG_ZOMBIE"
+);
+
+// Lookup enum silently (returns null if not found)
+Material mat = ReflectionUtil.lookupEnumSilent(
+    Material.class,
+    "SOME_ITEM"
+);
+
+if (mat != null) {
+    // Material exists
+}
+```
+
+### Enum utilities
+
+```java
+// Get enum name (works for enum and Keyed interfaces)
+String name = ReflectionUtil.getEnumName(Material.DIAMOND);
+// Result: "DIAMOND"
+
+// Get all enum values
+Material[] values = ReflectionUtil.getEnumValues(Material.class);
+```
+
+## Debugging
+
+```java
+// Get caller method info (useful for debugging)
+String callers = ReflectionUtil.getCallerMethods(0, 3);
+// Result: "MyClass#25-myMethod().OtherClass#42-otherMethod()"
+```
+
+## Examples
+
+### Dynamic command registration
+
+```java
+public class CommandLoader {
+    
+    public void loadCommands() {
+        // Find all command classes
+        TreeSet<Class<SimpleCommand>> commands = 
+            ReflectionUtil.getClasses(
+                SimplePlugin.getInstance(),
+                SimpleCommand.class
+            );
+        
+        for (Class<SimpleCommand> cmdClass : commands) {
+            try {
+                // Create instance
+                SimpleCommand command = 
+                    ReflectionUtil.instantiate(cmdClass);
+                
+                // Register
+                SimpleCommandGroup.registerCommand(command);
+                
+                Common.log("Registered command: " + 
+                    cmdClass.getSimpleName());
+                    
+            } catch (Exception ex) {
+                Common.error(ex, 
+                    "Failed to load command: " + 
+                    cmdClass.getName()
+                );
+            }
+        }
+    }
+}
+```
+
+### Version-compatible code
+
+```java
+public class VersionHandler {
+    
+    private static Method getHandleMethod;
+    private static Method sendPacketMethod;
+    
+    static {
+        try {
+            // Get methods for packet sending
+            Class<?> craftPlayer = ReflectionUtil.getOBCClass(
+                "entity.CraftPlayer"
+            );
+            
+            getHandleMethod = ReflectionUtil.getMethod(
+                craftPlayer,
+                "getHandle"
+            );
+            
+            Class<?> entityPlayer = ReflectionUtil.getNMSClass(
+                "EntityPlayer",
+                "net.minecraft.server.level.EntityPlayer"
+            );
+            
+            Class<?> playerConnection = ReflectionUtil.getNMSClass(
+                "PlayerConnection",
+                "net.minecraft.server.network.PlayerConnection"
+            );
+            
+            // Find sendPacket method
+            for (Method method : playerConnection.getMethods()) {
+                if (method.getName().equals("sendPacket")) {
+                    sendPacketMethod = method;
+                    break;
+                }
+            }
+            
+        } catch (Exception ex) {
+            Common.error(ex, "Failed to initialize version handler");
+        }
+    }
+    
+    public static void sendPacket(Player player, Object packet) {
+        try {
+            Object handle = ReflectionUtil.invoke(
+                getHandleMethod,
+                player
+            );
+            
+            Object connection = ReflectionUtil.getFieldContent(
+                handle,
+                MinecraftVersion.atLeast(V.v1_17) ? 
+                    "b" : "playerConnection"
+            );
+            
+            ReflectionUtil.invoke(
+                sendPacketMethod,
+                connection,
+                packet
+            );
+            
+        } catch (Exception ex) {
+            Common.error(ex, "Failed to send packet");
+        }
+    }
+}
+```
+
+### Configuration with enum fallback
+
+```java
+public class ConfigManager {
+    
+    public Material getMaterial(String path) {
+        String value = config.getString(path);
+        
+        try {
+            return ReflectionUtil.lookupEnum(
+                Material.class,
+                value
+            );
+        } catch (MissingEnumException ex) {
+            Common.warning(
+                "Invalid material in config: " + value +
+                " at " + path
+            );
+            
+            return Material.STONE; // Default
+        }
+    }
+    
+    public EntityType getEntityType(String path, EntityType def) {
+        String value = config.getString(path);
+        
+        // Use silent lookup (returns null if not found)
+        EntityType type = ReflectionUtil.lookupEnumSilent(
+            EntityType.class,
+            value
+        );
+        
+        return type != null ? type : def;
+    }
+}
+```
+
+### Dynamic plugin feature loading
+
+```java
+public abstract class Feature {
+    public abstract void enable();
+    public abstract void disable();
+}
+
+public class FeatureManager {
+    
+    private final List<Feature> features = new ArrayList<>();
+    
+    public void loadFeatures() {
+        // Find all feature classes
+        TreeSet<Class<Feature>> featureClasses = 
+            ReflectionUtil.getClasses(
+                SimplePlugin.getInstance(),
+                Feature.class
+            );
+        
+        for (Class<Feature> featureClass : featureClasses) {
+            // Skip abstract classes
+            if (Modifier.isAbstract(featureClass.getModifiers())) {
+                continue;
+            }
+            
+            try {
+                // Create and enable feature
+                Feature feature = ReflectionUtil.instantiate(
+                    featureClass
+                );
+                
+                feature.enable();
+                features.add(feature);
+                
+                Common.log("Loaded feature: " + 
+                    featureClass.getSimpleName());
+                    
+            } catch (Exception ex) {
+                Common.error(ex, 
+                    "Failed to load feature: " + 
+                    featureClass.getName()
+                );
+            }
+        }
+    }
+    
+    public void disableFeatures() {
+        for (Feature feature : features) {
+            try {
+                feature.disable();
+            } catch (Exception ex) {
+                Common.error(ex, "Error disabling feature");
+            }
+        }
+        
+        features.clear();
+    }
+}
+```
+
+<Note>
+Reflection operations can throw `ReflectionException` if classes, methods, or fields are not found.
+</Note>
+
+<Tip>
+Use `ReflectionUtil.lookupEnumSilent()` when loading enums from config files to gracefully handle version differences.
+</Tip>

@@ -1,0 +1,439 @@
+---
+title: Database
+description: Connect to MySQL, MariaDB, and SQLite databases with automatic serialization and connection management
+---
+
+Foundation's `SimpleDatabase` class provides a unified interface for working with MySQL, MariaDB, and SQLite databases with automatic connection management and data serialization.
+
+## Creating a database
+
+Extend `SimpleDatabase` and implement `onConnected()`:
+
+```java
+public class PlayerDatabase extends SimpleDatabase {
+
+    @Override
+    protected void onConnected() {
+        createTable(TableCreator.of("Players")
+            .add("UUID", "VARCHAR(36)")
+            .addNotNull("Name", "VARCHAR(16)")
+            .add("Coins", "INTEGER")
+            .add("LastSeen", "BIGINT")
+            .setPrimaryColumn("UUID"));
+    }
+}
+```
+
+## Connecting
+
+### MySQL
+
+```java
+@Override
+protected void onPluginStart() {
+    database = new PlayerDatabase();
+    database.connect(
+        "localhost",    // host
+        3306,           // port
+        "minecraft",    // database
+        "root",         // user
+        "password",     // password
+        "Players"       // table
+    );
+}
+```
+
+### MariaDB
+
+```java
+database.connect(
+    "jdbc:mariadb://localhost:3306/minecraft?useSSL=false",
+    "root",
+    "password",
+    "Players"
+);
+```
+
+### SQLite
+
+```java
+database.connect(
+    "jdbc:sqlite://database.db"
+);
+```
+
+## Creating tables
+
+Use `TableCreator` for type-safe table creation:
+
+```java
+createTable(TableCreator.of("Warps")
+    .addAutoIncrement("ID", "INTEGER")
+    .addNotNull("Name", "VARCHAR(32)")
+    .addNotNull("World", "VARCHAR(32)")
+    .add("X", "DOUBLE")
+    .add("Y", "DOUBLE")
+    .add("Z", "DOUBLE")
+    .addDefault("Enabled", "BOOLEAN", "true")
+    .setPrimaryColumn("ID"));
+```
+
+### Column types
+
+<CodeGroup>
+```java Basic
+add("ColumnName", "VARCHAR(255)")
+```
+
+```java Not null
+addNotNull("ColumnName", "INTEGER")
+```
+
+```java Auto increment
+addAutoIncrement("ID", "INTEGER")
+```
+
+```java Default value
+addDefault("Active", "BOOLEAN", "true")
+```
+</CodeGroup>
+
+## Inserting data
+
+### Single insert
+
+```java
+insert("Players", SerializedMap.ofArray(
+    "UUID", player.getUniqueId().toString(),
+    "Name", player.getName(),
+    "Coins", 0,
+    "LastSeen", System.currentTimeMillis()
+));
+```
+
+### Batch insert
+
+```java
+List<SerializedMap> batch = new ArrayList<>();
+
+for (Player player : Bukkit.getOnlinePlayers()) {
+    batch.add(SerializedMap.ofArray(
+        "UUID", player.getUniqueId().toString(),
+        "Name", player.getName(),
+        "Coins", 0
+    ));
+}
+
+insertBatch("Players", batch);
+```
+
+### Serializable objects
+
+```java
+public class PlayerData implements ConfigSerializable {
+    private UUID uuid;
+    private String name;
+    private int coins;
+    
+    @Override
+    public SerializedMap serialize() {
+        return SerializedMap.ofArray(
+            "UUID", uuid.toString(),
+            "Name", name,
+            "Coins", coins
+        );
+    }
+}
+
+// Insert directly
+insert("Players", playerData);
+```
+
+## Querying data
+
+### Select all
+
+```java
+Common.runAsync(() -> {
+    selectAll("Players", resultSet -> {
+        UUID uuid = resultSet.getUniqueId("UUID");
+        String name = resultSet.getString("Name");
+        int coins = resultSet.getInt("Coins");
+        
+        System.out.println(name + " has " + coins + " coins");
+    });
+});
+```
+
+### With conditions
+
+```java
+select("Players", "Coins > 100", resultSet -> {
+    String name = resultSet.getString("Name");
+    System.out.println("Rich player: " + name);
+});
+```
+
+### Map conditions
+
+```java
+Map<String, Object> conditions = new HashMap<>();
+conditions.put("Name", "Notch");
+conditions.put("Coins", 9999);
+
+select("Players", conditions, resultSet -> {
+    // Results matching both conditions
+});
+```
+
+## Result set helpers
+
+### Basic types
+
+```java
+String name = resultSet.getString("Name");
+int coins = resultSet.getInt("Coins");
+long lastSeen = resultSet.getLong("LastSeen");
+boolean active = resultSet.getBoolean("Active");
+double balance = resultSet.getDouble("Balance");
+```
+
+### Strict getters
+
+Throw exception if value is null:
+
+```java
+String name = resultSet.getStringStrict("Name");
+UUID uuid = resultSet.getUniqueIdStrict("UUID");
+int coins = resultSet.getIntStrict("Coins");
+```
+
+### Special types
+
+<Tabs>
+<Tab title="UUID">
+```java
+UUID uuid = resultSet.getUniqueId("UUID");
+UUID strict = resultSet.getUniqueIdStrict("UUID");
+```
+</Tab>
+
+<Tab title="Enum">
+```java
+GameMode mode = resultSet.getEnum("GameMode", GameMode.class);
+GameMode strict = resultSet.getEnumStrict("GameMode", GameMode.class);
+```
+</Tab>
+
+<Tab title="ItemStack">
+```java
+ItemStack item = resultSet.getItem("Item");
+ItemStack strict = resultSet.getItemStrict("Item");
+ItemStack[] items = resultSet.getItemArray("Items");
+```
+</Tab>
+
+<Tab title="Timestamp">
+```java
+long timestamp = resultSet.getTimestamp("Created");
+long strict = resultSet.getTimestampStrict("Created");
+```
+</Tab>
+</Tabs>
+
+## Updating data
+
+```java
+update("UPDATE Players SET Coins = Coins + 100 WHERE UUID = '" 
+    + player.getUniqueId() + "'");
+```
+
+### Using variables
+
+```java
+addVariable("table", "Players");
+
+update("UPDATE {table} SET Coins = 500 WHERE Name = 'Notch'");
+```
+
+## Counting rows
+
+```java
+int count = count("Players", "Coins", 1000);
+System.out.println(count + " players have 1000 coins");
+
+// With multiple conditions
+int richPlayers = count("Players", SerializedMap.ofArray(
+    "Coins >", 1000,
+    "Active", true
+));
+```
+
+## Raw queries
+
+```java
+ResultSet results = query("SELECT * FROM Players WHERE Coins > 500");
+
+while (results.next()) {
+    String name = results.getString("Name");
+    int coins = results.getInt("Coins");
+}
+
+close(results);
+```
+
+## Prepared statements
+
+```java
+PreparedStatement statement = prepareStatement(
+    "SELECT * FROM Players WHERE UUID = ?"
+);
+
+statement.setString(1, player.getUniqueId().toString());
+ResultSet results = statement.executeQuery();
+
+while (results.next()) {
+    // Process results
+}
+
+results.close();
+statement.close();
+```
+
+## Connection management
+
+### Check connection
+
+```java
+if (database.isConnected()) {
+    // Database is ready
+}
+
+if (database.isLoaded()) {
+    // Connection was established at least once
+}
+```
+
+### Reconnect
+
+```java
+if (!database.isConnected()) {
+    database.connectUsingLastCredentials();
+}
+```
+
+### Close connection
+
+```java
+@Override
+protected void onPluginStop() {
+    database.close();
+}
+```
+
+## Variables
+
+Define reusable variables for queries:
+
+```java
+public PlayerDatabase() {
+    addVariable("table", "Players");
+    addVariable("prefix", "mc_");
+}
+
+// Use in queries
+update("UPDATE {table} SET Coins = 100");
+select("{prefix}stats", null, resultSet -> {
+    // ...
+});
+```
+
+## Driver configuration
+
+### Use HikariCP
+
+```java
+SimpleDatabase.setConnectUsingHikari(true); // Default: true
+```
+
+### Serialization mode
+
+```java
+@Override
+protected Mode getTableMode() {
+    return SerializeUtil.Mode.JSON; // or Mode.YAML
+}
+```
+
+## SQLite compatibility
+
+```java
+if (isSQLite()) {
+    // Use SQLite-specific syntax
+} else {
+    // Use MySQL/MariaDB syntax
+}
+```
+
+## Best practices
+
+<Steps>
+<Step title="Always run async">
+```java
+Common.runAsync(() -> {
+    database.select("Players", null, resultSet -> {
+        // Database operation
+    });
+});
+```
+</Step>
+
+<Step title="Close connections">
+```java
+@Override
+protected void onPluginStop() {
+    if (database != null && database.isConnected()) {
+        database.close();
+    }
+}
+```
+</Step>
+
+<Step title="Use batch operations">
+```java
+// Instead of multiple inserts
+for (Player player : players) {
+    insert("Players", data); // Bad
+}
+
+// Use batch insert
+List<SerializedMap> batch = new ArrayList<>();
+for (Player player : players) {
+    batch.add(data);
+}
+insertBatch("Players", batch); // Good
+```
+</Step>
+
+<Step title="Handle errors gracefully">
+```java
+Common.runAsync(() -> {
+    try {
+        select("Players", null, resultSet -> {
+            // Process data
+        });
+    } catch (Exception e) {
+        Common.error(e, "Failed to load player data");
+    }
+});
+```
+</Step>
+</Steps>
+
+<Note>
+All database operations should be run asynchronously to avoid blocking the main thread.
+</Note>
+
+<Warning>
+Never use string concatenation for user input in queries - always use prepared statements to prevent SQL injection!
+</Warning>

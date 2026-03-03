@@ -1,0 +1,235 @@
+---
+title: Item utilities
+description: Utility methods for working with items, materials, and inventories
+---
+
+The `ItemUtil` class provides utilities for comparing items, formatting material and enchantment names, and working with item properties.
+
+## Comparing items
+
+### Item similarity
+
+Compare if two items are similar (same type, name, and lore):
+
+```java
+ItemStack item1 = new ItemStack(Material.DIAMOND_SWORD);
+ItemStack item2 = new ItemStack(Material.DIAMOND_SWORD);
+
+// Check if items are similar
+boolean similar = ItemUtil.isSimilar(item1, item2);
+```
+
+<Note>
+Two items are similar if they have the same:
+- Material type
+- Display name
+- Lore
+- NBT data (plugin-specific tags)
+
+The comparison ignores:
+- Durability/damage
+- Stack size
+- Enchantments
+- Item flags
+</Note>
+
+### What is compared
+
+```java
+ItemStack sword1 = new ItemStack(Material.DIAMOND_SWORD);
+sword1.setAmount(1);
+ItemMeta meta1 = sword1.getItemMeta();
+meta1.setDisplayName("Super Sword");
+meta1.setLore(Arrays.asList("Line 1", "Line 2"));
+sword1.setItemMeta(meta1);
+
+ItemStack sword2 = new ItemStack(Material.DIAMOND_SWORD);
+sword2.setAmount(64); // Different amount
+ItemMeta meta2 = sword2.getItemMeta();
+meta2.setDisplayName("Super Sword"); // Same name
+meta2.setLore(Arrays.asList("Line 1", "Line 2")); // Same lore
+meta2.addEnchant(Enchantment.DAMAGE_ALL, 5, true); // Extra enchant
+sword2.setItemMeta(meta2);
+
+// Still returns true! Amount and enchants are ignored
+boolean similar = ItemUtil.isSimilar(sword1, sword2);
+```
+
+## Formatting names
+
+### Material names
+
+Convert enum names to readable format:
+
+```java
+// Lowercase with spaces
+String name = ItemUtil.bountify("DIAMOND_SWORD");
+// Result: "diamond sword"
+
+// Capitalized
+String name = ItemUtil.bountifyCapitalized("GOLDEN_APPLE");
+// Result: "Golden Apple"
+
+// From enum
+String name = ItemUtil.bountifyCapitalized(Material.DIAMOND_SWORD);
+// Result: "Diamond Sword"
+```
+
+### Enchantment names
+
+Get user-friendly enchantment names:
+
+```java
+// Get enchantment display name
+String name = ItemUtil.bountify(Enchantment.DAMAGE_ALL);
+// Result: "sharpness"
+
+String name = ItemUtil.bountifyCapitalized(Enchantment.DIG_SPEED);
+// Result: "Efficiency"
+```
+
+### Potion effect names
+
+Format potion effect types:
+
+```java
+// Get potion effect name
+String name = ItemUtil.bountify(PotionEffectType.SPEED);
+// Result: "speed"
+
+String name = ItemUtil.bountifyCapitalized(PotionEffectType.INCREASE_DAMAGE);
+// Result: "Strength"
+```
+
+### Color names
+
+```java
+// Format color names
+String name = ItemUtil.bountifyCapitalized(CompChatColor.RED);
+// Result: "Red"
+```
+
+## Examples
+
+### Custom item comparison
+
+```java
+public class CustomItemManager {
+    
+    private final ItemStack template;
+    
+    public CustomItemManager() {
+        // Create template item
+        template = new ItemStack(Material.DIAMOND_SWORD);
+        ItemMeta meta = template.getItemMeta();
+        meta.setDisplayName("§6Legendary Sword");
+        meta.setLore(Arrays.asList(
+            "§7A powerful weapon",
+            "§7with legendary status"
+        ));
+        template.setItemMeta(meta);
+    }
+    
+    public boolean isCustomItem(ItemStack item) {
+        // Compare against template
+        // Ignores durability and enchantments
+        return ItemUtil.isSimilar(item, template);
+    }
+    
+    public void giveCustomItem(Player player) {
+        ItemStack item = template.clone();
+        
+        // Add enchantments (won't affect similarity check)
+        item.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 10);
+        
+        player.getInventory().addItem(item);
+    }
+}
+```
+
+### Shop display formatting
+
+```java
+public class ShopMenu extends Menu {
+    
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 0) {
+            return ItemCreator.of(
+                CompMaterial.DIAMOND_SWORD,
+                "&6" + ItemUtil.bountifyCapitalized(Material.DIAMOND_SWORD),
+                "",
+                "&7Price: &e$100"
+            ).build().make();
+        }
+        
+        return null;
+    }
+}
+```
+
+### Enchantment display
+
+```java
+public List<String> getEnchantmentLore(ItemStack item) {
+    List<String> lore = new ArrayList<>();
+    
+    if (item.hasItemMeta() && item.getItemMeta().hasEnchants()) {
+        lore.add("§7Enchantments:");
+        
+        for (Map.Entry<Enchantment, Integer> entry : 
+             item.getItemMeta().getEnchants().entrySet()) {
+            
+            String name = ItemUtil.bountifyCapitalized(entry.getKey());
+            int level = entry.getValue();
+            
+            lore.add("§8 - §e" + name + " " + 
+                    MathUtil.toRoman(level));
+        }
+    }
+    
+    return lore;
+}
+```
+
+### Inventory search
+
+```java
+public int countSimilarItems(Player player, ItemStack searchItem) {
+    int count = 0;
+    
+    for (ItemStack item : player.getInventory().getContents()) {
+        if (item != null && ItemUtil.isSimilar(item, searchItem)) {
+            count += item.getAmount();
+        }
+    }
+    
+    return count;
+}
+
+public void removeSimilarItems(Player player, ItemStack searchItem, int amount) {
+    int remaining = amount;
+    
+    for (int i = 0; i < player.getInventory().getSize(); i++) {
+        ItemStack item = player.getInventory().getItem(i);
+        
+        if (item != null && ItemUtil.isSimilar(item, searchItem)) {
+            int itemAmount = item.getAmount();
+            
+            if (itemAmount <= remaining) {
+                player.getInventory().setItem(i, null);
+                remaining -= itemAmount;
+            } else {
+                item.setAmount(itemAmount - remaining);
+                remaining = 0;
+            }
+            
+            if (remaining == 0) break;
+        }
+    }
+}
+```
+
+<Tip>
+Use `ItemUtil.isSimilar()` when you want to identify custom items by their name and lore, regardless of durability or enchantments.
+</Tip>

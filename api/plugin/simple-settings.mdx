@@ -1,0 +1,448 @@
+---
+title: SimpleSettings
+description: A static configuration class for managing your plugin's main settings.yml file
+---
+
+## Overview
+
+`SimpleSettings` is a static implementation of `YamlStaticConfig` designed for your plugin's main configuration file (typically `settings.yml`). All settings are accessed statically from anywhere in your code.
+
+**Package:** `org.mineacademy.fo.settings`
+
+**Extends:** `YamlStaticConfig`
+
+<Note>
+To use this class, create a subclass that extends `SimpleSettings` and place it in your plugin. Foundation will automatically load it on startup.
+</Note>
+
+## Default settings
+
+Foundation provides several built-in settings that you can use in your configuration file.
+
+### VERSION
+
+```java
+public static Integer VERSION = 1
+```
+
+The configuration version number from the "Version" key in your settings file. Defaults to 1 if not set.
+
+**Example in settings.yml:**
+
+```yaml
+Version: 2
+```
+
+### PLUGIN_PREFIX
+
+```java
+public static String PLUGIN_PREFIX
+```
+
+The plugin prefix displayed in front of chat and console messages.
+
+**Default:** `"&7" + SimplePlugin.getNamed() + " //"`
+
+**Example in settings.yml:**
+
+```yaml
+Prefix: "&8[&3MyPlugin&8]&7 "
+```
+
+**Usage:**
+
+```java
+Common.tell(player, "Hello!"); // Uses PLUGIN_PREFIX automatically
+```
+
+### DEBUG_SECTIONS
+
+```java
+public static StrictList<String> DEBUG_SECTIONS
+```
+
+List of debug sections to enable in the Debugger. When you call `Debugger.debug(section, message)`, only sections listed here will output to console.
+
+**Example in settings.yml:**
+
+```yaml
+Debug:
+  - commands
+  - database
+  - auto-register
+```
+
+**Usage:**
+
+```java
+Debugger.debug("database", "Executing query: {0}", query);
+```
+
+### DATE_FORMAT
+
+```java
+public static DateFormat DATE_FORMAT
+public static DateFormat DATE_FORMAT_SHORT
+public static DateFormat DATE_FORMAT_MONTH
+```
+
+Date formats for the `{date}`, `{date_short}`, and `{date_month}` placeholders.
+
+**Defaults:**
+- `DATE_FORMAT`: `"dd.MM.yyyy HH:mm:ss"`
+- `DATE_FORMAT_SHORT`: `"dd.MM.yyyy HH:mm"`
+- `DATE_FORMAT_MONTH`: `"dd.MM HH:mm"`
+
+**Example in settings.yml:**
+
+```yaml
+Date_Format: "MM/dd/yyyy HH:mm:ss"
+Date_Format_Short: "MM/dd/yyyy"
+Date_Format_Month: "MM/dd HH:mm"
+```
+
+### LOCATION_FORMAT
+
+```java
+public static String LOCATION_FORMAT
+```
+
+The format for displaying locations using the `{location}` placeholder.
+
+**Default:** `"{world} [{x}, {y}, {z}]"`
+
+**Example in settings.yml:**
+
+```yaml
+Location_Format: "World: {world}, X: {x}, Y: {y}, Z: {z}"
+```
+
+### LAG_THRESHOLD_MILLIS
+
+```java
+public static Integer LAG_THRESHOLD_MILLIS
+```
+
+The lag threshold in milliseconds for the LagCatcher. Set to `-1` to disable, `0` to log everything.
+
+**Default:** `100`
+
+**Example in settings.yml:**
+
+```yaml
+Log_Lag_Over_Milis: 100
+```
+
+<Warning>
+Setting this to `0` will log all performance checks, which can spam your console.
+</Warning>
+
+### REGEX_TIMEOUT
+
+```java
+public static Integer REGEX_TIMEOUT
+```
+
+Timeout in milliseconds for regex pattern execution. Prevents server freeze on malformed regex.
+
+**Default:** `100`
+
+**Example in settings.yml:**
+
+```yaml
+Regex_Timeout_Milis: 100
+```
+
+### MAIN_COMMAND_ALIASES
+
+```java
+public static StrictList<String> MAIN_COMMAND_ALIASES
+```
+
+List of command aliases for your main plugin command. Only needed if you use `@AutoRegister` on your main command group.
+
+**Example in settings.yml:**
+
+```yaml
+Command_Aliases:
+  - myplugin
+  - mp
+  - myp
+```
+
+**Usage:**
+
+```java
+// Players can now use: /myplugin, /mp, or /myp
+```
+
+### LOCALE_PREFIX
+
+```java
+public static String LOCALE_PREFIX
+```
+
+The localization prefix for loading language files. The file path will be `localization/messages_PREFIX.yml`.
+
+**Default:** `"en"`
+
+**Example in settings.yml:**
+
+```yaml
+Locale: "es" # Loads localization/messages_es.yml
+```
+
+### NOTIFY_UPDATES
+
+```java
+public static Boolean NOTIFY_UPDATES
+```
+
+Whether to check for updates from SpigotMC and notify console and users with permission.
+
+**Default:** `true`
+
+**Example in settings.yml:**
+
+```yaml
+Notify_Updates: true
+```
+
+## Core methods
+
+### getSettingsFileName
+
+```java
+protected String getSettingsFileName()
+```
+
+Returns the settings file name. Override this to use a different file name.
+
+**Returns:** `"settings.yml"` by default
+
+**Example:**
+
+```java
+@Override
+protected String getSettingsFileName() {
+    return "config.yml";
+}
+```
+
+### getConfigVersion
+
+```java
+protected int getConfigVersion()
+```
+
+Return the latest config version. This should match the "Version" key in your settings file.
+
+**Returns:** `1` by default
+
+**Example:**
+
+```java
+@Override
+protected int getConfigVersion() {
+    return 3; // Current version of your config
+}
+```
+
+### isSettingsCalled
+
+```java
+public static final Boolean isSettingsCalled()
+```
+
+Checks if the settings class has been loaded.
+
+**Returns:** `true` if loaded, `false` otherwise
+
+### resetSettingsCall
+
+```java
+public static final void resetSettingsCall()
+```
+
+Resets the loaded flag. Used internally during reloading.
+
+## Creating your settings class
+
+Here's a complete example of how to create your own settings class:
+
+```java
+package com.example.myplugin.settings;
+
+import org.mineacademy.fo.settings.SimpleSettings;
+
+public class Settings extends SimpleSettings {
+
+    /**
+     * Custom setting: Maximum players in arena
+     */
+    public static Integer MAX_PLAYERS;
+
+    /**
+     * Custom setting: Enable special features
+     */
+    public static Boolean ENABLE_FEATURES;
+
+    /**
+     * Custom setting: Welcome message
+     */
+    public static String WELCOME_MESSAGE;
+
+    /**
+     * Custom setting: List of disabled worlds
+     */
+    public static List<String> DISABLED_WORLDS;
+
+    @Override
+    protected int getConfigVersion() {
+        return 2;
+    }
+
+    /**
+     * Load custom settings
+     */
+    private static void init() {
+        // Always call this first
+        setPathPrefix(null);
+
+        // Load custom values
+        if (isSetDefault("Max_Players"))
+            MAX_PLAYERS = getInteger("Max_Players");
+
+        if (isSetDefault("Enable_Features"))
+            ENABLE_FEATURES = getBoolean("Enable_Features");
+
+        if (isSetDefault("Welcome_Message"))
+            WELCOME_MESSAGE = getString("Welcome_Message");
+
+        if (isSetDefault("Disabled_Worlds"))
+            DISABLED_WORLDS = getStringList("Disabled_Worlds");
+    }
+}
+```
+
+**Corresponding settings.yml:**
+
+```yaml
+# DO NOT EDIT THIS VALUE
+Version: 2
+
+# Plugin messages prefix
+Prefix: "&8[&3MyPlugin&8]&7 "
+
+# Debug sections to enable
+Debug: []
+
+# Maximum players allowed in arena
+Max_Players: 10
+
+# Enable special features?
+Enable_Features: true
+
+# Welcome message for new players
+Welcome_Message: "&6Welcome to the server!"
+
+# Worlds where the plugin is disabled
+Disabled_Worlds:
+  - world_nether
+  - world_the_end
+```
+
+## Using settings in your plugin
+
+Once your settings class is created, access values from anywhere:
+
+```java
+import com.example.myplugin.settings.Settings;
+
+public class ArenaManager {
+
+    public void createArena() {
+        // Access settings statically
+        int maxPlayers = Settings.MAX_PLAYERS;
+        
+        if (Settings.ENABLE_FEATURES) {
+            // Do something special
+        }
+        
+        // Use built-in settings
+        String prefix = Settings.PLUGIN_PREFIX;
+        player.sendMessage(prefix + "Arena created!");
+    }
+
+    public boolean isWorldEnabled(World world) {
+        return !Settings.DISABLED_WORLDS.contains(world.getName());
+    }
+}
+```
+
+## Path prefixes
+
+You can organize settings into sections using path prefixes:
+
+```java
+private static void init() {
+    // Load arena settings
+    setPathPrefix("Arena");
+    
+    if (isSetDefault("Max_Players"))
+        MAX_PLAYERS = getInteger("Max_Players");
+    
+    if (isSetDefault("Min_Players"))
+        MIN_PLAYERS = getInteger("Min_Players");
+    
+    // Load economy settings
+    setPathPrefix("Economy");
+    
+    if (isSetDefault("Starting_Balance"))
+        STARTING_BALANCE = getInteger("Starting_Balance");
+}
+```
+
+**Corresponding YAML:**
+
+```yaml
+Arena:
+  Max_Players: 10
+  Min_Players: 2
+
+Economy:
+  Starting_Balance: 1000
+```
+
+## Upgrading old settings
+
+Use version checking to migrate old configurations:
+
+```java
+@Override
+protected void preLoad() {
+    super.preLoad();
+    
+    // Upgrade from version 1 to 2
+    if (VERSION < 2) {
+        if (isSet("Old_Setting_Name"))
+            move("Old_Setting_Name", "New_Setting_Name");
+    }
+}
+```
+
+## Best practices
+
+<Note>
+- Always check `isSetDefault()` before loading a setting to avoid errors
+- Use `setPathPrefix(null)` before loading top-level settings
+- Override `getConfigVersion()` and increment it when you change the config structure
+- The `init()` method must be `private static void init()`
+- Foundation automatically calls `init()` via reflection
+</Note>
+
+<Warning>
+- Never access settings in static initializers or constructors
+- Always use `isSetDefault()` to check if a key exists before reading it
+- Call `super.preLoad()` if you override the `preLoad()` method
+</Warning>

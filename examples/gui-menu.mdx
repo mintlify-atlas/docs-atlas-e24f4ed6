@@ -1,0 +1,518 @@
+---
+title: GUI menu
+description: Create interactive inventory menus with clickable buttons
+---
+
+Foundation's menu system makes it easy to create interactive GUI menus. This example shows how to build a complete menu with buttons, animations, and player interactions.
+
+## Basic menu structure
+
+<Steps>
+
+<Step title="Create a simple menu class">
+
+Extend the `Menu` class and override the required methods.
+
+```java ServerMenu.java
+package com.example.plugin.menus;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.inventory.ItemStack;
+import org.mineacademy.fo.menu.Menu;
+import org.mineacademy.fo.menu.button.Button;
+import org.mineacademy.fo.menu.model.ItemCreator;
+import org.mineacademy.fo.remain.CompMaterial;
+
+public class ServerMenu extends Menu {
+
+    public ServerMenu() {
+        // Set menu size and title in constructor
+        setSize(9 * 3); // 3 rows
+        setTitle("&8Server Menu");
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        // Define what items appear in each slot
+        
+        if (slot == 11) {
+            return ItemCreator.of(CompMaterial.PLAYER_HEAD)
+                .name("&aPlayer Info")
+                .lore("", "&7Click to view your stats")
+                .makeMenuTool();
+        }
+        
+        if (slot == 13) {
+            return ItemCreator.of(CompMaterial.COMPASS)
+                .name("&eTeleporter")
+                .lore("", "&7Click to teleport")
+                .makeMenuTool();
+        }
+        
+        if (slot == 15) {
+            return ItemCreator.of(CompMaterial.CHEST)
+                .name("&6Shop")
+                .lore("", "&7Click to open the shop")
+                .makeMenuTool();
+        }
+        
+        return NO_ITEM;
+    }
+
+    @Override
+    protected void onMenuClick(Player player, int slot, ItemStack clicked) {
+        // Handle clicks on menu items
+        
+        if (slot == 11) {
+            player.sendMessage("&aShowing your stats...");
+            // Open stats menu or show info
+        }
+        
+        if (slot == 13) {
+            player.sendMessage("&eOpening teleporter...");
+            // Open teleport menu
+        }
+        
+        if (slot == 15) {
+            player.sendMessage("&6Opening shop...");
+            // Open shop menu
+        }
+    }
+}
+```
+
+</Step>
+
+<Step title="Open the menu from a command">
+
+Create a command to open your menu.
+
+```java MenuCommand.java
+package com.example.plugin.commands;
+
+import org.mineacademy.fo.command.SimpleCommand;
+import org.mineacademy.fo.annotation.AutoRegister;
+import com.example.plugin.menus.ServerMenu;
+
+@AutoRegister
+public class MenuCommand extends SimpleCommand {
+
+    public MenuCommand() {
+        super("menu|servermenu");
+        setDescription("Open the server menu");
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        
+        // Create and display the menu
+        new ServerMenu().displayTo(getPlayer());
+    }
+}
+```
+
+</Step>
+
+<Step title="Add clickable buttons">
+
+Use the `Button` class for more advanced functionality.
+
+```java TeleportMenu.java
+package com.example.plugin.menus;
+
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.inventory.ItemStack;
+import org.mineacademy.fo.menu.Menu;
+import org.mineacademy.fo.menu.button.Button;
+import org.mineacademy.fo.menu.model.ItemCreator;
+import org.mineacademy.fo.remain.CompMaterial;
+import org.mineacademy.fo.Common;
+
+public class TeleportMenu extends Menu {
+
+    // Define buttons as fields - they are automatically registered
+    private final Button spawnButton;
+    private final Button arenaButton;
+    private final Button shopButton;
+
+    public TeleportMenu() {
+        setSize(9 * 3);
+        setTitle("&8Teleport Menu");
+        
+        // Create buttons
+        spawnButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                Location spawn = player.getWorld().getSpawnLocation();
+                player.teleport(spawn);
+                
+                Common.tell(player, "&aTeleported to spawn!");
+                player.closeInventory();
+            }
+
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(CompMaterial.RED_BED)
+                    .name("&aSpawn")
+                    .lore("",
+                        "&7Teleport to the spawn",
+                        "&7point of the world.",
+                        "",
+                        "&eClick to teleport")
+                    .makeMenuTool();
+            }
+        };
+        
+        arenaButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                // Custom arena location
+                Location arena = new Location(player.getWorld(), 100, 64, 100);
+                player.teleport(arena);
+                
+                Common.tell(player, "&aTeleported to arena!");
+                player.closeInventory();
+            }
+
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+                    .name("&cArena")
+                    .lore("",
+                        "&7Teleport to the PvP",
+                        "&7arena.",
+                        "",
+                        "&eClick to teleport")
+                    .glow(true)
+                    .makeMenuTool();
+            }
+        };
+        
+        shopButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                Location shop = new Location(player.getWorld(), -50, 64, -50);
+                player.teleport(shop);
+                
+                Common.tell(player, "&aTeleported to shop!");
+                player.closeInventory();
+            }
+
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(CompMaterial.EMERALD)
+                    .name("&6Shop")
+                    .lore("",
+                        "&7Teleport to the main",
+                        "&7shopping district.",
+                        "",
+                        "&eClick to teleport")
+                    .makeMenuTool();
+            }
+        };
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        // Place buttons at specific slots
+        if (slot == 11)
+            return spawnButton.getItem();
+            
+        if (slot == 13)
+            return arenaButton.getItem();
+            
+        if (slot == 15)
+            return shopButton.getItem();
+        
+        return NO_ITEM;
+    }
+}
+```
+
+</Step>
+
+<Step title="Create menus with pagination">
+
+For menus that display many items, use `MenuPagged`.
+
+```java PlayerListMenu.java
+package com.example.plugin.menus;
+
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.mineacademy.fo.menu.MenuPagged;
+import org.mineacademy.fo.menu.button.Button;
+import org.mineacademy.fo.menu.model.ItemCreator;
+import org.mineacademy.fo.remain.CompMaterial;
+import org.mineacademy.fo.remain.Remain;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class PlayerListMenu extends MenuPagged<Player> {
+
+    public PlayerListMenu() {
+        super(null, getOnlinePlayers());
+        
+        setSize(9 * 6);
+        setTitle("&8Online Players");
+    }
+
+    private static List<Player> getOnlinePlayers() {
+        return new ArrayList<>(Remain.getOnlinePlayers());
+    }
+
+    @Override
+    protected ItemStack convertToItemStack(Player player) {
+        // Convert each player to a clickable item
+        return ItemCreator.of(CompMaterial.PLAYER_HEAD)
+            .name("&a" + player.getName())
+            .lore("",
+                "&7Health: &c" + (int) player.getHealth() + "/" + (int) player.getMaxHealth(),
+                "&7Level: &e" + player.getLevel(),
+                "&7Gamemode: &b" + player.getGameMode(),
+                "",
+                "&eClick to teleport")
+            .skullOwner(player.getName())
+            .makeMenuTool();
+    }
+
+    @Override
+    protected void onPageClick(Player viewer, Player clicked, ClickType clickType) {
+        // Handle clicking on a player's head
+        viewer.teleport(clicked.getLocation());
+        viewer.sendMessage("&aTeleported to " + clicked.getName() + "!");
+    }
+}
+```
+
+</Step>
+
+<Step title="Add parent menu navigation">
+
+Create menus that can navigate back to a parent menu.
+
+```java SettingsMenu.java
+package com.example.plugin.menus;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.inventory.ItemStack;
+import org.mineacademy.fo.menu.Menu;
+import org.mineacademy.fo.menu.button.Button;
+import org.mineacademy.fo.menu.model.ItemCreator;
+import org.mineacademy.fo.remain.CompMaterial;
+
+public class SettingsMenu extends Menu {
+
+    private final Button toggleChatButton;
+    private final Button togglePvPButton;
+    
+    private boolean chatEnabled = true;
+    private boolean pvpEnabled = true;
+
+    public SettingsMenu(Menu parent) {
+        super(parent); // Pass parent menu for back button
+        
+        setSize(9 * 3);
+        setTitle("&8Settings");
+        
+        toggleChatButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                chatEnabled = !chatEnabled;
+                player.sendMessage(chatEnabled ? "&aChat enabled!" : "&cChat disabled!");
+                
+                // Refresh the menu to update the button
+                restartMenu();
+            }
+
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(
+                    chatEnabled ? CompMaterial.LIME_DYE : CompMaterial.GRAY_DYE
+                )
+                    .name("&eToggle Chat")
+                    .lore("",
+                        "&7Current: " + (chatEnabled ? "&aEnabled" : "&cDisabled"),
+                        "",
+                        "&eClick to toggle")
+                    .makeMenuTool();
+            }
+        };
+        
+        togglePvPButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                pvpEnabled = !pvpEnabled;
+                player.sendMessage(pvpEnabled ? "&aPvP enabled!" : "&cPvP disabled!");
+                
+                restartMenu();
+            }
+
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(
+                    pvpEnabled ? CompMaterial.DIAMOND_SWORD : CompMaterial.WOODEN_SWORD
+                )
+                    .name("&eToggle PvP")
+                    .lore("",
+                        "&7Current: " + (pvpEnabled ? "&aEnabled" : "&cDisabled"),
+                        "",
+                        "&eClick to toggle")
+                    .makeMenuTool();
+            }
+        };
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 11)
+            return toggleChatButton.getItem();
+            
+        if (slot == 13)
+            return togglePvPButton.getItem();
+        
+        // The return button is automatically placed at slot getSize() - 9
+        
+        return NO_ITEM;
+    }
+}
+```
+
+</Step>
+
+</Steps>
+
+## Advanced menu features
+
+### Menu animations
+
+```java
+@Override
+protected void onMenuClick(Player player, int slot, ItemStack clicked) {
+    // Animate the title when player clicks
+    animateTitle("&a&lPurchase Successful!");
+    
+    // Title will revert after the default duration
+}
+```
+
+### Custom info button
+
+```java
+private final Button infoButton = Button.makeInfo(
+    "&7This menu allows you to",
+    "&7customize your settings.",
+    "",
+    "&eClick buttons to toggle options."
+);
+
+@Override
+public ItemStack getItemAt(int slot) {
+    if (slot == 4)
+        return infoButton.getItem();
+    
+    return NO_ITEM;
+}
+```
+
+### Prevent certain actions
+
+```java
+public class ShopMenu extends Menu {
+
+    @Override
+    protected boolean canMoveItems() {
+        return false; // Prevent moving items
+    }
+
+    @Override
+    protected boolean addReturnButton() {
+        return true; // Show return button
+    }
+}
+```
+
+### Sound effects
+
+```java
+import org.mineacademy.fo.remain.CompSound;
+
+@Override
+public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+    // Play a sound when button is clicked
+    CompSound.LEVEL_UP.play(player, 1.0F, 1.0F);
+    
+    // Perform action
+    player.sendMessage("&aItem purchased!");
+}
+```
+
+## Common menu patterns
+
+### Confirmation menu
+
+```java
+public class ConfirmMenu extends Menu {
+
+    private final Runnable onConfirm;
+
+    public ConfirmMenu(Menu parent, String question, Runnable onConfirm) {
+        super(parent);
+        
+        this.onConfirm = onConfirm;
+        setSize(9 * 3);
+        setTitle("&8Confirm?");
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 11) {
+            return ItemCreator.of(CompMaterial.LIME_WOOL)
+                .name("&a&lConfirm")
+                .lore("", "&7Click to confirm")
+                .makeMenuTool();
+        }
+        
+        if (slot == 15) {
+            return ItemCreator.of(CompMaterial.RED_WOOL)
+                .name("&c&lCancel")
+                .lore("", "&7Click to cancel")
+                .makeMenuTool();
+        }
+        
+        return NO_ITEM;
+    }
+
+    @Override
+    protected void onMenuClick(Player player, int slot, ItemStack clicked) {
+        if (slot == 11) {
+            onConfirm.run();
+            player.closeInventory();
+        }
+        
+        if (slot == 15) {
+            player.closeInventory();
+        }
+    }
+}
+```
+
+<Tip>
+Use `ItemCreator` to easily build items with custom names, lore, enchantments, and more. Call `makeMenuTool()` to make items suitable for menus.
+</Tip>
+
+## Next steps
+
+- [Store data in databases](/examples/database-storage)
+- [Manage configuration files](/examples/config-management)
+- [Create custom commands](/examples/custom-command)
+
+<Note>
+Menus automatically handle inventory close events, click events, and item dragging. All you need to do is define the items and their actions.
+</Note>

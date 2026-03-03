@@ -1,0 +1,228 @@
+---
+title: First plugin
+description: Create your first Foundation plugin with a simple Hello World example
+---
+
+This guide walks you through creating your first Minecraft plugin using Foundation. You'll create a simple plugin that sends a message to players when they join the server.
+
+## Prerequisites
+
+Before starting, make sure you have:
+
+- Java 8 or higher installed
+- Maven or Gradle for building
+- A Minecraft server (Spigot/Paper) for testing
+- Foundation added as a dependency (see the [Installation](/installation) guide)
+
+## Create your first plugin
+
+<Steps>
+
+<Step title="Create the main plugin class">
+
+Create a new class that extends `SimplePlugin` instead of the standard `JavaPlugin`. This gives you access to Foundation's enhanced functionality.
+
+```java HelloWorldPlugin.java
+package com.example.helloworld;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.mineacademy.fo.plugin.SimplePlugin;
+import org.mineacademy.fo.Common;
+
+public class HelloWorldPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        // Called when the plugin starts
+        Common.log("HelloWorld plugin has been enabled!");
+        
+        // Register this class as a listener
+        registerEvents(this);
+    }
+
+    @Override
+    protected void onPluginStop() {
+        // Called when the plugin stops
+        Common.log("HelloWorld plugin has been disabled!");
+    }
+
+    @Override
+    protected void onReloadablesStart() {
+        // Called when /reload is used or plugin reloads
+        // Register commands, listeners, tasks here
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        
+        // Send a colored welcome message
+        Common.tell(player, "&aWelcome to the server, &e" + player.getName() + "&a!");
+        Common.tell(player, "&7This server is powered by Foundation.");
+    }
+}
+```
+
+<Note>
+Notice we use `onPluginStart()` instead of `onEnable()` and `onPluginStop()` instead of `onDisable()`. Foundation uses these methods to perform internal registration and setup.
+</Note>
+
+</Step>
+
+<Step title="Configure your pom.xml">
+
+Add Foundation as a dependency and configure the shade plugin to relocate it into your plugin.
+
+```xml pom.xml
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>com.example</groupId>
+    <artifactId>HelloWorld</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+    
+    <dependencies>
+        <dependency>
+            <groupId>com.github.kangarko</groupId>
+            <artifactId>Foundation</artifactId>
+            <version>6.9.5</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <artifactSet>
+                        <includes>
+                            <include>com.github.kangarko:Foundation*</include>
+                        </includes>
+                    </artifactSet>
+                    <relocations>
+                        <relocation>
+                            <pattern>org.mineacademy.fo</pattern>
+                            <shadedPattern>com.example.helloworld.lib</shadedPattern>
+                        </relocation>
+                    </relocations>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+<Tip>
+Always check the [latest Foundation version](https://github.com/kangarko/Foundation/releases) and update the version number accordingly.
+</Tip>
+
+</Step>
+
+<Step title="Create plugin.yml">
+
+Create the plugin configuration file in `src/main/resources/plugin.yml`.
+
+```yaml plugin.yml
+name: HelloWorld
+version: 1.0.0
+main: com.example.helloworld.HelloWorldPlugin
+api-version: 1.13
+author: YourName
+```
+
+</Step>
+
+<Step title="Build and test">
+
+Build your plugin using Maven:
+
+```bash
+mvn clean package
+```
+
+The compiled JAR file will be in the `target/` directory. Copy it to your server's `plugins/` folder and restart the server.
+
+When a player joins, they'll see the welcome message!
+
+</Step>
+
+</Steps>
+
+## Using Foundation utilities
+
+Foundation provides many helpful utilities. Here are some common ones:
+
+### Colored messages
+
+```java
+// Send colored messages using & color codes
+Common.tell(player, "&aGreen text &c&lRed bold text");
+
+// Broadcast to all players
+Common.broadcast("&6Server announcement!");
+
+// Log to console with prefix
+Common.log("Plugin is doing something...");
+```
+
+### Running tasks
+
+```java
+// Run a task later (in ticks, 20 ticks = 1 second)
+Common.runLater(20, () -> {
+    Common.tell(player, "This message appears after 1 second!");
+});
+
+// Run a repeating task
+Common.runTimer(0, 20, () -> {
+    // This runs every second
+    Common.broadcast("&eRepeating announcement!");
+});
+```
+
+### Player utilities
+
+```java
+import org.mineacademy.fo.PlayerUtil;
+
+// Kick player with colored message
+PlayerUtil.kick(player, "&cYou have been kicked!");
+
+// Teleport player
+Location spawn = new Location(world, 0, 64, 0);
+Common.teleport(player, spawn);
+```
+
+## Next steps
+
+Now that you have a working plugin, explore more advanced features:
+
+- [Create custom commands](/examples/custom-command)
+- [Build GUI menus](/examples/gui-menu)
+- [Store data in a database](/examples/database-storage)
+- [Manage configuration files](/examples/config-management)
+
+<Note>
+Foundation supports Minecraft versions from 1.7.10 to 1.21+, automatically handling version differences for you.
+</Note>

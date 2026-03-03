@@ -1,0 +1,869 @@
+---
+title: SimpleCommand
+description: A simple command used to replace all Bukkit/Spigot command functionality
+---
+
+## Overview
+
+`SimpleCommand` is the base class for creating commands in Foundation. It provides a clean, intuitive API that replaces Bukkit's command system with enhanced features like automatic permission handling, cooldowns, argument validation, and built-in messaging utilities.
+
+## Class hierarchy
+
+```java
+org.bukkit.command.Command
+  └── org.mineacademy.fo.command.SimpleCommand
+```
+
+## Creating a command
+
+### Constructor
+
+<ParamField path="SimpleCommand(String label)" type="constructor">
+  Creates a new simple command with the given label.
+  
+  Separate the label with `|` to split between label and aliases.
+  
+  **Example:** `remove|r|rm` will create a `/remove` command that can also be run by typing `/r` and `/rm` as its aliases.
+  
+  <Expandable title="parameters">
+    <ParamField path="label" type="String" required>
+      The command label, optionally with aliases separated by `|`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="SimpleCommand(String label, List<String> aliases)" type="constructor">
+  Creates a new simple command with explicit label and aliases.
+  
+  <Expandable title="parameters">
+    <ParamField path="label" type="String" required>
+      The main command label
+    </ParamField>
+    <ParamField path="aliases" type="List<String>" required>
+      List of command aliases
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Basic example
+
+```java
+public class ReloadCommand extends SimpleCommand {
+    
+    public ReloadCommand() {
+        super("reload|rl");
+        
+        setDescription("Reloads the plugin configuration");
+        setUsage("[config|data]");
+        setPermission("myplugin.command.reload");
+        setMinArguments(0);
+    }
+    
+    @Override
+    protected void onCommand() {
+        tellSuccess("Plugin reloaded successfully!");
+    }
+}
+```
+
+## Registration
+
+### register()
+
+<ParamField path="register()" type="void">
+  Registers this command into Bukkit.
+  
+  Throws an error if the command is already registered.
+</ParamField>
+
+### register(boolean unregisterOldAliases)
+
+<ParamField path="register(boolean unregisterOldAliases)" type="void">
+  Registers this command into Bukkit with options.
+  
+  <Expandable title="parameters">
+    <ParamField path="unregisterOldAliases" type="boolean" required>
+      If a command with the same label already exists, should we remove aliases from the old command?
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### unregister()
+
+<ParamField path="unregister()" type="void">
+  Removes the command from Bukkit.
+  
+  Throws an error if the command is not registered.
+</ParamField>
+
+```java
+// Register a command
+ReloadCommand reloadCmd = new ReloadCommand();
+reloadCmd.register();
+
+// Later unregister it
+reloadCmd.unregister();
+```
+
+## Core methods
+
+### onCommand()
+
+<ParamField path="onCommand()" type="abstract void">
+  **Required implementation.** Executed when the command is run.
+  
+  You can access `sender` and `args` fields directly within this method.
+</ParamField>
+
+```java
+@Override
+protected void onCommand() {
+    if (args.length == 0) {
+        tell("Usage: /mycommand <player>");
+        return;
+    }
+    
+    Player target = findPlayer(args[0]);
+    tell("Found player: " + target.getName());
+}
+```
+
+## Convenience checks
+
+These methods throw `CommandException` internally which is caught and displayed to the player.
+
+### checkConsole()
+
+<ParamField path="checkConsole()" type="void">
+  Checks if the sender is console and throws an error if they are.
+  
+  Use this for player-only commands.
+</ParamField>
+
+```java
+@Override
+protected void onCommand() {
+    checkConsole(); // Only players can run this
+    
+    Player player = getPlayer();
+    // Do something with player...
+}
+```
+
+### checkPerm(String permission)
+
+<ParamField path="checkPerm(String permission)" type="void">
+  Checks if the sender has the given permission.
+  
+  <Expandable title="parameters">
+    <ParamField path="permission" type="String" required>
+      The permission node to check
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### checkArgs(int minimumLength, String falseMessage)
+
+<ParamField path="checkArgs(int minimumLength, String falseMessage)" type="void">
+  Checks if the command has the minimum number of arguments.
+  
+  <Expandable title="parameters">
+    <ParamField path="minimumLength" type="int" required>
+      Minimum number of arguments required
+    </ParamField>
+    <ParamField path="falseMessage" type="String" required>
+      Message to display if check fails
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### checkBoolean(boolean value, String falseMessage)
+
+<ParamField path="checkBoolean(boolean value, String falseMessage)" type="void">
+  Checks if the given boolean is true, throws error with message if false.
+  
+  <Expandable title="parameters">
+    <ParamField path="value" type="boolean" required>
+      The boolean condition to check
+    </ParamField>
+    <ParamField path="falseMessage" type="String" required>
+      Message to display if condition is false
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+checkBoolean(player.getHealth() > 0, "You must be alive to use this!");
+```
+
+### checkNotNull(Object value, String messageIfNull)
+
+<ParamField path="checkNotNull(Object value, String messageIfNull)" type="void">
+  Checks if the given object is not null.
+  
+  <Expandable title="parameters">
+    <ParamField path="value" type="Object" required>
+      The object to check
+    </ParamField>
+    <ParamField path="messageIfNull" type="String" required>
+      Message to display if object is null
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Finding entities and values
+
+### findPlayer(String name)
+
+<ParamField path="findPlayer(String name)" type="Player">
+  Finds a non-vanished online player by name.
+  
+  Returns an error message to sender if player not found.
+  
+  <Expandable title="parameters">
+    <ParamField path="name" type="String" required>
+      The player name
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="Player" type="org.bukkit.entity.Player">
+      The found player
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### findPlayerOrSelf(int argsIndex)
+
+<ParamField path="findPlayerOrSelf(int argsIndex)" type="Player">
+  Returns the player at the given args index, or the sender if they are a player and args are too short.
+  
+  <Expandable title="parameters">
+    <ParamField path="argsIndex" type="int" required>
+      The index in args array to look for player name
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="Player" type="org.bukkit.entity.Player">
+      The found player or command sender
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+Player target = findPlayerOrSelf(0); // /heal or /heal <player>
+tellSuccess("Healed " + target.getName());
+```
+
+### findOfflinePlayer(String name, Consumer\<OfflinePlayer\> callback)
+
+<ParamField path="findOfflinePlayer(String name, Consumer<OfflinePlayer> callback)" type="void">
+  Finds an offline player by name or UUID asynchronously.
+  
+  The lookup is done async, callback is executed synchronously.
+  
+  <Expandable title="parameters">
+    <ParamField path="name" type="String" required>
+      Player name or string UUID
+    </ParamField>
+    <ParamField path="callback" type="Consumer<OfflinePlayer>" required>
+      Synchronized callback executed when player is found
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+findOfflinePlayer(args[0], offlinePlayer -> {
+    tell("Player last played: " + offlinePlayer.getLastPlayed());
+});
+```
+
+### findWorld(String name)
+
+<ParamField path="findWorld(String name)" type="World">
+  Finds a world by name. Use `~` to get the sender's current world (if sender is a player).
+  
+  <Expandable title="parameters">
+    <ParamField path="name" type="String" required>
+      The world name, or `~` for sender's world
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="World" type="org.bukkit.World">
+      The found world
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### findMaterial(String name, String falseMessage)
+
+<ParamField path="findMaterial(String name, String falseMessage)" type="CompMaterial">
+  Finds a material by name, works for both modern and legacy names.
+  
+  <Expandable title="parameters">
+    <ParamField path="name" type="String" required>
+      The material name (e.g., STONE, SHEEP_SPAWN_EGG)
+    </ParamField>
+    <ParamField path="falseMessage" type="String" required>
+      Error message if not found. Use `{item}` or `{enum}` placeholder
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="CompMaterial" type="org.mineacademy.fo.remain.CompMaterial">
+      The found material
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### findEnum(Class\<T\> enumType, String value, String falseMessage)
+
+<ParamField path="findEnum(Class<T> enumType, String value, String falseMessage)" type="T extends Enum<T>">
+  Finds an enumeration value by name.
+  
+  <Expandable title="parameters">
+    <ParamField path="enumType" type="Class<T>" required>
+      The enum class
+    </ParamField>
+    <ParamField path="value" type="String" required>
+      The enum value name
+    </ParamField>
+    <ParamField path="falseMessage" type="String" required>
+      Error message if not found. Use `{enum}` placeholder
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="T" type="Enum">
+      The found enum value
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+GameMode mode = findEnum(GameMode.class, args[0], 
+    "Invalid game mode {enum}! Available: {available}");
+```
+
+### findNumber(int index, String falseMessage)
+
+<ParamField path="findNumber(int index, String falseMessage)" type="int">
+  Parses an integer from the args at the given index.
+  
+  <Expandable title="parameters">
+    <ParamField path="index" type="int" required>
+      The args index
+    </ParamField>
+    <ParamField path="falseMessage" type="String" required>
+      Error message if not a valid number. Use `{number}` placeholder
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="int" type="int">
+      The parsed number
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### findNumber(int index, int min, int max, String falseMessage)
+
+<ParamField path="findNumber(int index, int min, int max, String falseMessage)" type="int">
+  Parses an integer within bounds from the args at the given index.
+  
+  <Expandable title="parameters">
+    <ParamField path="index" type="int" required>
+      The args index
+    </ParamField>
+    <ParamField path="min" type="int" required>
+      Minimum allowed value
+    </ParamField>
+    <ParamField path="max" type="int" required>
+      Maximum allowed value
+    </ParamField>
+    <ParamField path="falseMessage" type="String" required>
+      Error message if invalid. Use `{min}`, `{max}`, `{number}` placeholders
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="int" type="int">
+      The parsed number within bounds
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+int amount = findNumber(0, 1, 64, "Amount must be between {min} and {max}!");
+```
+
+### findBoolean(int index, String invalidMessage)
+
+<ParamField path="findBoolean(int index, String invalidMessage)" type="boolean">
+  Parses a boolean from the args at the given index.
+  
+  <Expandable title="parameters">
+    <ParamField path="index" type="int" required>
+      The args index
+    </ParamField>
+    <ParamField path="invalidMessage" type="String" required>
+      Error message if not "true" or "false"
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="boolean" type="boolean">
+      The parsed boolean value
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### findTime(String raw)
+
+<ParamField path="findTime(String raw)" type="SimpleTime">
+  Converts a time string (e.g., "1 hour", "30 minutes") into a SimpleTime object.
+  
+  <Expandable title="parameters">
+    <ParamField path="raw" type="String" required>
+      The time string to parse
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="SimpleTime" type="org.mineacademy.fo.model.SimpleTime">
+      The parsed time object
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Messaging
+
+### tell(String... messages)
+
+<ParamField path="tell(String... messages)" type="void">
+  Sends messages to the command sender.
+  
+  Automatically avoids prefix if 3 or more lines.
+  
+  <Expandable title="parameters">
+    <ParamField path="messages" type="String..." required>
+      The messages to send
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### tellNoPrefix(String... messages)
+
+<ParamField path="tellNoPrefix(String... messages)" type="void">
+  Sends messages without any prefix.
+  
+  <Expandable title="parameters">
+    <ParamField path="messages" type="String..." required>
+      The messages to send
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### tellSuccess(String message)
+
+<ParamField path="tellSuccess(String message)" type="void">
+  Sends a success message (typically green).
+  
+  <Expandable title="parameters">
+    <ParamField path="message" type="String" required>
+      The success message
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### tellInfo(String message)
+
+<ParamField path="tellInfo(String message)" type="void">
+  Sends an info message (typically blue).
+  
+  <Expandable title="parameters">
+    <ParamField path="message" type="String" required>
+      The info message
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### tellWarn(String message)
+
+<ParamField path="tellWarn(String message)" type="void">
+  Sends a warning message (typically yellow).
+  
+  <Expandable title="parameters">
+    <ParamField path="message" type="String" required>
+      The warning message
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### tellError(String message)
+
+<ParamField path="tellError(String message)" type="void">
+  Sends an error message (typically red).
+  
+  <Expandable title="parameters">
+    <ParamField path="message" type="String" required>
+      The error message
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### returnTell(String... messages)
+
+<ParamField path="returnTell(String... messages)" type="void">
+  Sends messages and stops command execution by throwing CommandException.
+  
+  <Expandable title="parameters">
+    <ParamField path="messages" type="String..." required>
+      The messages to send before stopping
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+if (!player.hasPermission("special.feature")) {
+    returnTell("You need special permission!");
+    // Code here never executes
+}
+```
+
+## Configuration
+
+### setMinArguments(int minArguments)
+
+<ParamField path="setMinArguments(int minArguments)" type="void">
+  Sets the minimum number of arguments required to run this command.
+  
+  <Expandable title="parameters">
+    <ParamField path="minArguments" type="int" required>
+      Minimum arguments (0 or greater)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### setCooldown(int cooldown, TimeUnit unit)
+
+<ParamField path="setCooldown(int cooldown, TimeUnit unit)" type="void">
+  Sets the cooldown time before the same player can execute this command again.
+  
+  <Expandable title="parameters">
+    <ParamField path="cooldown" type="int" required>
+      The cooldown duration
+    </ParamField>
+    <ParamField path="unit" type="TimeUnit" required>
+      The time unit (SECONDS, MINUTES, etc.)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+public MyCommand() {
+    super("mycommand");
+    setCooldown(30, TimeUnit.SECONDS);
+}
+```
+
+### setCooldownBypassPermission(String permission)
+
+<ParamField path="setCooldownBypassPermission(String permission)" type="void">
+  Sets a permission that allows players to bypass the cooldown.
+  
+  <Expandable title="parameters">
+    <ParamField path="permission" type="String" required>
+      The bypass permission node
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### setCooldownMessage(String message)
+
+<ParamField path="setCooldownMessage(String message)" type="void">
+  Sets a custom cooldown message. Use `{duration}` to display remaining time.
+  
+  <Expandable title="parameters">
+    <ParamField path="message" type="String" required>
+      The custom cooldown message
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### setPermission(String permission)
+
+<ParamField path="setPermission(String permission)" type="void">
+  Sets the permission required to run this command.
+  
+  Set to `null` to allow everyone (unsafe).
+  
+  <Expandable title="parameters">
+    <ParamField path="permission" type="String" required>
+      The permission node, or null
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### setTellPrefix(String prefix)
+
+<ParamField path="setTellPrefix(String prefix)" type="void">
+  Sets a custom prefix for messages sent by this command.
+  
+  <Expandable title="parameters">
+    <ParamField path="prefix" type="String" required>
+      The custom prefix
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Tab completion
+
+### tabComplete()
+
+<ParamField path="tabComplete()" type="List<String>">
+  Override this method to provide tab completion suggestions.
+  
+  Return `null` to complete player names automatically.
+  
+  <Expandable title="returns">
+    <ParamField path="List<String>" type="List<String>">
+      Tab completion suggestions, or null for player names
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected List<String> tabComplete() {
+    if (args.length == 1)
+        return completeLastWord("create", "delete", "list");
+    
+    if (args.length == 2 && args[0].equals("delete"))
+        return completeLastWord(getArenaNames());
+    
+    return NO_COMPLETE; // Disable tab completion
+}
+```
+
+### completeLastWord(T... suggestions)
+
+<ParamField path="completeLastWord(T... suggestions)" type="List<String>">
+  Automatically completes the last argument with the given suggestions.
+  
+  Only returns suggestions that start with what the player typed.
+  
+  <Expandable title="parameters">
+    <ParamField path="suggestions" type="T..." required>
+      The completion suggestions
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="List<String>" type="List<String>">
+      Filtered suggestions
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### completeLastWordPlayerNames()
+
+<ParamField path="completeLastWordPlayerNames()" type="List<String>">
+  Completes with all visible, non-vanished player names.
+  
+  <Expandable title="returns">
+    <ParamField path="List<String>" type="List<String>">
+      Online player names
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### completeLastWordWorldNames()
+
+<ParamField path="completeLastWordWorldNames()" type="List<String>">
+  Completes with all world names.
+  
+  <Expandable title="returns">
+    <ParamField path="List<String>" type="List<String>">
+      World names
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Utility methods
+
+### getPlayer()
+
+<ParamField path="getPlayer()" type="Player">
+  Gets the sender as a Player, or null if sender is not a player.
+  
+  <Expandable title="returns">
+    <ParamField path="Player" type="org.bukkit.entity.Player">
+      The sender as player, or null
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### isPlayer()
+
+<ParamField path="isPlayer()" type="boolean">
+  Returns whether the sender is a living player.
+  
+  <Expandable title="returns">
+    <ParamField path="boolean" type="boolean">
+      True if sender is a player
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### hasPerm(String permission)
+
+<ParamField path="hasPerm(String permission)" type="boolean">
+  Checks if the sender has the given permission.
+  
+  <Expandable title="parameters">
+    <ParamField path="permission" type="String" required>
+      The permission to check
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="boolean" type="boolean">
+      True if sender has permission
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### getLastArg()
+
+<ParamField path="getLastArg()" type="String">
+  Returns the last argument in the args array.
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The last argument, or empty string
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### joinArgs(int from)
+
+<ParamField path="joinArgs(int from)" type="String">
+  Joins arguments from the given index to the end with spaces.
+  
+  <Expandable title="parameters">
+    <ParamField path="from" type="int" required>
+      Starting index
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      Joined arguments
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+String message = joinArgs(1); // Join all args after first one
+tell("Message: " + message);
+```
+
+### joinArgs(int from, int to)
+
+<ParamField path="joinArgs(int from, int to)" type="String">
+  Joins arguments from the given range with spaces.
+  
+  <Expandable title="parameters">
+    <ParamField path="from" type="int" required>
+      Starting index (inclusive)
+    </ParamField>
+    <ParamField path="to" type="int" required>
+      Ending index (exclusive)
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      Joined arguments
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Protected fields
+
+<ParamField path="sender" type="CommandSender">
+  The command sender. Updated dynamically when the command is executed.
+</ParamField>
+
+<ParamField path="args" type="String[]">
+  The command arguments. Updated dynamically when the command is executed.
+</ParamField>
+
+<ParamField path="NO_COMPLETE" type="List<String>" default="static final">
+  An empty list used to disable tab completion.
+</ParamField>
+
+## Complete example
+
+```java
+public class TeleportCommand extends SimpleCommand {
+    
+    public TeleportCommand() {
+        super("teleport|tp");
+        
+        setDescription("Teleport to a player or location");
+        setUsage("<player> or <x> <y> <z>");
+        setPermission("myplugin.command.teleport");
+        setMinArguments(1);
+        setCooldown(5, TimeUnit.SECONDS);
+        setCooldownBypassPermission("myplugin.cooldown.bypass");
+    }
+    
+    @Override
+    protected void onCommand() {
+        checkConsole(); // Players only
+        
+        Player player = getPlayer();
+        
+        // Teleport to player
+        if (args.length == 1) {
+            Player target = findPlayer(args[0]);
+            
+            player.teleport(target.getLocation());
+            tellSuccess("Teleported to " + target.getName());
+            return;
+        }
+        
+        // Teleport to coordinates
+        if (args.length == 3) {
+            double x = findNumber(Double.class, 0, "Invalid X coordinate!");
+            double y = findNumber(Double.class, 1, "Invalid Y coordinate!");
+            double z = findNumber(Double.class, 2, "Invalid Z coordinate!");
+            
+            Location loc = new Location(player.getWorld(), x, y, z);
+            player.teleport(loc);
+            
+            tellSuccess("Teleported to " + x + ", " + y + ", " + z);
+            return;
+        }
+        
+        returnInvalidArgs();
+    }
+    
+    @Override
+    protected List<String> tabComplete() {
+        if (args.length == 1)
+            return completeLastWordPlayerNames();
+        
+        return NO_COMPLETE;
+    }
+}
+```
+
+## See also
+
+- [SimpleCommandGroup](/api/commands/command-group) - For creating command groups with subcommands
+- [SimpleSubCommand](/api/commands/sub-command) - For creating subcommands within a group

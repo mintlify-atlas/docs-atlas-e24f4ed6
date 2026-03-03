@@ -1,0 +1,526 @@
+---
+title: Valid
+description: Utility class for validation, checking conditions, and throwing safe exceptions that are logged to file
+---
+
+## Overview
+
+The `Valid` class provides methods for:
+
+- Validating objects and conditions
+- Type checking (integers, decimals, UUIDs)
+- Collection validation
+- Range validation
+- Equality comparisons
+- List matching operations
+
+All check methods throw `FoException` on failure, which is automatically logged.
+
+## Null checks
+
+### checkNotNull
+
+Throws an exception if the object is null.
+
+<ParamField path="object" type="Object" required>
+  The object to check
+</ParamField>
+
+<ParamField path="message" type="String">
+  Error message if null
+</ParamField>
+
+```java
+Valid.checkNotNull(player);
+Valid.checkNotNull(config, "Configuration cannot be null!");
+```
+
+### checkNotEmpty
+
+Throws an exception if collection or string is null or empty.
+
+<ParamField path="value" type="Collection|Map|String" required>
+  The value to check
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  Error message if empty
+</ParamField>
+
+```java
+Valid.checkNotEmpty(playerList, "Player list cannot be empty");
+Valid.checkNotEmpty(command, "Command cannot be empty");
+Valid.checkNotEmpty(settings, "Settings map is required");
+```
+
+## Boolean checks
+
+### checkBoolean
+
+Throws an exception if the expression is false.
+
+<ParamField path="expression" type="boolean" required>
+  The condition to check
+</ParamField>
+
+<ParamField path="message" type="String">
+  Error message if false
+</ParamField>
+
+<ParamField path="replacements" type="Object...">
+  Format replacements for the message
+</ParamField>
+
+```java
+Valid.checkBoolean(player.hasPermission("admin"), "No permission!");
+Valid.checkBoolean(amount > 0, "Amount must be positive, got %s", amount);
+```
+
+## Type validation
+
+### isInteger
+
+Checks if a string is a valid integer.
+
+<ParamField path="value" type="String" required>
+  The string to check
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if the string is a valid integer
+</ParamField>
+
+```java
+if (Valid.isInteger(args[0])) {
+    int amount = Integer.parseInt(args[0]);
+}
+```
+
+### checkInteger
+
+Throws exception if string is not a valid integer.
+
+<ParamField path="value" type="String" required>
+  The string to check
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  Error message if invalid
+</ParamField>
+
+```java
+Valid.checkInteger(input, "Expected a number, got: " + input);
+int number = Integer.parseInt(input);
+```
+
+### isDecimal
+
+Checks if a string is a valid decimal number.
+
+<ParamField path="value" type="String" required>
+  The string to check
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if valid decimal
+</ParamField>
+
+```java
+if (Valid.isDecimal("3.14")) {
+    double pi = Double.parseDouble("3.14");
+}
+```
+
+### isNumber
+
+Checks if string is a valid Java number (including hex, scientific notation, etc.).
+
+<ParamField path="value" type="String" required>
+  The string to check
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if valid number
+</ParamField>
+
+```java
+boolean valid1 = Valid.isNumber("123");      // true
+boolean valid2 = Valid.isNumber("3.14");     // true
+boolean valid3 = Valid.isNumber("0xFF");     // true (hex)
+boolean valid4 = Valid.isNumber("1.5e10");   // true (scientific)
+```
+
+### isUUID
+
+Checks if object is a valid UUID.
+
+<ParamField path="object" type="Object" required>
+  The object to check
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if valid UUID or UUID string
+</ParamField>
+
+```java
+if (Valid.isUUID(args[0])) {
+    UUID uuid = UUID.fromString(args[0]);
+}
+```
+
+## Empty checks
+
+### isNullOrEmpty
+
+Checks if value is null or empty.
+
+<ParamField path="value" type="String|Collection|Object[]" required>
+  The value to check
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if null or empty
+</ParamField>
+
+```java
+if (!Valid.isNullOrEmpty(playerName)) {
+    // Process name
+}
+
+if (Valid.isNullOrEmpty(items)) {
+    return; // No items to process
+}
+```
+
+## Range validation
+
+### isInRange
+
+Checks if a value is within bounds (inclusive).
+
+<ParamField path="value" type="double|long" required>
+  The value to check
+</ParamField>
+
+<ParamField path="min" type="double|long" required>
+  Minimum value (inclusive)
+</ParamField>
+
+<ParamField path="max" type="double|long" required>
+  Maximum value (inclusive)
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if value is between min and max
+</ParamField>
+
+```java
+int level = player.getLevel();
+if (Valid.isInRange(level, 1, 100)) {
+    // Valid level
+}
+
+double damage = 15.5;
+Valid.checkBoolean(
+    Valid.isInRange(damage, 0.0, 20.0),
+    "Damage must be between 0 and 20"
+);
+```
+
+### isFinite
+
+Checks if all vector coordinates are finite numbers.
+
+<ParamField path="vector" type="Vector" required>
+  The vector to check
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if all coordinates are finite
+</ParamField>
+
+```java
+Vector velocity = entity.getVelocity();
+if (Valid.isFinite(velocity)) {
+    entity.setVelocity(velocity.multiply(2));
+}
+```
+
+## Equality checks
+
+### locationEquals
+
+Compares two locations by world and block coordinates.
+
+<ParamField path="first" type="Location" required>
+  First location
+</ParamField>
+
+<ParamField path="second" type="Location" required>
+  Second location
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if same world and block position
+</ParamField>
+
+```java
+Location spawn = world.getSpawnLocation();
+if (Valid.locationEquals(player.getLocation(), spawn)) {
+    player.sendMessage("You are at spawn!");
+}
+```
+
+### listEquals
+
+Compares two lists (strips colors from strings before comparison).
+
+<ParamField path="first" type="List<T>" required>
+  First list
+</ParamField>
+
+<ParamField path="second" type="List<T>" required>
+  Second list
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if lists are equal
+</ParamField>
+
+```java
+List<String> list1 = Arrays.asList("&aHello", "&bWorld");
+List<String> list2 = Arrays.asList("&cHello", "&dWorld");
+
+if (Valid.listEquals(list1, list2)) {
+    // Content is the same (colors ignored)
+}
+```
+
+### colorlessEquals
+
+Compares strings ignoring color codes.
+
+<ParamField path="first" type="String|List|String[]" required>
+  First value
+</ParamField>
+
+<ParamField path="second" type="String|List|String[]" required>
+  Second value
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if equal after stripping colors
+</ParamField>
+
+```java
+boolean same = Valid.colorlessEquals("&aHello", "&cHello");
+// Returns: true
+
+List<String> a = Arrays.asList("&aTest");
+List<String> b = Arrays.asList("&bTest");
+boolean listsEqual = Valid.colorlessEquals(a, b);
+// Returns: true
+```
+
+## List matching
+
+### isInList
+
+Checks if element is in list (case-insensitive).
+
+<ParamField path="element" type="String" required>
+  The element to find
+</ParamField>
+
+<ParamField path="list" type="Iterable<String>" required>
+  The list to search
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if found
+</ParamField>
+
+```java
+List<String> commands = Arrays.asList("help", "info", "stats");
+if (Valid.isInList(userInput, commands)) {
+    // Valid command
+}
+```
+
+### isInListStartsWith
+
+Checks if any list element starts with the given string.
+
+<ParamField path="element" type="String" required>
+  The string to match
+</ParamField>
+
+<ParamField path="list" type="Iterable<String>" required>
+  The list to search
+</ParamField>
+
+```java
+List<String> prefixes = Arrays.asList("admin_", "mod_", "helper_");
+if (Valid.isInListStartsWith("admin_Steve", prefixes)) {
+    // Matches "admin_" prefix
+}
+```
+
+### isInListRegex
+
+Checks if element matches any regex pattern in list.
+
+<ParamField path="element" type="String" required>
+  The string to test
+</ParamField>
+
+<ParamField path="list" type="Iterable<String>" required>
+  List of regex patterns
+</ParamField>
+
+```java
+List<String> patterns = Arrays.asList(
+    "player_.*",
+    "mob_[0-9]+",
+    "custom_.+"
+);
+
+if (Valid.isInListRegex("player_steve", patterns)) {
+    // Matches "player_.*" pattern
+}
+```
+
+### isInListEnum
+
+Checks if string matches any enum constant name.
+
+<ParamField path="element" type="String" required>
+  The string to match
+</ParamField>
+
+<ParamField path="enumeration" type="Enum<?>[]" required>
+  The enum constants
+</ParamField>
+
+```java
+if (Valid.isInListEnum("DIAMOND", Material.values())) {
+    Material mat = Material.valueOf("DIAMOND");
+}
+```
+
+## Thread validation
+
+### checkSync
+
+Throws exception if not on main thread.
+
+<ParamField path="errorMessage" type="String" required>
+  Error message if async
+</ParamField>
+
+```java
+public void modifyBlock(Block block) {
+    Valid.checkSync("Cannot modify blocks asynchronously!");
+    block.setType(Material.AIR);
+}
+```
+
+### checkAsync
+
+Throws exception if on main thread.
+
+<ParamField path="errorMessage" type="String" required>
+  Error message if sync
+</ParamField>
+
+```java
+public void queryDatabase() {
+    Valid.checkAsync("Cannot query database on main thread!");
+    // Database operations
+}
+```
+
+## Permission checks
+
+### checkPermission
+
+Checks if sender has permission, sends message if not.
+
+<ParamField path="sender" type="CommandSender" required>
+  The command sender
+</ParamField>
+
+<ParamField path="permission" type="String" required>
+  The permission node
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if has permission
+</ParamField>
+
+```java
+if (!Valid.checkPermission(player, "myplugin.admin")) {
+    return; // Message already sent
+}
+
+// Continue with admin action
+```
+
+## Examples
+
+### Command argument validation
+
+```java
+public void onCommand(CommandSender sender, String[] args) {
+    Valid.checkBoolean(args.length >= 2, "Usage: /command <player> <amount>");
+    
+    String playerName = args[0];
+    Valid.checkNotEmpty(playerName, "Player name cannot be empty");
+    
+    String amountStr = args[1];
+    Valid.checkInteger(amountStr, "Amount must be a number: " + amountStr);
+    
+    int amount = Integer.parseInt(amountStr);
+    Valid.checkBoolean(
+        Valid.isInRange(amount, 1, 64),
+        "Amount must be between 1 and 64"
+    );
+    
+    Player target = Bukkit.getPlayer(playerName);
+    Valid.checkNotNull(target, "Player not found: " + playerName);
+    
+    // Execute command
+}
+```
+
+### Configuration validation
+
+```java
+public void loadConfig() {
+    String message = config.getString("welcome-message");
+    Valid.checkNotEmpty(message, "Welcome message is required!");
+    
+    int maxPlayers = config.getInt("max-players");
+    Valid.checkBoolean(
+        Valid.isInRange(maxPlayers, 1, 1000),
+        "Max players must be between 1 and 1000, got: " + maxPlayers
+    );
+    
+    List<String> commands = config.getStringList("startup-commands");
+    Valid.checkNotEmpty(commands, "Startup commands list cannot be empty");
+}
+```
+
+### Safe null handling
+
+```java
+public void teleportPlayer(Player player, Location location) {
+    Valid.checkNotNull(player, "Player cannot be null");
+    Valid.checkNotNull(location, "Location cannot be null");
+    Valid.checkNotNull(location.getWorld(), "World cannot be null");
+    Valid.checkBoolean(Valid.isFinite(location.toVector()), "Invalid coordinates");
+    
+    Valid.checkSync("Cannot teleport player asynchronously");
+    player.teleport(location);
+}
+```

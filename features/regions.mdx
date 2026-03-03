@@ -1,0 +1,379 @@
+---
+title: Regions
+description: Create and manage cuboid regions with automatic serialization and particle visualization
+---
+
+Foundation's region system allows you to create, manage, and visualize cuboid regions that are automatically saved to disk.
+
+## Setup
+
+Enable regions in your main plugin class:
+
+```java
+@Override
+public boolean areRegionsEnabled() {
+    return true;
+}
+```
+
+## Creating regions
+
+Regions are created from two corner locations:
+
+```java
+Location primary = new Location(world, 100, 64, 100);
+Location secondary = new Location(world, 120, 80, 120);
+
+VisualizedRegion region = new VisualizedRegion(primary, secondary);
+DiskRegion.createRegion("spawn", region);
+```
+
+## Loading regions
+
+Load all regions on startup:
+
+```java
+@Override
+protected void onPluginStart() {
+    DiskRegion.loadRegions();
+}
+```
+
+## Finding regions
+
+### By name
+
+```java
+DiskRegion region = DiskRegion.findRegion("spawn");
+
+if (region != null) {
+    // Region exists
+}
+```
+
+### By location
+
+```java
+List<DiskRegion> regions = DiskRegion.findRegions(player.getLocation());
+
+for (DiskRegion region : regions) {
+    System.out.println("Player in region: " + region.getName());
+}
+```
+
+### By entity
+
+```java
+List<DiskRegion> regions = DiskRegion.findRegions(entity);
+```
+
+### Get all regions
+
+```java
+Collection<DiskRegion> all = DiskRegion.getRegions();
+Set<String> names = DiskRegion.getRegionNames();
+```
+
+## Region properties
+
+### Corners
+
+```java
+Location primary = region.getPrimary();
+Location secondary = region.getSecondary();
+Location center = region.getCenter();
+```
+
+### Blocks
+
+```java
+List<Block> blocks = region.getBlocks();
+
+for (Block block : blocks) {
+    block.setType(Material.GOLD_BLOCK);
+}
+```
+
+### Contains location
+
+```java
+if (region.isWithin(player.getLocation())) {
+    player.sendMessage("You are in the region!");
+}
+```
+
+## Teleporting
+
+Teleport players to region center:
+
+```java
+region.teleportToCenter(player);
+```
+
+## Visualization
+
+Show region boundaries with particles:
+
+```java
+// Default color (red)
+region.visualize(player);
+
+// Custom color
+region.visualize(player, Color.BLUE);
+```
+
+### Stop visualization
+
+```java
+DiskRegion region = DiskRegion.findRegion("spawn");
+if (region != null && region.getBorder() != null) {
+    region.getBorder().stop();
+}
+```
+
+## Region creation tool
+
+Provide players with a region selection tool:
+
+```java
+public class RegionTool extends VisualTool {
+
+    @Override
+    public ItemStack getItem() {
+        return ItemCreator.of(
+            CompMaterial.DIAMOND_AXE,
+            "&6Region Tool",
+            "",
+            "&7Left click: &fSet first position",
+            "&7Right click: &fSet second position",
+            "&7Swap hands (F): &fSave region"
+        ).build().make();
+    }
+
+    @Override
+    protected void onBlockClick(PlayerInteractEvent e, Block block) {
+        Player player = e.getPlayer();
+        VisualizedRegion region = DiskRegion.getCreatedRegion(player);
+        
+        if (e.getAction() == Action.LEFT_CLICK_BLOCK) {
+            region.setPrimary(block.getLocation());
+            region.visualize(player, Color.GREEN);
+            
+            Common.tell(player, "&aFirst position set!");
+            
+        } else if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
+            region.setSecondary(block.getLocation());
+            region.visualize(player, Color.GREEN);
+            
+            Common.tell(player, "&aSecond position set!");
+        }
+    }
+
+    @Override
+    protected void onSwapHands(PlayerSwapHandItemsEvent e) {
+        Player player = e.getPlayer();
+        VisualizedRegion region = DiskRegion.getCreatedRegion(player);
+        
+        if (!region.isWhole()) {
+            Common.tell(player, "&cPlease select both positions first!");
+            return;
+        }
+        
+        // Ask for region name
+        new RegionNameConversation(region).start(player);
+    }
+}
+```
+
+## Region getter
+
+Set up a region getter for player caches:
+
+```java
+public class PlayerCache extends SimpleCache<Player> {
+
+    @Getter
+    private final VisualizedRegion createdRegion = new VisualizedRegion();
+
+    private PlayerCache(Player player) {
+        // ...
+    }
+    
+    public static void init() {
+        DiskRegion.setRegionGetter(player -> 
+            PlayerCache.from(player).getCreatedRegion()
+        );
+    }
+}
+```
+
+## Events
+
+Listen for region enter/exit:
+
+```java
+@EventHandler
+public void onMove(PlayerMoveEvent e) {
+    Player player = e.getPlayer();
+    Location from = e.getFrom();
+    Location to = e.getTo();
+    
+    List<DiskRegion> fromRegions = DiskRegion.findRegions(from);
+    List<DiskRegion> toRegions = DiskRegion.findRegions(to);
+    
+    // Entered region
+    for (DiskRegion region : toRegions) {
+        if (!fromRegions.contains(region)) {
+            onRegionEnter(player, region);
+        }
+    }
+    
+    // Left region
+    for (DiskRegion region : fromRegions) {
+        if (!toRegions.contains(region)) {
+            onRegionLeave(player, region);
+        }
+    }
+}
+
+private void onRegionEnter(Player player, DiskRegion region) {
+    Common.tell(player, "&aEntered region: " + region.getName());
+}
+
+private void onRegionLeave(Player player, DiskRegion region) {
+    Common.tell(player, "&cLeft region: " + region.getName());
+}
+```
+
+## Protection system
+
+```java
+@EventHandler
+public void onBlockBreak(BlockBreakEvent e) {
+    Player player = e.getPlayer();
+    Block block = e.getBlock();
+    
+    List<DiskRegion> regions = DiskRegion.findRegions(block.getLocation());
+    
+    for (DiskRegion region : regions) {
+        if (!canBuildIn(player, region)) {
+            e.setCancelled(true);
+            Common.tell(player, "&cYou cannot build in " + region.getName());
+            return;
+        }
+    }
+}
+
+private boolean canBuildIn(Player player, DiskRegion region) {
+    // Check if player owns region or has permission
+    return player.hasPermission("region." + region.getName() + ".build");
+}
+```
+
+## Region flags
+
+Extend `DiskRegion` to add custom flags:
+
+```java
+public class CustomRegion extends DiskRegion {
+
+    private boolean pvpEnabled;
+    private boolean mobSpawning;
+    private String greeting;
+
+    private CustomRegion(String name) {
+        super(name);
+    }
+
+    @Override
+    protected void onLoad() {
+        super.onLoad();
+        
+        pvpEnabled = getBoolean("PVP_Enabled", false);
+        mobSpawning = getBoolean("Mob_Spawning", true);
+        greeting = getString("Greeting", "Welcome!");
+    }
+
+    @Override
+    public void onSave() {
+        super.onSave();
+        
+        set("PVP_Enabled", pvpEnabled);
+        set("Mob_Spawning", mobSpawning);
+        set("Greeting", greeting);
+    }
+}
+```
+
+## Removing regions
+
+```java
+DiskRegion region = DiskRegion.findRegion("spawn");
+
+if (region != null) {
+    DiskRegion.removeRegion(region);
+}
+```
+
+## Region commands
+
+```java
+public class RegionCommand extends SimpleCommand {
+
+    public RegionCommand() {
+        super("region|rg");
+        setMinArguments(1);
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        
+        Player player = getPlayer();
+        String sub = args[0].toLowerCase();
+        
+        if (sub.equals("create")) {
+            checkArgs(2, "Usage: /region create <name>");
+            
+            String name = args[1];
+            VisualizedRegion region = DiskRegion.getCreatedRegion(player);
+            
+            checkBoolean(region.isWhole(), 
+                "Please select a region first!");
+            
+            DiskRegion.createRegion(name, region);
+            tellSuccess("Region '" + name + "' created!");
+            
+        } else if (sub.equals("remove")) {
+            checkArgs(2, "Usage: /region remove <name>");
+            
+            DiskRegion region = DiskRegion.findRegion(args[1]);
+            checkNotNull(region, "Region not found!");
+            
+            DiskRegion.removeRegion(region);
+            tellSuccess("Region removed!");
+            
+        } else if (sub.equals("tp")) {
+            checkArgs(2, "Usage: /region tp <name>");
+            
+            DiskRegion region = DiskRegion.findRegion(args[1]);
+            checkNotNull(region, "Region not found!");
+            
+            region.teleportToCenter(player);
+            tellSuccess("Teleported to region!");
+            
+        } else if (sub.equals("list")) {
+            tell("&6Regions: &f" + 
+                Common.join(DiskRegion.getRegionNames()));
+        }
+    }
+}
+```
+
+<Note>
+Regions are automatically saved to the `regions/` folder in your plugin directory.
+</Note>
+
+<Warning>
+Large regions with many blocks can cause performance issues when calling `getBlocks()`!
+</Warning>

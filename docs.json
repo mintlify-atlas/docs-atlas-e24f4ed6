@@ -1,122 +1,175 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Foundation",
+  "theme": "maple",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#8B4513",
+    "light": "#D2691E",
+    "dark": "#654321"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/kangarko/Foundation"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/kangarko/Foundation"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
+              "installation",
               "quickstart",
-              "development"
+              "migration"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "core/simple-plugin",
+              "core/multi-version-support",
+              "core/configuration",
+              "core/localization"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Features",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "features/commands",
+              "features/menus",
+              "features/conversations",
+              "features/database",
+              "features/nbt",
+              "features/packets",
+              "features/holograms",
+              "features/regions",
+              "features/bungee"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Utilities",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "utilities/common",
+              "utilities/player",
+              "utilities/item",
+              "utilities/entity",
+              "utilities/block",
+              "utilities/chat",
+              "utilities/file",
+              "utilities/math",
+              "utilities/reflection"
+            ]
+          },
+          {
+            "group": "Plugin Integrations",
+            "pages": [
+              "integrations/overview",
+              "integrations/vault",
+              "integrations/placeholderapi",
+              "integrations/worldguard",
+              "integrations/citizens",
+              "integrations/discordsrv"
+            ]
+          },
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "advanced/custom-events",
+              "advanced/async-tasks",
+              "advanced/debugging",
+              "advanced/performance",
+              "advanced/shading"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Plugin",
             "pages": [
-              "api-reference/introduction"
+              "api/plugin/simple-plugin",
+              "api/plugin/simple-settings",
+              "api/plugin/simple-localization"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Commands",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/commands/simple-command",
+              "api/commands/command-group",
+              "api/commands/sub-command"
+            ]
+          },
+          {
+            "group": "Menus",
+            "pages": [
+              "api/menus/menu",
+              "api/menus/button",
+              "api/menus/item-creator"
+            ]
+          },
+          {
+            "group": "Database",
+            "pages": [
+              "api/database/simple-database",
+              "api/database/flat-database"
+            ]
+          },
+          {
+            "group": "NBT",
+            "pages": [
+              "api/nbt/nbt-item",
+              "api/nbt/nbt-entity",
+              "api/nbt/nbt-block",
+              "api/nbt/nbt-file"
+            ]
+          },
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/simple-hologram",
+              "api/models/simple-scoreboard",
+              "api/models/simple-time",
+              "api/models/hook-manager"
+            ]
+          },
+          {
+            "group": "Core Utilities",
+            "pages": [
+              "api/utils/common",
+              "api/utils/valid",
+              "api/utils/remain",
+              "api/utils/minecraft-version"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Common Use Cases",
+            "pages": [
+              "examples/first-plugin",
+              "examples/custom-command",
+              "examples/gui-menu",
+              "examples/database-storage",
+              "examples/config-management"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

@@ -1,0 +1,389 @@
+---
+title: Packets
+description: Send and intercept Minecraft packets using ProtocolLib integration
+---
+
+Foundation provides utilities for working with Minecraft packets through ProtocolLib integration, allowing you to send custom packets and intercept network traffic.
+
+## Setup
+
+Foundation's packet utilities require [ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/) to be installed on your server.
+
+### Add dependency
+
+Add ProtocolLib to your `plugin.yml`:
+
+```yaml
+depend: [ProtocolLib]
+```
+
+Or as a soft dependency:
+
+```yaml
+softdepend: [ProtocolLib]
+```
+
+## Packet listeners
+
+Create packet listeners by extending `PacketAdapter` and using the `@AutoRegister` annotation:
+
+```java
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketEvent;
+import org.mineacademy.fo.annotation.AutoRegister;
+
+@AutoRegister
+public final class ChatPacketListener extends PacketAdapter {
+
+    public ChatPacketListener() {
+        super(SimplePlugin.getInstance(), 
+              PacketType.Play.Client.CHAT);
+    }
+
+    @Override
+    public void onPacketReceiving(PacketEvent event) {
+        String message = event.getPacket().getStrings().read(0);
+        Player player = event.getPlayer();
+        
+        if (message.startsWith("/secret")) {
+            event.setCancelled(true);
+            player.sendMessage("Secret command executed!");
+        }
+    }
+}
+```
+
+## Common packet types
+
+### Sending packets
+
+<Tabs>
+<Tab title="Chat">
+```java
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.wrappers.WrappedChatComponent;
+
+public void sendChatPacket(Player player, String message) {
+    PacketContainer packet = new PacketContainer(PacketType.Play.Server.CHAT);
+    
+    packet.getChatComponents().write(0, 
+        WrappedChatComponent.fromText(message));
+    packet.getBytes().write(0, (byte) 1); // System message
+    
+    ProtocolLibrary.getProtocolManager().sendServerPacket(player, packet);
+}
+```
+</Tab>
+
+<Tab title="Title">
+```java
+public void sendTitle(Player player, String title, String subtitle) {
+    PacketContainer packet = new PacketContainer(PacketType.Play.Server.TITLE);
+    
+    // Set title
+    packet.getTitleActions().write(0, 
+        EnumWrappers.TitleAction.TITLE);
+    packet.getChatComponents().write(0, 
+        WrappedChatComponent.fromText(title));
+    
+    ProtocolLibrary.getProtocolManager().sendServerPacket(player, packet);
+    
+    // Set subtitle
+    if (subtitle != null) {
+        PacketContainer subPacket = new PacketContainer(
+            PacketType.Play.Server.TITLE);
+        subPacket.getTitleActions().write(0, 
+            EnumWrappers.TitleAction.SUBTITLE);
+        subPacket.getChatComponents().write(0, 
+            WrappedChatComponent.fromText(subtitle));
+        
+        ProtocolLibrary.getProtocolManager()
+            .sendServerPacket(player, subPacket);
+    }
+}
+```
+</Tab>
+
+<Tab title="Action bar">
+```java
+public void sendActionBar(Player player, String message) {
+    PacketContainer packet = new PacketContainer(PacketType.Play.Server.CHAT);
+    
+    packet.getChatComponents().write(0, 
+        WrappedChatComponent.fromText(message));
+    packet.getBytes().write(0, (byte) 2); // Action bar
+    
+    ProtocolLibrary.getProtocolManager().sendServerPacket(player, packet);
+}
+```
+</Tab>
+</Tabs>
+
+### Intercepting packets
+
+<Tabs>
+<Tab title="Block place">
+```java
+@AutoRegister
+public final class BlockPlaceListener extends PacketAdapter {
+
+    public BlockPlaceListener() {
+        super(SimplePlugin.getInstance(),
+              PacketType.Play.Client.BLOCK_PLACE);
+    }
+
+    @Override
+    public void onPacketReceiving(PacketEvent event) {
+        Player player = event.getPlayer();
+        BlockPosition pos = event.getPacket()
+            .getBlockPositionModifier().read(0);
+        
+        Location loc = pos.toLocation(player.getWorld());
+        
+        // Check if player can build here
+        if (!canBuildAt(player, loc)) {
+            event.setCancelled(true);
+        }
+    }
+}
+```
+</Tab>
+
+<Tab title="Entity use">
+```java
+@AutoRegister
+public final class EntityInteractListener extends PacketAdapter {
+
+    public EntityInteractListener() {
+        super(SimplePlugin.getInstance(),
+              PacketType.Play.Client.USE_ENTITY);
+    }
+
+    @Override
+    public void onPacketReceiving(PacketEvent event) {
+        int entityId = event.getPacket().getIntegers().read(0);
+        Entity entity = getEntityById(entityId);
+        
+        if (entity instanceof ArmorStand) {
+            // Custom armor stand interaction
+            event.setCancelled(true);
+            handleCustomInteraction(event.getPlayer(), entity);
+        }
+    }
+}
+```
+</Tab>
+
+<Tab title="Window click">
+```java
+@AutoRegister
+public final class InventoryClickListener extends PacketAdapter {
+
+    public InventoryClickListener() {
+        super(SimplePlugin.getInstance(),
+              PacketType.Play.Client.WINDOW_CLICK);
+    }
+
+    @Override
+    public void onPacketReceiving(PacketEvent event) {
+        int windowId = event.getPacket().getIntegers().read(0);
+        int slot = event.getPacket().getIntegers().read(1);
+        
+        Player player = event.getPlayer();
+        
+        // Custom inventory handling
+        if (isCustomInventory(windowId)) {
+            event.setCancelled(true);
+            handleCustomClick(player, slot);
+        }
+    }
+}
+```
+</Tab>
+</Tabs>
+
+## Modifying packets
+
+### Change outgoing chat
+
+```java
+@AutoRegister
+public final class ChatModifierListener extends PacketAdapter {
+
+    public ChatModifierListener() {
+        super(SimplePlugin.getInstance(),
+              PacketType.Play.Server.CHAT);
+    }
+
+    @Override
+    public void onPacketSending(PacketEvent event) {
+        StructureModifier<WrappedChatComponent> components = 
+            event.getPacket().getChatComponents();
+        
+        WrappedChatComponent original = components.read(0);
+        String json = original.getJson();
+        
+        // Modify the JSON
+        String modified = json.replace("bad_word", "***");
+        
+        components.write(0, 
+            WrappedChatComponent.fromJson(modified));
+    }
+}
+```
+
+### Fake block changes
+
+```java
+public void sendFakeBlock(Player player, Location loc, Material type) {
+    PacketContainer packet = new PacketContainer(
+        PacketType.Play.Server.BLOCK_CHANGE);
+    
+    packet.getBlockPositionModifier().write(0, 
+        new BlockPosition(loc.toVector()));
+    packet.getBlockData().write(0, 
+        WrappedBlockData.createData(type));
+    
+    ProtocolLibrary.getProtocolManager()
+        .sendServerPacket(player, packet);
+}
+```
+
+## Temporary players
+
+Create temporary player instances for packet sending:
+
+```java
+import com.comphenix.protocol.wrappers.WrappedGameProfile;
+
+public void sendPacketAsNPC(Player viewer, String npcName) {
+    WrappedGameProfile profile = new WrappedGameProfile(
+        UUID.randomUUID(), npcName);
+    
+    // Create and send player info packet
+    PacketContainer packet = new PacketContainer(
+        PacketType.Play.Server.PLAYER_INFO);
+    
+    // Configure packet with profile
+    // ...
+    
+    ProtocolLibrary.getProtocolManager()
+        .sendServerPacket(viewer, packet);
+}
+```
+
+## Best practices
+
+<Steps>
+<Step title="Use @AutoRegister">
+Always use `@AutoRegister` annotation for automatic listener registration:
+
+```java
+@AutoRegister
+public final class MyPacketListener extends PacketAdapter {
+    // ...
+}
+```
+</Step>
+
+<Step title="Make classes final">
+Packet listeners should be final classes:
+
+```java
+public final class MyListener extends PacketAdapter {
+    // Good
+}
+```
+</Step>
+
+<Step title="Handle async carefully">
+Packet events can be async. Use schedulers when needed:
+
+```java
+@Override
+public void onPacketReceiving(PacketEvent event) {
+    Common.runLater(() -> {
+        // Safe main thread operation
+    });
+}
+```
+</Step>
+
+<Step title="Check packet validity">
+Always validate packet data:
+
+```java
+@Override
+public void onPacketReceiving(PacketEvent event) {
+    if (event.isCancelled())
+        return;
+    
+    if (!event.isPlayerTemporary()) {
+        // Process packet
+    }
+}
+```
+</Step>
+</Steps>
+
+## Common use cases
+
+### Anti-cheat integration
+
+```java
+@AutoRegister
+public final class MovementListener extends PacketAdapter {
+
+    public MovementListener() {
+        super(SimplePlugin.getInstance(),
+              PacketType.Play.Client.POSITION,
+              PacketType.Play.Client.POSITION_LOOK);
+    }
+
+    @Override
+    public void onPacketReceiving(PacketEvent event) {
+        Player player = event.getPlayer();
+        
+        double x = event.getPacket().getDoubles().read(0);
+        double y = event.getPacket().getDoubles().read(1);
+        double z = event.getPacket().getDoubles().read(2);
+        
+        // Check for illegal movement
+        if (isIllegalMove(player, x, y, z)) {
+            event.setCancelled(true);
+            flagPlayer(player);
+        }
+    }
+}
+```
+
+### Custom tab list
+
+```java
+public void updateTabList(Player player) {
+    PacketContainer packet = new PacketContainer(
+        PacketType.Play.Server.PLAYER_INFO);
+    
+    packet.getPlayerInfoAction().write(0, 
+        EnumWrappers.PlayerInfoAction.UPDATE_DISPLAY_NAME);
+    
+    // Add player data
+    List<PlayerInfoData> data = new ArrayList<>();
+    // Configure data...
+    
+    packet.getPlayerInfoDataLists().write(0, data);
+    
+    ProtocolLibrary.getProtocolManager()
+        .sendServerPacket(player, packet);
+}
+```
+
+<Note>
+Packet listeners are registered automatically when using `@AutoRegister`. No manual registration needed!
+</Note>
+
+<Warning>
+Improper packet manipulation can crash clients or cause desyncs. Always test thoroughly!
+</Warning>

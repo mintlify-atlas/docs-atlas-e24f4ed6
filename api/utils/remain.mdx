@@ -1,0 +1,640 @@
+---
+title: Remain
+description: Cross-version compatibility class providing methods to support Minecraft 1.8.8 through the latest versions
+---
+
+## Overview
+
+The `Remain` class is Foundation's main compatibility layer, providing:
+
+- Cross-version player methods
+- JSON and component messaging
+- Title and action bar support
+- Boss bar rendering
+- Particle effects
+- Command registration
+- NMS packet handling
+- Block and entity manipulation
+
+<Note>
+  Many methods handle version differences automatically, allowing your plugin to work across multiple Minecraft versions
+</Note>
+
+## Player methods
+
+### getOnlinePlayers
+
+Gets all online players (handles Collection vs Array return types).
+
+<ParamField path="returns" type="Collection<Player>">
+  Collection of online players
+</ParamField>
+
+```java
+for (Player player : Remain.getOnlinePlayers()) {
+    player.sendMessage("Hello!");
+}
+```
+
+### getHealth
+
+Gets entity health as integer (handles double vs int).
+
+<ParamField path="entity" type="LivingEntity" required>
+  The entity
+</ParamField>
+
+<ParamField path="returns" type="int">
+  The health value
+</ParamField>
+
+```java
+int health = Remain.getHealth(player);
+player.sendMessage("Health: " + health);
+```
+
+### getMaxHealth
+
+Gets max health of entity.
+
+<ParamField path="entity" type="LivingEntity" required>
+  The entity
+</ParamField>
+
+<ParamField path="returns" type="int">
+  Maximum health value
+</ParamField>
+
+```java
+int maxHealth = Remain.getMaxHealth(player);
+```
+
+### getViewDistance
+
+Gets player's client view distance.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="returns" type="int">
+  View distance in chunks
+</ParamField>
+
+```java
+int viewDistance = Remain.getViewDistance(player);
+```
+
+### respawn
+
+Respawns a player (handles different API versions).
+
+<ParamField path="player" type="Player" required>
+  The player to respawn
+</ParamField>
+
+<ParamField path="delayTicks" type="int">
+  Delay before respawn (default: 2)
+</ParamField>
+
+```java
+Remain.respawn(player);
+Remain.respawn(player, 5); // Wait 5 ticks
+```
+
+## JSON and components
+
+### sendJson
+
+Sends a JSON message to a player.
+
+<ParamField path="sender" type="CommandSender" required>
+  The recipient
+</ParamField>
+
+<ParamField path="json" type="String" required>
+  The JSON string
+</ParamField>
+
+```java
+String json = "{\"text\":\"Click me\",\"color\":\"green\"," +
+              "\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/help\"}}";
+Remain.sendJson(player, json);
+```
+
+### toJson
+
+Converts text to JSON format.
+
+<ParamField path="message" type="String|ItemStack|BaseComponent[]" required>
+  The content to convert
+</ParamField>
+
+<ParamField path="returns" type="String">
+  JSON representation
+</ParamField>
+
+```java
+String json = Remain.toJson("&aHello &bWorld");
+
+ItemStack item = new ItemStack(Material.DIAMOND_SWORD);
+String itemJson = Remain.toJson(item);
+```
+
+### toLegacyText
+
+Converts JSON to legacy colored text.
+
+<ParamField path="json" type="String" required>
+  The JSON string
+</ParamField>
+
+<ParamField path="denyEvents" type="boolean">
+  Throw exception if click/hover events found (default: true)
+</ParamField>
+
+<ParamField path="returns" type="String">
+  Legacy text with color codes
+</ParamField>
+
+```java
+String json = "{\"text\":\"Hello\",\"color\":\"red\"}";
+String legacy = Remain.toLegacyText(json);
+// Returns: "&cHello"
+```
+
+## Title and action bar
+
+### sendTitle
+
+Sends a title to the player.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="title" type="String" required>
+  Main title text
+</ParamField>
+
+<ParamField path="subtitle" type="String">
+  Subtitle text
+</ParamField>
+
+<ParamField path="fadeIn" type="int">
+  Fade in time in ticks (default: 20)
+</ParamField>
+
+<ParamField path="stay" type="int">
+  Stay time in ticks (default: 60)
+</ParamField>
+
+<ParamField path="fadeOut" type="int">
+  Fade out time in ticks (default: 20)
+</ParamField>
+
+```java
+// Simple title (3 second display)
+Remain.sendTitle(player, "&6Welcome", "&7to our server");
+
+// Custom timing
+Remain.sendTitle(player, 10, 100, 10, "&cWarning", "&7Read the rules");
+```
+
+### resetTitle
+
+Clears the title from player's screen.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+```java
+Remain.resetTitle(player);
+```
+
+### sendActionBar
+
+Displays text above hotbar.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="text" type="String" required>
+  The message to display
+</ParamField>
+
+```java
+Remain.sendActionBar(player, "&eCoins: &6" + coins);
+```
+
+### sendTablist
+
+Sets tab list header and footer.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="header" type="String">
+  Header text (can be null)
+</ParamField>
+
+<ParamField path="footer" type="String">
+  Footer text (can be null)
+</ParamField>
+
+```java
+Remain.sendTablist(player, 
+    "&6&lMy Server\n&7Welcome!",
+    "&7Players: &e" + Remain.getOnlinePlayers().size()
+);
+```
+
+## Boss bar
+
+### sendBossbarPercent
+
+Shows a boss bar with percentage.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  The boss bar text
+</ParamField>
+
+<ParamField path="percent" type="float" required>
+  Fill percentage (0.0 to 1.0)
+</ParamField>
+
+<ParamField path="color" type="CompBarColor">
+  Bar color
+</ParamField>
+
+<ParamField path="style" type="CompBarStyle">
+  Bar style
+</ParamField>
+
+```java
+Remain.sendBossbarPercent(player, "&eLoading...", 0.5f);
+Remain.sendBossbarPercent(player, "&cBoss Health", 0.75f, 
+    CompBarColor.RED, CompBarStyle.SEGMENTED_10);
+```
+
+### sendBossbarTimed
+
+Shows boss bar for limited time.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  The message
+</ParamField>
+
+<ParamField path="seconds" type="int" required>
+  Duration in seconds
+</ParamField>
+
+```java
+Remain.sendBossbarTimed(player, "&aWelcome to the server!", 10);
+```
+
+### removeBossbar
+
+Removes boss bar from player.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+```java
+Remain.removeBossbar(player);
+```
+
+## Block manipulation
+
+### setTypeAndData
+
+Sets block type and data (handles legacy data values).
+
+<ParamField path="block" type="Block" required>
+  The block to modify
+</ParamField>
+
+<ParamField path="material" type="Material|CompMaterial" required>
+  The material to set
+</ParamField>
+
+<ParamField path="data" type="byte">
+  Legacy data value (pre-1.13)
+</ParamField>
+
+```java
+Remain.setTypeAndData(block, Material.WOOL, (byte) 14);
+Remain.setTypeAndData(block, CompMaterial.RED_WOOL);
+```
+
+### setData
+
+Sets block data value (legacy support).
+
+<ParamField path="block" type="Block" required>
+  The block
+</ParamField>
+
+<ParamField path="data" type="int" required>
+  The data value
+</ParamField>
+
+```java
+Remain.setData(block, 5);
+```
+
+### setBed
+
+Places a bed block correctly (handles legacy two-block beds).
+
+<ParamField path="block" type="Block|Location" required>
+  The initial block/location
+</ParamField>
+
+<ParamField path="facing" type="BlockFace" required>
+  Direction the bed should face
+</ParamField>
+
+```java
+BlockFace facing = PlayerUtil.getFacing(player);
+Remain.setBed(block, facing);
+```
+
+## Entity spawning
+
+### spawnFallingBlock
+
+Spawns a falling block entity.
+
+<ParamField path="location" type="Location" required>
+  Where to spawn
+</ParamField>
+
+<ParamField path="material" type="Material|Block" required>
+  The block type
+</ParamField>
+
+<ParamField path="data" type="byte">
+  Legacy data value
+</ParamField>
+
+<ParamField path="returns" type="FallingBlock">
+  The spawned falling block
+</ParamField>
+
+```java
+FallingBlock falling = Remain.spawnFallingBlock(
+    location,
+    Material.SAND
+);
+
+FallingBlock colored = Remain.spawnFallingBlock(
+    location,
+    Material.WOOL,
+    (byte) 14
+);
+```
+
+## Command registration
+
+### newCommand
+
+Creates a new plugin command instance.
+
+<ParamField path="label" type="String" required>
+  The command name
+</ParamField>
+
+<ParamField path="returns" type="PluginCommand">
+  The command instance
+</ParamField>
+
+```java
+PluginCommand cmd = Remain.newCommand("mycommand");
+cmd.setExecutor(new MyCommandExecutor());
+```
+
+### registerCommand
+
+Registers a command to the server.
+
+<ParamField path="command" type="Command" required>
+  The command to register
+</ParamField>
+
+```java
+PluginCommand cmd = Remain.newCommand("test");
+cmd.setExecutor(this);
+Remain.registerCommand(cmd);
+```
+
+### unregisterCommand
+
+Unregisters a command from the server.
+
+<ParamField path="label" type="String" required>
+  The command label
+</ParamField>
+
+<ParamField path="removeAliases" type="boolean">
+  Also remove aliases (default: true)
+</ParamField>
+
+```java
+Remain.unregisterCommand("oldcommand");
+Remain.unregisterCommand("test", false); // Keep aliases
+```
+
+## Utility methods
+
+### newNamespaced
+
+Creates a NamespacedKey (MC 1.13+).
+
+<ParamField path="name" type="String">
+  The key name (optional, generates random if null)
+</ParamField>
+
+<ParamField path="returns" type="NamespacedKey">
+  The namespaced key
+</ParamField>
+
+```java
+NamespacedKey key = Remain.newNamespaced("custom_recipe");
+NamespacedKey random = Remain.newNamespaced(); // Random name
+```
+
+### getLocation
+
+Gets the location of an inventory.
+
+<ParamField path="inventory" type="Inventory" required>
+  The inventory
+</ParamField>
+
+<ParamField path="returns" type="Location">
+  The location (null if not available)
+</ParamField>
+
+```java
+Location loc = Remain.getLocation(inventory);
+if (loc != null) {
+    loc.getWorld().createExplosion(loc, 2.0f);
+}
+```
+
+### getBiome
+
+Gets biome at location (handles coordinate changes).
+
+<ParamField path="location" type="Location" required>
+  The location
+</ParamField>
+
+<ParamField path="returns" type="Biome">
+  The biome
+</ParamField>
+
+```java
+Biome biome = Remain.getBiome(player.getLocation());
+if (biome == Biome.DESERT) {
+    player.sendMessage("Hot!");
+}
+```
+
+### getLocale
+
+Gets player's client language.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="returns" type="String">
+  Language code (e.g., "en_US") or null
+</ParamField>
+
+```java
+String locale = Remain.getLocale(player);
+if ("es_ES".equals(locale)) {
+    player.sendMessage("¡Hola!");
+} else {
+    player.sendMessage("Hello!");
+}
+```
+
+## Advanced features
+
+### sendPacket
+
+Sends an NMS packet to a player.
+
+<ParamField path="player" type="Player" required>
+  The player
+</ParamField>
+
+<ParamField path="packet" type="Object" required>
+  The NMS packet object
+</ParamField>
+
+```java
+// Advanced use only
+Object packet = createCustomPacket();
+Remain.sendPacket(player, packet);
+```
+
+<Warning>
+  This is an advanced feature requiring knowledge of NMS (Net Minecraft Server) classes
+</Warning>
+
+### getHandleEntity
+
+Gets the NMS entity handle.
+
+<ParamField path="entity" type="Object" required>
+  The Bukkit entity or block state
+</ParamField>
+
+<ParamField path="returns" type="Object">
+  The NMS entity
+</ParamField>
+
+```java
+Object nmsEntity = Remain.getHandleEntity(player);
+```
+
+## Version checks
+
+The `Remain` class provides several boolean flags:
+
+```java
+if (Remain.hasParticleAPI()) {
+    // Use particle API
+}
+
+if (Remain.hasScoreboardTags()) {
+    entity.getScoreboardTags().add("custom_tag");
+}
+
+if (Remain.hasAdvancements()) {
+    // Use advancement API
+}
+```
+
+## Examples
+
+### Cross-version titles
+
+```java
+public void showWelcome(Player player) {
+    Remain.sendTitle(
+        player,
+        "&6&lWelcome!",
+        "&7Enjoy your stay"
+    );
+    
+    Remain.sendActionBar(player, "&aTip: Type /help for commands");
+}
+```
+
+### Boss bar countdown
+
+```java
+public void startCountdown(Player player, int seconds) {
+    new BukkitRunnable() {
+        int remaining = seconds;
+        
+        @Override
+        public void run() {
+            if (remaining <= 0) {
+                Remain.removeBossbar(player);
+                cancel();
+                return;
+            }
+            
+            float percent = (float) remaining / seconds;
+            Remain.sendBossbarPercent(
+                player,
+                "&eTime remaining: &6" + remaining + "s",
+                percent,
+                CompBarColor.YELLOW,
+                CompBarStyle.PROGRESS
+            );
+            
+            remaining--;
+        }
+    }.runTaskTimer(plugin, 0, 20);
+}
+```

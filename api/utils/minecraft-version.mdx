@@ -1,0 +1,335 @@
+---
+title: MinecraftVersion
+description: Detect and compare the current Minecraft server version for cross-version compatibility
+---
+
+## Overview
+
+The `MinecraftVersion` class allows you to:
+
+- Detect the current Minecraft version
+- Compare versions (equals, newer, older, at least)
+- Access version-specific information
+- Write version-dependent code
+
+## Version enum
+
+Available version constants:
+
+```java
+MinecraftVersion.V.v1_22
+MinecraftVersion.V.v1_21
+MinecraftVersion.V.v1_20
+MinecraftVersion.V.v1_19
+MinecraftVersion.V.v1_18
+MinecraftVersion.V.v1_17
+MinecraftVersion.V.v1_16
+MinecraftVersion.V.v1_15
+MinecraftVersion.V.v1_14
+MinecraftVersion.V.v1_13
+MinecraftVersion.V.v1_12
+MinecraftVersion.V.v1_11
+MinecraftVersion.V.v1_10
+MinecraftVersion.V.v1_9
+MinecraftVersion.V.v1_8
+MinecraftVersion.V.v1_7
+MinecraftVersion.V.v1_6
+MinecraftVersion.V.v1_5
+MinecraftVersion.V.v1_4
+MinecraftVersion.V.v1_3_AND_BELOW
+```
+
+## Comparison methods
+
+### equals
+
+Checks if current version equals the given version.
+
+<ParamField path="version" type="V" required>
+  The version to compare against
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if versions are equal
+</ParamField>
+
+```java
+if (MinecraftVersion.equals(V.v1_20)) {
+    // Running on 1.20.x
+}
+```
+
+### atLeast
+
+Checks if current version is equal to or newer than the given version.
+
+<ParamField path="version" type="V" required>
+  The minimum version
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if current version >= specified version
+</ParamField>
+
+```java
+if (MinecraftVersion.atLeast(V.v1_13)) {
+    // Use 1.13+ features (flattening, new materials)
+    block.setType(Material.GRASS_BLOCK);
+} else {
+    // Use legacy approach
+    block.setType(Material.valueOf("GRASS"));
+}
+```
+
+### newerThan
+
+Checks if current version is newer than the given version.
+
+<ParamField path="version" type="V" required>
+  The version to compare against
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if current version > specified version
+</ParamField>
+
+```java
+if (MinecraftVersion.newerThan(V.v1_15)) {
+    // Features added after 1.15
+    player.sendMessage("Running 1.16+");
+}
+```
+
+### olderThan
+
+Checks if current version is older than the given version.
+
+<ParamField path="version" type="V" required>
+  The version to compare against
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if current version < specified version
+</ParamField>
+
+```java
+if (MinecraftVersion.olderThan(V.v1_9)) {
+    // Handle pre-1.9 combat system
+    player.sendMessage("Old combat mechanics");
+}
+```
+
+## Version information
+
+### getCurrent
+
+Gets the current version enum.
+
+<ParamField path="returns" type="V">
+  The current Minecraft version
+</ParamField>
+
+```java
+V current = MinecraftVersion.getCurrent();
+player.sendMessage("Running Minecraft " + current);
+```
+
+### getFullVersion
+
+Gets the full version string including subversion.
+
+<ParamField path="returns" type="String">
+  Full version (e.g., "1.20.6")
+</ParamField>
+
+```java
+String version = MinecraftVersion.getFullVersion();
+// Returns: "1.20.6" or "1.19" (if no subversion)
+```
+
+### getSubversion
+
+Gets the subversion number (third part of version).
+
+<ParamField path="returns" type="int">
+  Subversion number (0 if none)
+</ParamField>
+
+```java
+int sub = MinecraftVersion.getSubversion();
+// For 1.20.6, returns: 6
+// For 1.19, returns: 0
+```
+
+### getServerVersion
+
+Gets the NMS version string (e.g., "v1_20_R3").
+
+<ParamField path="returns" type="String">
+  Server version string (empty on 1.20.5+ Paper)
+</ParamField>
+
+```java
+String nmsVersion = MinecraftVersion.getServerVersion();
+// Returns: "v1_20_R3" or "" on modern Paper
+```
+
+<Warning>
+  This method is deprecated as it returns empty string on 1.20.5+ Paper servers. Use `getFullVersion()` instead.
+</Warning>
+
+## Examples
+
+### Material compatibility
+
+```java
+public Material getGrassBlock() {
+    if (MinecraftVersion.atLeast(V.v1_13)) {
+        return Material.GRASS_BLOCK;
+    } else {
+        return Material.valueOf("GRASS");
+    }
+}
+```
+
+### Sound compatibility
+
+```java
+public void playClickSound(Player player) {
+    if (MinecraftVersion.atLeast(V.v1_9)) {
+        player.playSound(
+            player.getLocation(),
+            Sound.UI_BUTTON_CLICK,
+            1.0f,
+            1.0f
+        );
+    } else {
+        player.playSound(
+            player.getLocation(),
+            Sound.valueOf("CLICK"),
+            1.0f,
+            1.0f
+        );
+    }
+}
+```
+
+### Feature availability
+
+```java
+public void setupFeatures() {
+    if (MinecraftVersion.atLeast(V.v1_16)) {
+        // Enable HEX color support
+        this.hexColorsEnabled = true;
+    }
+    
+    if (MinecraftVersion.atLeast(V.v1_13)) {
+        // Use persistent data containers
+        this.usePDC = true;
+    }
+    
+    if (MinecraftVersion.atLeast(V.v1_9)) {
+        // Enable off-hand support
+        this.offHandEnabled = true;
+    }
+}
+```
+
+### Version-specific code
+
+```java
+public void giveItem(Player player, ItemStack item) {
+    if (MinecraftVersion.atLeast(V.v1_9)) {
+        // Modern inventory has off-hand slot
+        Map<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+        
+        if (!leftover.isEmpty()) {
+            player.getWorld().dropItemNaturally(
+                player.getLocation(),
+                leftover.get(0)
+            );
+        }
+    } else {
+        // Legacy 1.8 inventory
+        ItemStack[] contents = player.getInventory().getContents();
+        boolean added = false;
+        
+        for (int i = 0; i < contents.length; i++) {
+            if (contents[i] == null) {
+                player.getInventory().setItem(i, item);
+                added = true;
+                break;
+            }
+        }
+        
+        if (!added) {
+            player.getWorld().dropItemNaturally(
+                player.getLocation(),
+                item
+            );
+        }
+    }
+}
+```
+
+### Comprehensive compatibility check
+
+```java
+public class CompatibilityManager {
+    
+    private final boolean hasHexColors;
+    private final boolean hasComponents;
+    private final boolean hasPersistentData;
+    private final boolean hasOffHand;
+    
+    public CompatibilityManager() {
+        V current = MinecraftVersion.getCurrent();
+        
+        this.hasHexColors = MinecraftVersion.atLeast(V.v1_16);
+        this.hasComponents = MinecraftVersion.atLeast(V.v1_13);
+        this.hasPersistentData = MinecraftVersion.atLeast(V.v1_14);
+        this.hasOffHand = MinecraftVersion.atLeast(V.v1_9);
+        
+        Common.log("&7Minecraft version: &e" + MinecraftVersion.getFullVersion());
+        Common.log("&7Features:");
+        Common.log("  &7HEX Colors: " + (hasHexColors ? "&aYes" : "&cNo"));
+        Common.log("  &7Components: " + (hasComponents ? "&aYes" : "&cNo"));
+        Common.log("  &7PDC: " + (hasPersistentData ? "&aYes" : "&cNo"));
+        Common.log("  &7Off-hand: " + (hasOffHand ? "&aYes" : "&cNo"));
+    }
+    
+    public boolean supportsHexColors() {
+        return hasHexColors;
+    }
+    
+    // More getters...
+}
+```
+
+### Dynamic version messages
+
+```java
+public void sendVersionInfo(CommandSender sender) {
+    V current = MinecraftVersion.getCurrent();
+    String fullVersion = MinecraftVersion.getFullVersion();
+    
+    Common.tell(sender,
+        Common.chatLine(),
+        "&6Server Version Information",
+        "&7Minecraft: &e" + fullVersion,
+        "&7Bukkit: &e" + Bukkit.getBukkitVersion(),
+        "",
+        "&7Compatibility:"
+    );
+    
+    if (MinecraftVersion.atLeast(V.v1_20)) {
+        Common.tell(sender, "  &a✓ Modern (1.20+)");
+    } else if (MinecraftVersion.atLeast(V.v1_13)) {
+        Common.tell(sender, "  &e⚠ Legacy-Modern (1.13-1.19)");
+    } else {
+        Common.tell(sender, "  &c✗ Legacy (Pre-1.13)");
+    }
+    
+    Common.tell(sender, Common.chatLine());
+}
+```

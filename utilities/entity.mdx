@@ -1,0 +1,272 @@
+---
+title: Entity utilities
+description: Utility methods for entity management, tracking, and manipulation
+---
+
+The `EntityUtil` class provides utilities for working with entities, including finding nearby entities, managing targets, tracking projectiles, and entity properties.
+
+## Finding entities
+
+### Find nearest entity
+
+```java
+// Find nearest zombie within 10 blocks
+Zombie zombie = EntityUtil.findNearestEntity(
+    location, 
+    10.0, 
+    Zombie.class
+);
+
+// Find nearest living entity
+LivingEntity nearest = EntityUtil.findNearestEntity(
+    player.getLocation(),
+    20.0,
+    LivingEntity.class
+);
+```
+
+## Entity targets
+
+### Getting targets
+
+```java
+// Get entity's target (works with mobs and NPCs)
+Entity target = EntityUtil.getTarget(entity);
+
+// Get target only if it's a player
+Player targetPlayer = EntityUtil.getTargetPlayer(entity);
+
+if (targetPlayer != null) {
+    Common.tell(targetPlayer, "&cA mob is targeting you!");
+}
+```
+
+## Entity properties
+
+### Default health
+
+```java
+// Get default health for entity type
+double health = EntityUtil.getDefaultHealth(EntityType.ZOMBIE);
+// Result: 20.0
+
+double enderDragonHealth = EntityUtil.getDefaultHealth(EntityType.ENDER_DRAGON);
+// Result: 200.0
+```
+
+### Entity type checking
+
+```java
+// Check if entity is aggressive
+boolean aggressive = EntityUtil.isAggressive(entity);
+
+// Check if entity is a creature
+boolean creature = EntityUtil.isCreature(entity);
+
+// Check if entity can be cleaned (items, arrows, etc.)
+boolean cleanable = EntityUtil.canBeCleaned(entity);
+```
+
+## Entity manipulation
+
+### Rotation
+
+```java
+// Make entity face a location
+EntityUtil.rotateYaw(entity.getLocation(), targetLocation);
+```
+
+### Vehicles and passengers
+
+```java
+// Remove all vehicles and passengers from entity
+EntityUtil.removeVehiclesAndPassengers(entity);
+```
+
+## Dropping items
+
+### Custom item drops
+
+```java
+// Drop item with custom properties
+Item droppedItem = EntityUtil.dropItem(location, itemStack, item -> {
+    item.setPickupDelay(40); // 2 second delay
+    item.setCustomName("§6Special Drop");
+    item.setCustomNameVisible(true);
+});
+```
+
+## Tracking entities
+
+### Track falling entities
+
+```java
+// Track entity until it hits the ground
+EntityUtil.trackFalling(fallingBlock, () -> {
+    // Called when entity lands
+    location.getWorld().createExplosion(location, 2.0f);
+});
+
+// Track entity while flying
+EntityUtil.trackFlying(arrow, () -> {
+    // Called each tick while flying
+    arrow.getWorld().spawnParticle(Particle.FLAME, 
+        arrow.getLocation(), 1);
+});
+
+// Track with both fly and ground callbacks
+EntityUtil.track(entity, 600, // 30 second timeout
+    () -> {
+        // Called each tick while flying
+    },
+    () -> {
+        // Called when landed
+    }
+);
+```
+
+### Track projectile hits
+
+```java
+// Launch arrow and track hit
+Arrow arrow = player.launchProjectile(Arrow.class);
+
+EntityUtil.trackHit(arrow, event -> {
+    // Called when arrow hits something
+    if (event.getHitEntity() != null) {
+        Entity hit = event.getHitEntity();
+        Common.tell(player, "&aYou hit a " + 
+            ItemUtil.bountifyCapitalized(hit.getType()) + "!");
+    }
+});
+```
+
+## Examples
+
+### Mob spawn with custom target
+
+```java
+public void spawnHostileMob(Location location, Player target) {
+    Zombie zombie = location.getWorld().spawn(location, Zombie.class);
+    
+    // Set custom properties
+    zombie.setCustomName("§c" + target.getName() + "'s Nemesis");
+    zombie.setCustomNameVisible(true);
+    
+    // Make it target the player
+    if (zombie instanceof Mob) {
+        ((Mob) zombie).setTarget(target);
+    }
+    
+    // Alert player
+    Common.tell(target, "&cA zombie is hunting you!");
+}
+```
+
+### Entity cleanup system
+
+```java
+public class EntityCleaner {
+    
+    public void cleanupWorld(World world) {
+        int removed = 0;
+        
+        for (Entity entity : world.getEntities()) {
+            // Only remove droppable entities
+            if (EntityUtil.canBeCleaned(entity)) {
+                entity.remove();
+                removed++;
+            }
+        }
+        
+        Common.broadcast("&aCleaned up " + removed + " entities!");
+    }
+    
+    public void removeAggressiveMobs(Location center, double radius) {
+        for (Entity entity : Remain.getNearbyEntities(center, radius)) {
+            if (EntityUtil.isAggressive(entity)) {
+                entity.remove();
+            }
+        }
+    }
+}
+```
+
+### Custom projectile effects
+
+```java
+public void shootFireball(Player player) {
+    Fireball fireball = player.launchProjectile(Fireball.class);
+    fireball.setYield(3.0f); // Explosion power
+    
+    // Track while flying (particle trail)
+    EntityUtil.trackFlying(fireball, () -> {
+        fireball.getWorld().spawnParticle(
+            Particle.FLAME,
+            fireball.getLocation(),
+            5,
+            0.1, 0.1, 0.1,
+            0.01
+        );
+    });
+    
+    // Track hit
+    EntityUtil.trackHit(fireball, event -> {
+        Location impact = fireball.getLocation();
+        
+        // Custom explosion effect
+        impact.getWorld().createExplosion(
+            impact,
+            fireball.getYield(),
+            true,
+            true
+        );
+    });
+}
+```
+
+### Nearest entity finder
+
+```java
+public void findNearestHostile(Player player) {
+    // Find nearest aggressive mob within 30 blocks
+    LivingEntity nearest = null;
+    double minDistance = 30.0;
+    
+    for (Entity entity : Remain.getNearbyEntities(
+            player.getLocation(), 30.0)) {
+        
+        if (entity instanceof LivingEntity && 
+            EntityUtil.isAggressive(entity)) {
+            
+            double distance = entity.getLocation()
+                .distance(player.getLocation());
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearest = (LivingEntity) entity;
+            }
+        }
+    }
+    
+    if (nearest != null) {
+        Common.tell(player, "&eNearest hostile: &c" + 
+            ItemUtil.bountifyCapitalized(nearest.getType()) +
+            " &7(" + MathUtil.formatOneDigit(minDistance) + "m)");
+        
+        // Point towards it
+        EntityUtil.rotateYaw(player.getLocation(), 
+            nearest.getLocation());
+    } else {
+        Common.tell(player, "&aNo hostile mobs nearby!");
+    }
+}
+```
+
+<Note>
+Projectile tracking uses event listeners that are automatically registered when you first call `trackHit()`.
+</Note>
+
+<Tip>
+Use `EntityUtil.trackFalling()` for custom block breaking effects or TNT cannons.
+</Tip>

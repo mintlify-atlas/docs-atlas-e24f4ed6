@@ -1,0 +1,585 @@
+---
+title: Config management
+description: Create and manage configuration files with auto-updating and comments support
+---
+
+Foundation provides a powerful configuration system with automatic updates, comments preservation, and type-safe access. This example shows how to create and use configuration files in your plugin.
+
+## Basic configuration setup
+
+<Steps>
+
+<Step title="Create a settings class">
+
+Extend `YamlStaticConfig` to create your main settings file.
+
+```java Settings.java
+package com.example.plugin.settings;
+
+import org.mineacademy.fo.settings.YamlStaticConfig;
+import org.mineacademy.fo.settings.SimpleSettings;
+
+import java.util.List;
+
+public class Settings extends YamlStaticConfig {
+
+    @Override
+    protected void onLoadFinish() {
+        // Called after the config is loaded
+        // You can perform validation or setup here
+    }
+
+    public static class Database {
+        
+        public static Boolean ENABLED;
+        public static String HOST;
+        public static Integer PORT;
+        public static String DATABASE;
+        public static String USERNAME;
+        public static String PASSWORD;
+        
+        private static void init() {
+            setPathPrefix("Database");
+            
+            ENABLED = getBoolean("Enabled");
+            HOST = getString("Host");
+            PORT = getInteger("Port");
+            DATABASE = getString("Database");
+            USERNAME = getString("Username");
+            PASSWORD = getString("Password");
+        }
+    }
+
+    public static class Messages {
+        
+        public static String PREFIX;
+        public static String NO_PERMISSION;
+        public static String PLAYER_NOT_FOUND;
+        public static List<String> WELCOME_MESSAGE;
+        
+        private static void init() {
+            setPathPrefix("Messages");
+            
+            PREFIX = getString("Prefix");
+            NO_PERMISSION = getString("No_Permission");
+            PLAYER_NOT_FOUND = getString("Player_Not_Found");
+            WELCOME_MESSAGE = getStringList("Welcome_Message");
+        }
+    }
+
+    public static class Gameplay {
+        
+        public static Integer STARTING_COINS;
+        public static Integer MAX_LEVEL;
+        public static Double DAMAGE_MULTIPLIER;
+        public static Boolean PVP_ENABLED;
+        
+        private static void init() {
+            setPathPrefix("Gameplay");
+            
+            STARTING_COINS = getInteger("Starting_Coins");
+            MAX_LEVEL = getInteger("Max_Level");
+            DAMAGE_MULTIPLIER = getDouble("Damage_Multiplier");
+            PVP_ENABLED = getBoolean("PvP_Enabled");
+        }
+    }
+}
+```
+
+</Step>
+
+<Step title="Create the default config file">
+
+Create `settings.yml` in `src/main/resources/` with default values and comments.
+
+```yaml settings.yml
+# -------------------------------------------------------
+# Example Plugin Configuration
+# -------------------------------------------------------
+
+# Database settings
+Database:
+  # Enable database storage
+  Enabled: false
+  
+  # Database connection details
+  Host: localhost
+  Port: 3306
+  Database: minecraft
+  Username: root
+  Password: ''
+
+# Plugin messages
+Messages:
+  # The prefix shown before all messages
+  Prefix: '&8[&aMyPlugin&8]'
+  
+  # Error message when player lacks permission
+  No_Permission: '&cYou do not have permission to do that!'
+  
+  # Error when specified player is not found
+  Player_Not_Found: '&cPlayer {player} not found!'
+  
+  # Message shown when player joins (supports multiple lines)
+  Welcome_Message:
+    - '&8&m----------------------------------------'
+    - '&a&lWelcome to the Server!'
+    - '&7Thank you for playing.'
+    - '&8&m----------------------------------------'
+
+# Gameplay settings
+Gameplay:
+  # Starting coins for new players
+  Starting_Coins: 100
+  
+  # Maximum level players can reach
+  Max_Level: 100
+  
+  # Damage multiplier (1.0 = normal damage)
+  Damage_Multiplier: 1.5
+  
+  # Enable PvP combat
+  PvP_Enabled: true
+```
+
+</Step>
+
+<Step title="Load the config in your main class">
+
+Load your settings when the plugin starts.
+
+```java MyPlugin.java
+package com.example.plugin;
+
+import org.mineacademy.fo.plugin.SimplePlugin;
+import org.mineacademy.fo.Common;
+import com.example.plugin.settings.Settings;
+
+public class MyPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        // Load settings.yml
+        Settings.load();
+        
+        Common.log("Settings loaded!");
+        Common.log("Database enabled: " + Settings.Database.ENABLED);
+        Common.log("Starting coins: " + Settings.Gameplay.STARTING_COINS);
+    }
+
+    @Override
+    protected void onReloadablesStart() {
+        // Reload settings when /reload is used
+        Settings.reload();
+    }
+}
+```
+
+</Step>
+
+<Step title="Use settings in your code">
+
+Access configuration values from anywhere in your plugin.
+
+```java PlayerListener.java
+package com.example.plugin.listeners;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.mineacademy.fo.Common;
+import com.example.plugin.settings.Settings;
+import com.example.plugin.data.PlayerData;
+
+public class PlayerListener implements Listener {
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        
+        // Send welcome message from config
+        for (String line : Settings.Messages.WELCOME_MESSAGE) {
+            Common.tell(player, line);
+        }
+        
+        // Give starting coins to new players
+        if (!player.hasPlayedBefore()) {
+            PlayerData data = PlayerData.loadOrCreate(
+                player.getUniqueId(),
+                player.getName()
+            );
+            
+            data.setCoins(Settings.Gameplay.STARTING_COINS);
+            data.save();
+            
+            Common.tell(player, 
+                Settings.Messages.PREFIX + " &7You received &e" + 
+                Settings.Gameplay.STARTING_COINS + " &7coins!"
+            );
+        }
+    }
+}
+```
+
+</Step>
+
+</Steps>
+
+## Advanced configuration features
+
+### Multiple config files
+
+Create separate config files for different purposes.
+
+```java Rewards.java
+package com.example.plugin.settings;
+
+import org.mineacademy.fo.settings.YamlConfig;
+import org.mineacademy.fo.remain.CompMaterial;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Rewards extends YamlConfig {
+
+    private static Rewards instance;
+
+    private Map<Integer, RewardTier> rewards = new HashMap<>();
+
+    public static Rewards getInstance() {
+        if (instance == null) {
+            instance = new Rewards();
+            instance.loadConfiguration(NO_DEFAULT, "rewards.yml");
+        }
+        return instance;
+    }
+
+    @Override
+    protected void onLoadFinish() {
+        rewards.clear();
+        
+        // Load each reward tier from config
+        for (String key : getKeys("Rewards")) {
+            int level = Integer.parseInt(key);
+            
+            setPathPrefix("Rewards." + key);
+            
+            String itemName = getString("Item");
+            int amount = getInteger("Amount");
+            int coins = getInteger("Coins");
+            
+            RewardTier tier = new RewardTier(
+                level,
+                CompMaterial.fromString(itemName),
+                amount,
+                coins
+            );
+            
+            rewards.put(level, tier);
+        }
+    }
+
+    public RewardTier getReward(int level) {
+        return rewards.get(level);
+    }
+
+    public static class RewardTier {
+        private final int level;
+        private final CompMaterial item;
+        private final int amount;
+        private final int coins;
+
+        public RewardTier(int level, CompMaterial item, int amount, int coins) {
+            this.level = level;
+            this.item = item;
+            this.amount = amount;
+            this.coins = coins;
+        }
+
+        public int getLevel() { return level; }
+        public CompMaterial getItem() { return item; }
+        public int getAmount() { return amount; }
+        public int getCoins() { return coins; }
+    }
+}
+```
+
+With the config file:
+
+```yaml rewards.yml
+Rewards:
+  10:
+    Item: DIAMOND_SWORD
+    Amount: 1
+    Coins: 100
+  20:
+    Item: DIAMOND_CHESTPLATE
+    Amount: 1
+    Coins: 250
+  50:
+    Item: NETHER_STAR
+    Amount: 1
+    Coins: 1000
+```
+
+### Per-player config files
+
+Create individual config files for each player.
+
+```java PlayerSettings.java
+package com.example.plugin.settings;
+
+import org.mineacademy.fo.settings.YamlConfig;
+import org.bukkit.entity.Player;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+public class PlayerSettings extends YamlConfig {
+
+    private static final Map<UUID, PlayerSettings> cache = new HashMap<>();
+
+    private boolean chatEnabled;
+    private boolean pvpEnabled;
+    private boolean scoreboardEnabled;
+    private String nickname;
+
+    public static PlayerSettings get(Player player) {
+        return get(player.getUniqueId());
+    }
+
+    public static PlayerSettings get(UUID uuid) {
+        if (!cache.containsKey(uuid)) {
+            PlayerSettings settings = new PlayerSettings();
+            settings.loadConfiguration(
+                NO_DEFAULT,
+                "players/" + uuid.toString() + ".yml"
+            );
+            
+            cache.put(uuid, settings);
+        }
+        
+        return cache.get(uuid);
+    }
+
+    @Override
+    protected void onLoadFinish() {
+        chatEnabled = getBoolean("Chat_Enabled", true);
+        pvpEnabled = getBoolean("PvP_Enabled", true);
+        scoreboardEnabled = getBoolean("Scoreboard_Enabled", true);
+        nickname = getString("Nickname", "");
+    }
+
+    public boolean isChatEnabled() {
+        return chatEnabled;
+    }
+
+    public void setChatEnabled(boolean enabled) {
+        this.chatEnabled = enabled;
+        set("Chat_Enabled", enabled);
+        save();
+    }
+
+    public boolean isPvpEnabled() {
+        return pvpEnabled;
+    }
+
+    public void setPvpEnabled(boolean enabled) {
+        this.pvpEnabled = enabled;
+        set("PvP_Enabled", enabled);
+        save();
+    }
+
+    public boolean isScoreboardEnabled() {
+        return scoreboardEnabled;
+    }
+
+    public void setScoreboardEnabled(boolean enabled) {
+        this.scoreboardEnabled = enabled;
+        set("Scoreboard_Enabled", enabled);
+        save();
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+        set("Nickname", nickname);
+        save();
+    }
+}
+```
+
+### Using ConfigSerializable
+
+Create custom objects that can be saved and loaded from configs.
+
+```java CustomItem.java
+package com.example.plugin.model;
+
+import org.mineacademy.fo.model.ConfigSerializable;
+import org.mineacademy.fo.collection.SerializedMap;
+import org.mineacademy.fo.remain.CompMaterial;
+import org.mineacademy.fo.menu.model.ItemCreator;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+
+public class CustomItem implements ConfigSerializable {
+
+    private String name;
+    private CompMaterial material;
+    private List<String> lore;
+    private int amount;
+    private boolean glowing;
+
+    public CustomItem(String name, CompMaterial material, List<String> lore, int amount, boolean glowing) {
+        this.name = name;
+        this.material = material;
+        this.lore = lore;
+        this.amount = amount;
+        this.glowing = glowing;
+    }
+
+    @Override
+    public SerializedMap serialize() {
+        return SerializedMap.ofArray(
+            "Name", name,
+            "Material", material.toString(),
+            "Lore", lore,
+            "Amount", amount,
+            "Glowing", glowing
+        );
+    }
+
+    public static CustomItem deserialize(SerializedMap map) {
+        String name = map.getString("Name");
+        CompMaterial material = CompMaterial.fromString(map.getString("Material"));
+        List<String> lore = map.getStringList("Lore");
+        int amount = map.getInteger("Amount");
+        boolean glowing = map.getBoolean("Glowing");
+        
+        return new CustomItem(name, material, lore, amount, glowing);
+    }
+
+    public ItemStack toItemStack() {
+        return ItemCreator.of(material)
+            .name(name)
+            .lore(lore)
+            .amount(amount)
+            .glow(glowing)
+            .make();
+    }
+
+    // Getters
+    public String getName() { return name; }
+    public CompMaterial getMaterial() { return material; }
+    public List<String> getLore() { return lore; }
+    public int getAmount() { return amount; }
+    public boolean isGlowing() { return glowing; }
+}
+```
+
+Then save and load it:
+
+```java
+// Save custom item to config
+CustomItem item = new CustomItem(
+    "&cSpecial Sword",
+    CompMaterial.DIAMOND_SWORD,
+    Arrays.asList("&7A powerful weapon", "&7for brave warriors"),
+    1,
+    true
+);
+
+config.set("Items.Special_Sword", item.serialize());
+config.save();
+
+// Load custom item from config
+SerializedMap data = config.getMap("Items.Special_Sword");
+CustomItem loaded = CustomItem.deserialize(data);
+```
+
+### Dynamic path prefixes
+
+```java
+public static class Shops {
+    
+    private static Map<String, Shop> shops = new HashMap<>();
+    
+    private static void init() {
+        shops.clear();
+        
+        // Load all shops dynamically
+        for (String shopName : getKeys("Shops")) {
+            setPathPrefix("Shops." + shopName);
+            
+            String title = getString("Title");
+            List<String> items = getStringList("Items");
+            
+            shops.put(shopName, new Shop(shopName, title, items));
+        }
+    }
+    
+    public static Shop getShop(String name) {
+        return shops.get(name);
+    }
+    
+    public static class Shop {
+        private final String name;
+        private final String title;
+        private final List<String> items;
+        
+        public Shop(String name, String title, List<String> items) {
+            this.name = name;
+            this.title = title;
+            this.items = items;
+        }
+        
+        // Getters
+    }
+}
+```
+
+## Available data types
+
+Foundation supports many data types:
+
+| Method | Type | Example |
+|--------|------|--------|
+| `getString()` | String | `"Hello World"` |
+| `getInteger()` | Integer | `42` |
+| `getDouble()` | Double | `3.14` |
+| `getBoolean()` | Boolean | `true` |
+| `getLong()` | Long | `1234567890L` |
+| `getStringList()` | List | `["a", "b"]` |
+| `getMap()` | SerializedMap | Complex objects |
+| `getLocation()` | Location | World coordinates |
+| `getSound()` | CompSound | Sound effects |
+| `getMaterial()` | CompMaterial | Block/item types |
+
+<Tip>
+All getter methods support default values as a second parameter: `getString("Key", "default")`
+</Tip>
+
+<Note>
+Foundation automatically preserves comments when saving configs, keeping your configuration files clean and documented.
+</Note>
+
+## Best practices
+
+- Use nested classes to organize related settings
+- Always provide default values in your resource folder
+- Use descriptive comments in your default config
+- Validate values in `onLoadFinish()` to catch configuration errors early
+- Cache loaded configs instead of reading from disk repeatedly
+
+## Next steps
+
+- [Create your first plugin](/examples/first-plugin)
+- [Create custom commands](/examples/custom-command)
+- [Build GUI menus](/examples/gui-menu)

@@ -1,0 +1,416 @@
+---
+title: Menus
+description: Create interactive inventory GUIs with buttons, animations, and automatic item management
+---
+
+Foundation's `Menu` class provides a powerful system for creating interactive chest GUIs with automatic button registration, pagination, and animations.
+
+## Creating a basic menu
+
+Extend `Menu` and override `getItemAt()` to define your menu items:
+
+```java
+public class ShopMenu extends Menu {
+
+    public ShopMenu() {
+        setTitle("&6&lShop");
+        setSize(9 * 3);
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 11)
+            return ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+                .name("&bDiamond Sword")
+                .lore("&7Price: &e100 coins")
+                .make();
+        
+        if (slot == 15)
+            return ItemCreator.of(CompMaterial.GOLDEN_APPLE)
+                .name("&eGolden Apple")
+                .lore("&7Price: &e50 coins")
+                .make();
+        
+        return NO_ITEM;
+    }
+
+    @Override
+    protected void onMenuClick(Player player, int slot, ItemStack clicked) {
+        if (slot == 11) {
+            player.getInventory().addItem(new ItemStack(Material.DIAMOND_SWORD));
+            tellSuccess("Purchased Diamond Sword!");
+        }
+    }
+}
+```
+
+## Opening menus
+
+```java
+new ShopMenu().displayTo(player);
+```
+
+## Buttons
+
+Create interactive buttons as fields that are automatically registered:
+
+```java
+public class SettingsMenu extends Menu {
+
+    private final Button soundButton;
+    private final Button particlesButton;
+
+    public SettingsMenu() {
+        setTitle("Settings");
+        setSize(9 * 3);
+        
+        soundButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                PlayerCache cache = PlayerCache.from(player);
+                cache.toggleSounds();
+                
+                restartMenu();
+            }
+            
+            @Override
+            public ItemStack getItem() {
+                PlayerCache cache = PlayerCache.from(getViewer());
+                
+                return ItemCreator.of(CompMaterial.NOTE_BLOCK)
+                    .name(cache.hasSoundsEnabled() ? "&aEnable" : "&cDisable")
+                    .make();
+            }
+        };
+        
+        particlesButton = Button.makeSimple(
+            ItemCreator.of(CompMaterial.BLAZE_POWDER).name("&dParticles"),
+            "&7Toggle particle effects",
+            player -> {
+                PlayerCache.from(player).toggleParticles();
+                restartMenu();
+            });
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 11)
+            return soundButton.getItem();
+        
+        if (slot == 15)
+            return particlesButton.getItem();
+        
+        return NO_ITEM;
+    }
+}
+```
+
+## Button positioning
+
+Use the `@Position` annotation for automatic button placement:
+
+```java
+public class MyMenu extends Menu {
+
+    @Position(11)
+    private final Button item1;
+    
+    @Position(value = 0, start = StartPosition.BOTTOM_CENTER)
+    private final Button closeButton;
+
+    public MyMenu() {
+        setSize(9 * 5);
+        
+        item1 = Button.makeSimple(
+            ItemCreator.of(CompMaterial.DIAMOND).name("Item 1"),
+            player -> tell("Clicked item 1!")
+        );
+        
+        closeButton = Button.makeSimple(
+            ItemCreator.of(CompMaterial.BARRIER).name("&cClose"),
+            Player::closeInventory
+        );
+    }
+}
+```
+
+### Position modes
+
+<CodeGroup>
+```java Absolute slot
+@Position(13) // Center of 3-row menu
+```
+
+```java Relative to center
+@Position(value = -1, start = StartPosition.CENTER)
+```
+
+```java Bottom center
+@Position(value = 0, start = StartPosition.BOTTOM_CENTER)
+```
+
+```java Bottom left
+@Position(value = 0, start = StartPosition.BOTTOM_LEFT)
+```
+</CodeGroup>
+
+## Parent menus
+
+Create hierarchical menus with automatic return buttons:
+
+```java
+public class CategoryMenu extends Menu {
+    
+    private final Menu parent;
+    
+    public CategoryMenu(Menu parent) {
+        super(parent);
+        
+        this.parent = parent;
+        setTitle("Category");
+        setSize(9 * 3);
+    }
+}
+
+// Open child menu
+new CategoryMenu(this).displayTo(player);
+```
+
+The return button appears automatically in the bottom-right corner.
+
+## Menu lifecycle
+
+<Steps>
+<Step title="Before display">
+Override `onPreDisplay()` to modify the inventory before opening:
+
+```java
+@Override
+protected void onPreDisplay(InventoryDrawer drawer) {
+    // Last-minute modifications
+    drawer.setItem(0, customItem);
+}
+```
+</Step>
+
+<Step title="On display">
+Override `onDisplay()` to customize how the menu opens:
+
+```java
+@Override
+protected void onDisplay(InventoryDrawer drawer, Player player) {
+    drawer.display(player);
+    tellSuccess("Menu opened!");
+}
+```
+</Step>
+
+<Step title="After display">
+Run code after the menu is shown:
+
+```java
+@Override
+protected void onPostDisplay(Player viewer) {
+    CompSound.BLOCK_CHEST_OPEN.play(viewer);
+}
+```
+</Step>
+
+<Step title="On close">
+Handle menu closing:
+
+```java
+@Override
+protected void onMenuClose(Player player, Inventory inventory) {
+    // Save data or clean up
+}
+```
+</Step>
+</Steps>
+
+## Refreshing menus
+
+Update menu contents without closing:
+
+```java
+// Simple refresh
+restartMenu();
+
+// With title animation
+restartMenu("&aUpdated!");
+
+// Redraw only buttons
+redrawButtons();
+```
+
+## Animations
+
+### Title animations
+
+```java
+animateTitle("&a&lItem Purchased!");
+```
+
+### Repeating tasks
+
+```java
+@Override
+protected void onPostDisplay(Player viewer) {
+    // Update every second (20 ticks)
+    animate(20, () -> {
+        // Update logic
+        redrawButtons();
+    });
+}
+```
+
+### Async animations
+
+```java
+animateAsync(20, () -> {
+    // Heavy computation
+    Common.runLater(() -> redrawButtons());
+});
+```
+
+## Menu info
+
+Add an info button with menu description:
+
+```java
+@Override
+protected String[] getInfo() {
+    return new String[] {
+        "Welcome to the shop!",
+        "Click items to purchase.",
+        "&eYour balance: " + getBalance()
+    };
+}
+```
+
+## Action control
+
+Control what players can do in menus:
+
+```java
+@Override
+protected boolean isActionAllowed(MenuClickLocation location, 
+                                   int slot, 
+                                   ItemStack clicked, 
+                                   ItemStack cursor,
+                                   InventoryAction action) {
+    // Allow taking items from bottom (player inventory)
+    return location == MenuClickLocation.PLAYER_INVENTORY;
+}
+```
+
+### Allow shift-click
+
+```java
+@Override
+public boolean isAllowShift(int slot) {
+    return slot >= 27; // Allow in bottom inventory only
+}
+```
+
+## Pagination
+
+Extend `MenuPagged` for automatic pagination:
+
+```java
+public class WarpMenu extends MenuPagged<Warp> {
+
+    public WarpMenu() {
+        super(null, Warp.getWarps());
+        
+        setTitle("Warps");
+    }
+
+    @Override
+    protected ItemStack convertToItemStack(Warp warp) {
+        return ItemCreator.of(CompMaterial.ENDER_PEARL)
+            .name("&b" + warp.getName())
+            .lore(
+                "&7Location: " + warp.getLocation(),
+                "",
+                "&eClick to teleport!"
+            )
+            .make();
+    }
+
+    @Override
+    protected void onPageClick(Player player, Warp warp, ClickType click) {
+        player.teleport(warp.getLocation());
+        player.closeInventory();
+    }
+}
+```
+
+## Tools
+
+Extend `MenuTools` for a tool selection menu:
+
+```java
+public class ToolsMenu extends MenuTools {
+
+    @Override
+    protected Tool[] getTools() {
+        return new Tool[] {
+            new RegionTool(),
+            new InspectorTool()
+        };
+    }
+}
+```
+
+## Advanced features
+
+### Getting menu instance
+
+```java
+Menu menu = Menu.getMenu(player);
+Menu previous = Menu.getPreviousMenu(player);
+Menu lastClosed = Menu.getLastClosedMenu(player);
+```
+
+### Custom sounds
+
+```java
+Menu.setSound(new SimpleSound(CompSound.BLOCK_NOTE_BLOCK_PLING, 1F, 1.5F));
+Menu.setSound(null); // Disable
+```
+
+### Title animation duration
+
+```java
+Menu.setTitleAnimationDurationTicks(40); // 2 seconds
+Menu.setTitleAnimationEnabled(false);
+```
+
+### Slot numbers debug
+
+```java
+public MyMenu() {
+    setSlotNumbersVisible(); // Shows slot numbers in empty spaces
+}
+```
+
+## Messaging
+
+```java
+tell("Message to viewer");
+tellInfo("Info message");
+tellSuccess("Success!");
+tellWarn("Warning!");
+tellError("Error!");
+tellQuestion("Are you sure?");
+tellAnnounce("Announcement!");
+```
+
+<Note>
+Buttons are automatically registered when they're declared as fields in your menu class.
+</Note>
+
+<Warning>
+Don't call `getViewer()` in your constructor - it's null until the menu is displayed!
+</Warning>

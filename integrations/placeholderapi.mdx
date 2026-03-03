@@ -1,0 +1,360 @@
+---
+title: PlaceholderAPI integration
+description: Register custom placeholders and replace variables dynamically
+---
+
+PlaceholderAPI provides a powerful placeholder system used across thousands of plugins. Foundation integrates seamlessly, allowing you to both use existing placeholders and register your own.
+
+## Check if loaded
+
+```java
+if (HookManager.isPlaceholderAPILoaded()) {
+    // PlaceholderAPI is available
+}
+```
+
+## Replace placeholders
+
+### Basic replacement
+
+```java
+String message = "Hello %player_name%, you have %vault_eco_balance%!";
+message = HookManager.replacePlaceholders(player, message);
+Common.tell(player, message);
+```
+
+### With offline players
+
+```java
+OfflinePlayer offline = Bukkit.getOfflinePlayer(uuid);
+String message = "Player: %player_name%";
+message = HookManager.replacePlaceholders(offline, message);
+```
+
+### Without a player
+
+Some placeholders don't require a player:
+
+```java
+String message = "Server TPS: %server_tps%";
+message = HookManager.replacePlaceholders(null, message);
+```
+
+## Relational placeholders
+
+Relational placeholders compare two players:
+
+```java
+Player player1 = ...
+Player player2 = ...
+
+String message = "%rel_player1_name% and %rel_player2_name%";
+message = HookManager.replaceRelationPlaceholders(player1, player2, message);
+```
+
+## Register custom placeholders
+
+### Simple expansion
+
+Use Foundation's `Variables` system to register placeholders:
+
+```java
+public class MyPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        // Register custom placeholders
+        Variables.addExpansion(new MyExpansion());
+    }
+}
+
+class MyExpansion extends SimpleExpansion {
+
+    @Override
+    protected String onReplace(CommandSender sender, String identifier) {
+        if (!(sender instanceof Player))
+            return null;
+            
+        Player player = (Player) sender;
+        
+        // %myplugin_health%
+        if ("health".equals(identifier))
+            return String.valueOf(player.getHealth());
+            
+        // %myplugin_level%
+        if ("level".equals(identifier))
+            return String.valueOf(player.getLevel());
+            
+        // %myplugin_world%
+        if ("world".equals(identifier))
+            return player.getWorld().getName();
+            
+        return null; // Unknown placeholder
+    }
+}
+```
+
+### With parameters
+
+Handle placeholders with parameters like `%myplugin_stat_kills%`:
+
+```java
+class StatsExpansion extends SimpleExpansion {
+
+    @Override
+    protected String onReplace(CommandSender sender, String identifier) {
+        if (!(sender instanceof Player))
+            return null;
+            
+        Player player = (Player) sender;
+        
+        // %myplugin_stat_<type>%
+        if (identifier.startsWith("stat_")) {
+            String statType = identifier.substring(5); // Remove "stat_"
+            
+            return String.valueOf(getPlayerStat(player, statType));
+        }
+        
+        return null;
+    }
+    
+    private int getPlayerStat(Player player, String type) {
+        // Your stat retrieval logic
+        return 0;
+    }
+}
+```
+
+### Legacy method (deprecated)
+
+<Warning>
+The `addPlaceholder()` method is deprecated. Use `Variables.addExpansion()` instead for better flexibility.
+</Warning>
+
+```java
+// Old way - still works but not recommended
+HookManager.addPlaceholder("health", player -> 
+    String.valueOf(player.getHealth())
+);
+```
+
+## Advanced expansion example
+
+```java
+class PlayerDataExpansion extends SimpleExpansion {
+
+    private final PlayerDataCache cache;
+    
+    public PlayerDataExpansion(PlayerDataCache cache) {
+        this.cache = cache;
+    }
+
+    @Override
+    protected String onReplace(CommandSender sender, String identifier) {
+        if (!(sender instanceof Player))
+            return null;
+            
+        Player player = (Player) sender;
+        PlayerData data = cache.getData(player);
+        
+        if (data == null)
+            return "No data";
+        
+        switch (identifier.toLowerCase()) {
+            case "kills":
+                return String.valueOf(data.getKills());
+                
+            case "deaths":
+                return String.valueOf(data.getDeaths());
+                
+            case "kdr":
+                double kdr = data.getDeaths() > 0 
+                    ? (double) data.getKills() / data.getDeaths()
+                    : data.getKills();
+                return String.format("%.2f", kdr);
+                
+            case "rank":
+                return data.getRank();
+                
+            case "points":
+                return String.valueOf(data.getPoints());
+                
+            default:
+                return null;
+        }
+    }
+}
+```
+
+Register in your main class:
+
+```java
+@Override
+protected void onPluginStart() {
+    Variables.addExpansion(new PlayerDataExpansion(playerCache));
+}
+```
+
+Now players can use:
+- `%myplugin_kills%`
+- `%myplugin_deaths%`
+- `%myplugin_kdr%`
+- `%myplugin_rank%`
+- `%myplugin_points%`
+
+## Bracket placeholders
+
+Foundation supports both `%` and `{}` placeholder styles:
+
+```java
+// Both formats work
+String msg1 = "Hello %player_name%!";
+String msg2 = "Hello {player_name}!";
+
+msg1 = HookManager.replacePlaceholders(player, msg1);
+msg2 = HookManager.replacePlaceholders(player, msg2);
+```
+
+## Implementation details
+
+Foundation automatically injects your plugin's variables into PlaceholderAPI:
+
+```java PlaceholderAPIHook.java
+PlaceholderAPIHook() {
+    injector = new VariablesInjector();
+    
+    try {
+        injector.register();
+    } catch (final Throwable throwable) {
+        Common.error(throwable, "Failed to inject our variables into PlaceholderAPI!");
+    }
+}
+```
+
+The replacement process:
+
+```java PlaceholderAPIHook.java
+final String replacePlaceholders(final OfflinePlayer player, String msg) {
+    try {
+        return this.setPlaceholders(player, msg);
+    } catch (final Throwable t) {
+        Common.error(t,
+            "PlaceholderAPI failed to replace variables!",
+            "Player: " + (player == null ? "none" : player.getName()),
+            "Message: " + msg,
+            "Error: %error");
+        
+        return msg;
+    }
+}
+```
+
+<Note>
+Foundation includes a watchdog timer that prevents PlaceholderAPI from hanging your server if a placeholder expansion takes too long to respond (over 1.5 seconds on main thread, 4 seconds on async threads).
+</Note>
+
+## Common placeholders
+
+Popular PlaceholderAPI expansions you can use:
+
+**Player placeholders**
+- `%player_name%` - Player name
+- `%player_displayname%` - Display name
+- `%player_health%` - Current health
+- `%player_level%` - Experience level
+- `%player_world%` - Current world
+
+**Vault placeholders**
+- `%vault_eco_balance%` - Money balance
+- `%vault_rank%` - Permission group
+- `%vault_prefix%` - Chat prefix
+
+**Server placeholders**
+- `%server_name%` - Server name
+- `%server_online%` - Online players
+- `%server_max_players%` - Max players
+- `%server_tps%` - Server TPS
+
+## Best practices
+
+**Check for null** - Always handle null players in expansions:
+
+```java
+if (!(sender instanceof Player))
+    return null;
+```
+
+**Return null for unknown** - Return `null` for unrecognized placeholders:
+
+```java
+if ("health".equals(identifier))
+    return String.valueOf(player.getHealth());
+    
+return null; // Unknown placeholder
+```
+
+**Use lowercase** - Compare identifiers in lowercase:
+
+```java
+switch (identifier.toLowerCase()) {
+    case "kills":
+        return String.valueOf(getKills(player));
+}
+```
+
+**Format numbers** - Format decimal numbers for readability:
+
+```java
+return String.format("%.2f", kdr); // 2 decimal places
+```
+
+## Complete example
+
+Here's a full plugin with PlaceholderAPI integration:
+
+```java
+public class StatsPlugin extends SimplePlugin {
+
+    private PlayerStatsCache statsCache;
+
+    @Override
+    protected void onPluginStart() {
+        statsCache = new PlayerStatsCache();
+        
+        // Register placeholders
+        Variables.addExpansion(new StatsExpansion());
+    }
+    
+    class StatsExpansion extends SimpleExpansion {
+    
+        @Override
+        protected String onReplace(CommandSender sender, String identifier) {
+            if (!(sender instanceof Player))
+                return null;
+                
+            Player player = (Player) sender;
+            PlayerStats stats = statsCache.getStats(player);
+            
+            if (identifier.equals("total_kills"))
+                return String.valueOf(stats.getKills());
+                
+            if (identifier.equals("total_deaths"))
+                return String.valueOf(stats.getDeaths());
+                
+            return null;
+        }
+    }
+}
+```
+
+Usage in messages:
+
+```yaml
+messages:
+  stats: "Kills: %statsplugin_total_kills% | Deaths: %statsplugin_total_deaths%"
+```
+
+## Related
+
+- [Variables system](/features/variables) - Foundation's internal variable system
+- [Plugin integrations overview](/integrations/overview)

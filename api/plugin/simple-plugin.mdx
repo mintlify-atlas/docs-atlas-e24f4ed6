@@ -1,0 +1,640 @@
+---
+title: SimplePlugin
+description: The main plugin class that extends JavaPlugin with enhanced Foundation functionality
+---
+
+## Overview
+
+`SimplePlugin` is the core abstract class that your plugin should extend to leverage Foundation's enhanced functionality. It extends Bukkit's `JavaPlugin` and implements `Listener` for convenient event handling.
+
+**Package:** `org.mineacademy.fo.plugin`
+
+**Inheritance:** `JavaPlugin` → `SimplePlugin`
+
+<Note>
+You must extend this class in your main plugin class and implement the abstract `onPluginStart()` method.
+</Note>
+
+## Lifecycle methods
+
+Foundation provides several lifecycle hooks that are called at different stages of your plugin's lifecycle.
+
+### onPluginLoad
+
+```java
+protected void onPluginLoad()
+```
+
+Called before the plugin is started, equivalent to Bukkit's `onLoad()`. Use this for early initialization tasks.
+
+**Example:**
+
+```java
+@Override
+protected void onPluginLoad() {
+    // Register custom enchantments or world generators
+}
+```
+
+### onPluginStart
+
+```java
+protected abstract void onPluginStart()
+```
+
+The main loading method called when the plugin is ready to start. This is where you initialize your plugin's core functionality.
+
+<ParamField path="abstract" type="void">
+  This method must be implemented in your plugin class.
+</ParamField>
+
+**Example:**
+
+```java
+@Override
+protected void onPluginStart() {
+    // Load configuration
+    // Register commands
+    // Initialize managers
+    Common.log("Plugin started successfully!");
+}
+```
+
+### onReloadablesStart
+
+```java
+protected void onReloadablesStart()
+```
+
+Register your commands, events, tasks, and files here. This is invoked when you start the plugin, call `/reload`, or the `reload()` method.
+
+**Example:**
+
+```java
+@Override
+protected void onReloadablesStart() {
+    registerEvents(new PlayerListener());
+    registerCommand(new MyCommand());
+}
+```
+
+### onPluginPreReload
+
+```java
+protected void onPluginPreReload()
+```
+
+Invoked before settings are reloaded. Use this to prepare for configuration changes.
+
+### onPluginReload
+
+```java
+protected void onPluginReload()
+```
+
+Invoked after settings are reloaded. Use this to apply new configuration values.
+
+### onPluginStop
+
+```java
+protected void onPluginStop()
+```
+
+The main method called when the plugin is about to shut down. Clean up resources here.
+
+**Example:**
+
+```java
+@Override
+protected void onPluginStop() {
+    // Save data
+    // Close connections
+    // Cancel tasks
+}
+```
+
+## Static accessors
+
+These static methods provide quick access to plugin information.
+
+### getInstance
+
+```java
+public static SimplePlugin getInstance()
+```
+
+Returns the instance of your plugin. It's recommended to override this in your implementation for type safety.
+
+**Returns:** The plugin instance
+
+**Example:**
+
+```java
+public static MyPlugin getInstance() {
+    return (MyPlugin) SimplePlugin.getInstance();
+}
+```
+
+### hasInstance
+
+```java
+public static final boolean hasInstance()
+```
+
+Checks if the plugin instance has been set.
+
+**Returns:** `true` if instance exists, `false` otherwise
+
+### getVersion
+
+```java
+public static String getVersion()
+```
+
+Shortcut for `getDescription().getVersion()`.
+
+**Returns:** The plugin version string
+
+### getNamed
+
+```java
+public static String getNamed()
+```
+
+Shortcut for `getName()`.
+
+**Returns:** The plugin name
+
+### getSource
+
+```java
+public static File getSource()
+```
+
+Shortcut for `getFile()`.
+
+**Returns:** The plugin JAR file
+
+### getData
+
+```java
+public static File getData()
+```
+
+Shortcut for `getDataFolder()`.
+
+**Returns:** The plugin's data folder
+
+### isReloading
+
+```java
+public static boolean isReloading()
+```
+
+Checks if the plugin is currently reloading.
+
+**Returns:** `true` if reloading, `false` otherwise
+
+## Registration methods
+
+Convenient methods for registering various plugin components.
+
+### registerEvents
+
+```java
+protected final void registerEvents(final Listener listener)
+```
+
+Registers an event listener. If called during `onReloadablesStart()`, the listener is automatically unregistered on reload.
+
+<ParamField path="listener" type="Listener" required>
+  The Bukkit listener to register
+</ParamField>
+
+**Example:**
+
+```java
+registerEvents(new PlayerListener());
+```
+
+### registerEvents (SimpleListener)
+
+```java
+protected final void registerEvents(final SimpleListener<? extends Event> listener)
+```
+
+Registers a Foundation SimpleListener for a single event type.
+
+<ParamField path="listener" type="SimpleListener<? extends Event>" required>
+  The SimpleListener to register
+</ParamField>
+
+### registerAllEvents
+
+```java
+protected final <T extends Listener> void registerAllEvents(final Class<T> extendingClass)
+```
+
+Automatically registers all classes in your plugin that extend the given listener class. Classes must have a no-argument constructor.
+
+<ParamField path="extendingClass" type="Class<T>" required>
+  The listener class to scan for
+</ParamField>
+
+<Note>
+Set your Debug key in settings.yml to ["auto-register"] to see what gets registered.
+</Note>
+
+**Example:**
+
+```java
+registerAllEvents(MyBaseListener.class);
+```
+
+### registerCommand
+
+```java
+protected final void registerCommand(final Command command)
+```
+
+Registers a Bukkit command.
+
+<ParamField path="command" type="Command" required>
+  The command to register
+</ParamField>
+
+### registerCommands
+
+```java
+protected final void registerCommands(final SimpleCommandGroup group)
+```
+
+Registers a command group. Shortcut for calling `group.register()`.
+
+<ParamField path="group" type="SimpleCommandGroup" required>
+  The command group to register
+</ParamField>
+
+### registerAllCommands
+
+```java
+protected final <T extends Command> void registerAllCommands(final Class<T> extendingClass)
+```
+
+Automatically registers all command classes in your plugin that extend the given class. Classes must have a no-argument constructor.
+
+<ParamField path="extendingClass" type="Class<T>" required>
+  The command class to scan for
+</ParamField>
+
+### registerBungeeCord
+
+```java
+protected final void registerBungeeCord(@NonNull BungeeListener bungee)
+```
+
+Registers a custom BungeeCord listener for plugin messaging.
+
+<ParamField path="bungee" type="BungeeListener" required>
+  The BungeeListener to register
+</ParamField>
+
+## Reload functionality
+
+### reload
+
+```java
+public final void reload()
+```
+
+Attempts to reload the plugin. This method:
+- Detects debug mode
+- Unregisters reloadables
+- Reloads dependencies
+- Calls `onPluginPreReload()`
+- Reloads configuration files
+- Calls `onPluginReload()`
+- Calls `onReloadablesStart()`
+
+**Example:**
+
+```java
+SimplePlugin.getInstance().reload();
+```
+
+## Configuration methods
+
+These methods allow you to customize plugin behavior.
+
+### getMinimumVersion
+
+```java
+public MinecraftVersion.V getMinimumVersion()
+```
+
+Return the minimum Minecraft version required to run your plugin. Foundation will prevent loading on older versions.
+
+**Returns:** Minimum version, or `null` for no restriction
+
+**Example:**
+
+```java
+@Override
+public MinecraftVersion.V getMinimumVersion() {
+    return MinecraftVersion.V.v1_13;
+}
+```
+
+### getMaximumVersion
+
+```java
+public MinecraftVersion.V getMaximumVersion()
+```
+
+Return the maximum Minecraft version for your plugin. Foundation will prevent loading on newer versions.
+
+**Returns:** Maximum version, or `null` for no restriction
+
+### getStartupLogo
+
+```java
+protected String[] getStartupLogo()
+```
+
+Return a fancy ASCII logo to display on plugin startup.
+
+**Returns:** Array of strings for the logo, or `null` for none
+
+**Example:**
+
+```java
+@Override
+protected String[] getStartupLogo() {
+    return new String[] {
+        "&6  __  __       ____  _             _       ",
+        "&6 |  \\/  |_   _|  _ \\| |_   _  __ _(_)_ __  ",
+        "&6 | |\/| | | | | |_) | | | | |/ _` | | '_ \\ ",
+        "&6 | |  | | |_| |  __/| | |_| | (_| | | | | |",
+        "&6 |_|  |_|\\__, |_|   |_|\\__,_|\\__, |_|_| |_|",
+        "&6         |___/                 |___/        "
+    };
+}
+```
+
+### getUpdateCheck
+
+```java
+public SpigotUpdater getUpdateCheck()
+```
+
+Return a SpigotUpdater instance to enable automatic update checking from SpigotMC.
+
+**Returns:** SpigotUpdater instance, or `null` to disable
+
+**Example:**
+
+```java
+@Override
+public SpigotUpdater getUpdateCheck() {
+    return new SpigotUpdater(12345); // Your Spigot resource ID
+}
+```
+
+### getMetricsPluginId
+
+```java
+public int getMetricsPluginId()
+```
+
+Return your bStats.org plugin ID to enable metrics tracking.
+
+**Returns:** Plugin ID from bStats, or `-1` to disable
+
+**Example:**
+
+```java
+@Override
+public int getMetricsPluginId() {
+    return 9876; // Your bStats plugin ID
+}
+```
+
+### getFoundedYear
+
+```java
+public int getFoundedYear()
+```
+
+Return the year your plugin was founded, displayed in command help.
+
+**Returns:** The year, or `-1` for no display
+
+### getMainCommand
+
+```java
+@Nullable
+public SimpleCommandGroup getMainCommand()
+```
+
+Returns the main command group if set via `@AutoRegister`.
+
+**Returns:** The main command group, or `null`
+
+### getRegexTimeout
+
+```java
+public int getRegexTimeout()
+```
+
+Return the timeout in milliseconds for processing regular expressions. This prevents server freeze on malformed regex.
+
+**Returns:** Timeout in milliseconds
+
+**Example:**
+
+```java
+@Override
+public int getRegexTimeout() {
+    return 100; // 100ms timeout
+}
+```
+
+### regexStripColors
+
+```java
+public boolean regexStripColors()
+```
+
+Should colors be stripped from messages before checking against regex?
+
+**Returns:** `true` to strip colors (default)
+
+### regexCaseInsensitive
+
+```java
+public boolean regexCaseInsensitive()
+```
+
+Should Pattern.CASE_INSENSITIVE be applied when compiling regex?
+
+**Returns:** `true` for case-insensitive matching (default)
+
+### regexUnicode
+
+```java
+public boolean regexUnicode()
+```
+
+Should Pattern.UNICODE_CASE be applied when compiling regex?
+
+**Returns:** `true` for Unicode support (default)
+
+### regexStripAccents
+
+```java
+public boolean regexStripAccents()
+```
+
+Should diacritical marks be removed before matching regex?
+
+**Returns:** `true` to strip accents (default)
+
+### areMenusEnabled
+
+```java
+public boolean areMenusEnabled()
+```
+
+Should Foundation listen for Menu class clicking?
+
+**Returns:** `true` to enable menus (default)
+
+<Warning>
+Returning `false` will break the entire Foundation menu system.
+</Warning>
+
+### areToolsEnabled
+
+```java
+public boolean areToolsEnabled()
+```
+
+Should Foundation handle Tool clicking events automatically?
+
+**Returns:** `true` to enable tools (default)
+
+### areRegionsEnabled
+
+```java
+public boolean areRegionsEnabled()
+```
+
+Should the region system be enabled? Loads `DiskRegion.loadRegions()`.
+
+**Returns:** `false` by default
+
+### getConsoleFilter
+
+```java
+public Set<String> getConsoleFilter()
+```
+
+Return a list of console messages to filter out (using startsWith or contains matching).
+
+**Returns:** Set of filter strings
+
+**Example:**
+
+```java
+@Override
+public Set<String> getConsoleFilter() {
+    return new HashSet<>(Arrays.asList(
+        "[ViaVersion]",
+        "Can't keep up!"
+    ));
+}
+```
+
+### filterInsecureChat
+
+```java
+public boolean filterInsecureChat()
+```
+
+Remove the [Not Secure] message from console chat.
+
+**Returns:** `true` to filter (default)
+
+## Utility methods
+
+### getJavaVersion
+
+```java
+public static int getJavaVersion()
+```
+
+Return the major Java version (e.g., 8 for Java 1.8, 17 for Java 17).
+
+**Returns:** Major Java version number
+
+**Example:**
+
+```java
+int javaVersion = SimplePlugin.getJavaVersion();
+if (javaVersion < 11) {
+    Common.log("Warning: Java 11 or higher is recommended!");
+}
+```
+
+## Complete example
+
+```java
+package com.example.myplugin;
+
+import org.mineacademy.fo.plugin.SimplePlugin;
+import org.mineacademy.fo.MinecraftVersion;
+import org.mineacademy.fo.model.SpigotUpdater;
+
+public final class MyPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        Common.log("Starting MyPlugin...");
+        
+        // Initialize your plugin
+    }
+
+    @Override
+    protected void onReloadablesStart() {
+        // Register events
+        registerEvents(new PlayerListener());
+        
+        // Register commands
+        registerCommand(new MyCommand());
+    }
+
+    @Override
+    protected void onPluginStop() {
+        Common.log("Stopping MyPlugin...");
+    }
+
+    @Override
+    public MinecraftVersion.V getMinimumVersion() {
+        return MinecraftVersion.V.v1_13;
+    }
+
+    @Override
+    public int getMetricsPluginId() {
+        return 12345; // Your bStats ID
+    }
+
+    @Override
+    public int getFoundedYear() {
+        return 2024;
+    }
+
+    public static MyPlugin getInstance() {
+        return (MyPlugin) SimplePlugin.getInstance();
+    }
+}
+```

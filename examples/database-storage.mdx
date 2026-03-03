@@ -1,0 +1,543 @@
+---
+title: Database storage
+description: Store and retrieve player data using MySQL databases
+---
+
+Foundation provides a powerful database API that supports MySQL, MariaDB, and SQLite. This example shows how to create a complete player data storage system.
+
+## Basic database setup
+
+<Steps>
+
+<Step title="Create a database class">
+
+Extend `SimpleDatabase` to create your database connection.
+
+```java PlayerDatabase.java
+package com.example.plugin.database;
+
+import org.mineacademy.fo.database.SimpleDatabase;
+import org.mineacademy.fo.Valid;
+
+import java.sql.ResultSet;
+import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
+
+public class PlayerDatabase extends SimpleDatabase {
+
+    @Override
+    protected void onConnected() {
+        // Called after successful connection
+        // Create tables if they don't exist
+        
+        update(
+            "CREATE TABLE IF NOT EXISTS Players (" +
+            "UUID VARCHAR(64) PRIMARY KEY," +
+            "Name VARCHAR(32) NOT NULL," +
+            "Coins INT DEFAULT 0," +
+            "Level INT DEFAULT 1," +
+            "LastJoin BIGINT," +
+            "PlayTime BIGINT DEFAULT 0" +
+            ")"
+        );
+    }
+}
+```
+
+</Step>
+
+<Step title="Connect to the database">
+
+Connect to your database in the main plugin class.
+
+```java MyPlugin.java
+package com.example.plugin;
+
+import org.mineacademy.fo.plugin.SimplePlugin;
+import org.mineacademy.fo.settings.SimpleSettings;
+import com.example.plugin.database.PlayerDatabase;
+
+public class MyPlugin extends SimplePlugin {
+
+    private static PlayerDatabase database;
+
+    @Override
+    protected void onPluginStart() {
+        // Create database instance
+        database = new PlayerDatabase();
+        
+        // Connect to MySQL
+        database.connect(
+            "localhost",           // host
+            3306,                  // port
+            "minecraft",           // database name
+            "root",                // username
+            "password",            // password
+            "Players"              // table name (optional)
+        );
+        
+        // Or connect to SQLite (file-based database)
+        // database.connectSQLite("playerdata.db");
+    }
+
+    @Override
+    protected void onPluginStop() {
+        // Close database connection
+        if (database != null && database.isConnected()) {
+            database.close();
+        }
+    }
+
+    public static PlayerDatabase getDatabase() {
+        return database;
+    }
+}
+```
+
+<Note>
+For SQLite, you don't need a separate database server. The database is stored as a file in your plugin's folder.
+</Note>
+
+</Step>
+
+<Step title="Create a player data class">
+
+Create a class to represent player data.
+
+```java PlayerData.java
+package com.example.plugin.data;
+
+import org.mineacademy.fo.Valid;
+import com.example.plugin.MyPlugin;
+import com.example.plugin.database.PlayerDatabase;
+
+import java.sql.ResultSet;
+import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
+
+public class PlayerData {
+
+    // Cache loaded player data
+    private static final Map<UUID, PlayerData> cache = new HashMap<>();
+
+    private final UUID uuid;
+    private String name;
+    private int coins;
+    private int level;
+    private long lastJoin;
+    private long playTime;
+
+    private PlayerData(UUID uuid, String name) {
+        this.uuid = uuid;
+        this.name = name;
+        this.coins = 0;
+        this.level = 1;
+        this.lastJoin = System.currentTimeMillis();
+        this.playTime = 0;
+    }
+
+    // Load or create player data
+    public static PlayerData loadOrCreate(UUID uuid, String name) {
+        // Check cache first
+        if (cache.containsKey(uuid)) {
+            return cache.get(uuid);
+        }
+
+        PlayerDatabase db = MyPlugin.getDatabase();
+        PlayerData data = null;
+
+        // Try to load from database
+        ResultSet rs = db.query(
+            "SELECT * FROM Players WHERE UUID = ?",
+            uuid.toString()
+        );
+
+        try {
+            if (rs != null && rs.next()) {
+                // Player exists, load their data
+                data = new PlayerData(uuid, rs.getString("Name"));
+                data.coins = rs.getInt("Coins");
+                data.level = rs.getInt("Level");
+                data.lastJoin = rs.getLong("LastJoin");
+                data.playTime = rs.getLong("PlayTime");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Create new player if not found
+        if (data == null) {
+            data = new PlayerData(uuid, name);
+            data.save(); // Save to database
+        }
+
+        // Add to cache
+        cache.put(uuid, data);
+        return data;
+    }
+
+    // Save player data to database
+    public void save() {
+        PlayerDatabase db = MyPlugin.getDatabase();
+
+        db.update(
+            "INSERT INTO Players (UUID, Name, Coins, Level, LastJoin, PlayTime) " +
+            "VALUES (?, ?, ?, ?, ?, ?) " +
+            "ON DUPLICATE KEY UPDATE " +
+            "Name = ?, Coins = ?, Level = ?, LastJoin = ?, PlayTime = ?",
+            uuid.toString(), name, coins, level, lastJoin, playTime,
+            name, coins, level, lastJoin, playTime
+        );
+    }
+
+    // Remove from cache
+    public static void unload(UUID uuid) {
+        PlayerData data = cache.remove(uuid);
+        if (data != null) {
+            data.save(); // Save before unloading
+        }
+    }
+
+    // Getters and setters
+    public UUID getUUID() {
+        return uuid;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getCoins() {
+        return coins;
+    }
+
+    public void setCoins(int coins) {
+        this.coins = coins;
+    }
+
+    public void addCoins(int amount) {
+        this.coins += amount;
+    }
+
+    public boolean removeCoins(int amount) {
+        if (this.coins >= amount) {
+            this.coins -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
+    public long getLastJoin() {
+        return lastJoin;
+    }
+
+    public void setLastJoin(long lastJoin) {
+        this.lastJoin = lastJoin;
+    }
+
+    public long getPlayTime() {
+        return playTime;
+    }
+
+    public void addPlayTime(long time) {
+        this.playTime += time;
+    }
+}
+```
+
+</Step>
+
+<Step title="Handle player join and quit events">
+
+Load data when players join and save when they leave.
+
+```java PlayerListener.java
+package com.example.plugin.listeners;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.mineacademy.fo.Common;
+import com.example.plugin.data.PlayerData;
+
+public class PlayerListener implements Listener {
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        
+        // Load player data asynchronously to avoid blocking
+        Common.runAsync(() -> {
+            PlayerData data = PlayerData.loadOrCreate(
+                player.getUniqueId(),
+                player.getName()
+            );
+            
+            // Update last join time
+            data.setLastJoin(System.currentTimeMillis());
+            
+            // Send welcome message on main thread
+            Common.runLater(1, () -> {
+                Common.tell(player, "&aWelcome back, " + player.getName() + "!");
+                Common.tell(player, "&7Coins: &e" + data.getCoins());
+                Common.tell(player, "&7Level: &b" + data.getLevel());
+            });
+        });
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        
+        // Save and unload player data asynchronously
+        Common.runAsync(() -> {
+            PlayerData.unload(player.getUniqueId());
+        });
+    }
+}
+```
+
+</Step>
+
+<Step title="Create commands to interact with data">
+
+Create commands that modify player data.
+
+```java CoinsCommand.java
+package com.example.plugin.commands;
+
+import org.bukkit.entity.Player;
+import org.mineacademy.fo.command.SimpleCommand;
+import org.mineacademy.fo.annotation.AutoRegister;
+import org.mineacademy.fo.Common;
+import com.example.plugin.data.PlayerData;
+
+@AutoRegister
+public class CoinsCommand extends SimpleCommand {
+
+    public CoinsCommand() {
+        super("coins");
+        setDescription("Manage player coins");
+        setUsage("<add|remove|set> <player> <amount>");
+        setPermission("myplugin.coins");
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        
+        if (args.length == 0) {
+            // Show own coins
+            Player player = getPlayer();
+            PlayerData data = PlayerData.loadOrCreate(
+                player.getUniqueId(),
+                player.getName()
+            );
+            
+            tellInfo("You have &e" + data.getCoins() + " &7coins");
+            return;
+        }
+        
+        // Require admin permission for modifying coins
+        checkPerm("myplugin.coins.admin");
+        
+        if (args.length < 3) {
+            tellError("Usage: /coins <add|remove|set> <player> <amount>");
+            return;
+        }
+        
+        String action = args[0].toLowerCase();
+        Player target = findPlayer(args[1]);
+        int amount = findNumber(2, "Please specify a valid amount!");
+        
+        // Load target's data asynchronously
+        Common.runAsync(() -> {
+            PlayerData data = PlayerData.loadOrCreate(
+                target.getUniqueId(),
+                target.getName()
+            );
+            
+            switch (action) {
+                case "add":
+                    data.addCoins(amount);
+                    data.save();
+                    tellSuccess("Added &e" + amount + " &7coins to " + target.getName());
+                    Common.tell(target, "&aYou received &e" + amount + " &acoins!");
+                    break;
+                    
+                case "remove":
+                    if (data.removeCoins(amount)) {
+                        data.save();
+                        tellSuccess("Removed &e" + amount + " &7coins from " + target.getName());
+                        Common.tell(target, "&c" + amount + " coins were removed from your account.");
+                    } else {
+                        tellError(target.getName() + " doesn't have enough coins!");
+                    }
+                    break;
+                    
+                case "set":
+                    data.setCoins(amount);
+                    data.save();
+                    tellSuccess("Set " + target.getName() + "'s coins to &e" + amount);
+                    Common.tell(target, "&7Your coins have been set to &e" + amount);
+                    break;
+                    
+                default:
+                    tellError("Invalid action. Use add, remove, or set.");
+            }
+        });
+    }
+}
+```
+
+</Step>
+
+</Steps>
+
+## Advanced database features
+
+### Batch operations
+
+```java
+public void saveAllPlayers() {
+    PlayerDatabase db = MyPlugin.getDatabase();
+    
+    // Begin batch update for better performance
+    db.batchUpdate("INSERT INTO Players (UUID, Name, Coins) VALUES (?, ?, ?)", 
+        batch -> {
+            for (PlayerData data : getAllPlayerData()) {
+                batch.add(
+                    data.getUUID().toString(),
+                    data.getName(),
+                    data.getCoins()
+                );
+            }
+        }
+    );
+}
+```
+
+### Complex queries
+
+```java
+public List<PlayerData> getTopPlayers(int limit) {
+    PlayerDatabase db = MyPlugin.getDatabase();
+    List<PlayerData> topPlayers = new ArrayList<>();
+    
+    ResultSet rs = db.query(
+        "SELECT * FROM Players ORDER BY Coins DESC LIMIT ?",
+        limit
+    );
+    
+    try {
+        while (rs != null && rs.next()) {
+            UUID uuid = UUID.fromString(rs.getString("UUID"));
+            PlayerData data = PlayerData.loadOrCreate(uuid, rs.getString("Name"));
+            topPlayers.add(data);
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    
+    return topPlayers;
+}
+```
+
+### Using SQL variables
+
+```java
+public class PlayerDatabase extends SimpleDatabase {
+
+    public PlayerDatabase() {
+        // Add SQL variable that can be used with {table} syntax
+        addVariable("table", "Players");
+        addVariable("prefix", "mp_");
+    }
+
+    @Override
+    protected void onConnected() {
+        // Use {table} in queries
+        update(
+            "CREATE TABLE IF NOT EXISTS {table} (" +
+            "UUID VARCHAR(64) PRIMARY KEY," +
+            "Name VARCHAR(32)" +
+            ")"
+        );
+        
+        // Use multiple variables
+        update(
+            "CREATE TABLE IF NOT EXISTS {prefix}stats (" +
+            "UUID VARCHAR(64)," +
+            "StatName VARCHAR(32)," +
+            "Value INT" +
+            ")"
+        );
+    }
+}
+```
+
+### Auto-reconnect
+
+```java
+@Override
+protected void onPluginStart() {
+    database = new PlayerDatabase();
+    
+    // Enable auto-reconnect (default is true)
+    database.connect(
+        "localhost",
+        3306,
+        "minecraft",
+        "root",
+        "password",
+        "Players",
+        true  // auto-reconnect enabled
+    );
+}
+```
+
+## Best practices
+
+<Tip>
+Always run database operations asynchronously using `Common.runAsync()` to avoid blocking the main server thread.
+</Tip>
+
+<Tip>
+Cache frequently accessed data in memory and save periodically to reduce database queries.
+</Tip>
+
+<Tip>
+Use prepared statements (which Foundation does automatically) to prevent SQL injection attacks.
+</Tip>
+
+<Note>
+Foundation automatically handles HikariCP connection pooling for better performance on Minecraft 1.16+.
+</Note>
+
+## SQLite vs MySQL
+
+| Feature | SQLite | MySQL |
+|---------|--------|-------|
+| Setup | Easy, no server needed | Requires database server |
+| Performance | Good for small servers | Better for large servers |
+| Concurrent access | Limited | Excellent |
+| Network support | No | Yes (multi-server) |
+| Best for | Single server | Networks/proxies |
+
+## Next steps
+
+- [Manage configuration files](/examples/config-management)
+- [Create GUI menus](/examples/gui-menu)
+- [Create custom commands](/examples/custom-command)

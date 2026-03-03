@@ -1,0 +1,268 @@
+---
+title: Vault integration
+description: Access economy, permissions, and chat features through Vault
+---
+
+Vault provides a unified API for economy, permissions, and chat plugins. Foundation's Vault integration gives you easy access to these features without direct dependencies.
+
+## Check if loaded
+
+Always verify Vault is available before using its features:
+
+```java
+if (HookManager.isVaultLoaded()) {
+    // Use Vault features
+}
+```
+
+## Economy integration
+
+### Check economy availability
+
+Vault may be installed without an economy plugin:
+
+```java
+if (HookManager.isEconomyIntegrated()) {
+    // Economy plugin is available
+}
+```
+
+### Get player balance
+
+```java
+double balance = HookManager.getBalance(player);
+Common.tell(player, "Your balance: " + balance);
+```
+
+### Withdraw money
+
+```java
+if (HookManager.getBalance(player) >= 100) {
+    HookManager.withdraw(player, 100);
+    Common.tell(player, "Purchased for 100 coins!");
+} else {
+    Common.tell(player, "Insufficient funds!");
+}
+```
+
+### Deposit money
+
+```java
+HookManager.deposit(player, 50);
+Common.tell(player, "Added 50 to your balance!");
+```
+
+### Currency names
+
+```java
+String singular = HookManager.getCurrencySingular(); // "Dollar"
+String plural = HookManager.getCurrencyPlural();     // "Dollars"
+
+Common.tell(player, "You earned 1 " + singular);
+Common.tell(player, "You have 100 " + plural);
+```
+
+## Permissions integration
+
+### Get player's primary group
+
+```java
+String group = HookManager.getPlayerPrimaryGroup(player);
+Common.tell(player, "Your rank: " + group);
+```
+
+### Get permission group
+
+```java
+String group = HookManager.getPlayerPermissionGroup(player);
+// Returns all groups if player has multiple
+```
+
+### Check permissions (Vault)
+
+For offline players or special cases:
+
+```java
+if (HookManager.isVaultLoaded()) {
+    boolean hasPerm = HookManager.hasVaultPermission(offlinePlayer, "myplugin.admin");
+}
+```
+
+<Note>
+For online players, use the standard Bukkit permission system (`player.hasPermission()`) instead.
+</Note>
+
+### Fast permission check
+
+Optimized permission checking when you know Vault is loaded:
+
+```java
+// Returns null if no permission plugin found
+// Returns true/false based on permission check
+Boolean result = HookManager.hasVaultPermissionFast(player, "permission.node");
+
+if (result != null && result) {
+    // Player has permission
+}
+```
+
+## Chat integration
+
+### Check chat availability
+
+```java
+if (HookManager.isChatIntegrated()) {
+    // Chat plugin is available (LuckPerms, etc.)
+}
+```
+
+### Get player prefix
+
+```java
+String prefix = HookManager.getPlayerPrefix(player);
+String message = prefix + player.getName() + ": Hello!";
+```
+
+### Get player suffix
+
+```java
+String suffix = HookManager.getPlayerSuffix(player);
+```
+
+## Complete example
+
+Here's a practical shop system using Vault:
+
+```java
+public class ShopCommand extends SimpleCommand {
+
+    public ShopCommand() {
+        super("shop");
+    }
+
+    @Override
+    protected void onCommand() {
+        Player player = getPlayer();
+        
+        // Ensure Vault and economy are available
+        checkBoolean(HookManager.isVaultLoaded(), 
+            "This server doesn't have Vault installed!");
+        checkBoolean(HookManager.isEconomyIntegrated(), 
+            "No economy plugin found!");
+        
+        String item = args[0];
+        double price = 100.0;
+        
+        // Check balance
+        double balance = HookManager.getBalance(player);
+        
+        if (balance < price) {
+            String currency = HookManager.getCurrencyPlural();
+            tellError("You need " + price + " " + currency + "!");
+            tellError("Your balance: " + balance + " " + currency);
+            return;
+        }
+        
+        // Process purchase
+        HookManager.withdraw(player, price);
+        
+        // Give item to player
+        giveItem(player, item);
+        
+        String currency = price == 1 
+            ? HookManager.getCurrencySingular()
+            : HookManager.getCurrencyPlural();
+            
+        tellSuccess("Purchased " + item + " for " + price + " " + currency);
+        tell("New balance: " + HookManager.getBalance(player));
+    }
+}
+```
+
+## Permission group example
+
+```java
+public void showPlayerInfo(Player player) {
+    if (!HookManager.isVaultLoaded())
+        return;
+        
+    String prefix = HookManager.getPlayerPrefix(player);
+    String suffix = HookManager.getPlayerSuffix(player);
+    String group = HookManager.getPlayerPrimaryGroup(player);
+    
+    Common.tell(player, "&7&m-----&r Your Info &7&m-----");
+    Common.tell(player, "Prefix: " + prefix);
+    Common.tell(player, "Suffix: " + suffix);
+    Common.tell(player, "Group: " + group);
+}
+```
+
+## Implementation details
+
+Foundation's Vault hook automatically detects service providers:
+
+```java VaultHook.java
+void setIntegration() {
+    final RegisteredServiceProvider<Economy> economyProvider = 
+        Bukkit.getServicesManager().getRegistration(Economy.class);
+    final RegisteredServiceProvider<Chat> chatProvider = 
+        Bukkit.getServicesManager().getRegistration(Chat.class);
+    final RegisteredServiceProvider<Permission> permProvider = 
+        Bukkit.getServicesManager().getRegistration(Permission.class);
+
+    if (economyProvider != null)
+        this.economy = economyProvider.getProvider();
+
+    if (chatProvider != null)
+        this.chat = chatProvider.getProvider();
+
+    if (permProvider != null)
+        this.permissions = permProvider.getProvider();
+}
+```
+
+## Safe defaults
+
+When Vault isn't loaded, methods return safe defaults:
+
+```java HookManager.java
+public static double getBalance(final Player player) {
+    return isVaultLoaded() ? vaultHook.getBalance(player) : 0;
+}
+
+public static String getPlayerPrefix(final Player player) {
+    return isVaultLoaded() ? vaultHook.getPlayerPrefix(player) : "";
+}
+
+public static String getCurrencySingular() {
+    return isVaultLoaded() ? vaultHook.getCurrencyNameSG() : "";
+}
+```
+
+<Warning>
+Always check `isVaultLoaded()` before using Vault features. While methods return safe defaults, you should inform users if economy features aren't available.
+</Warning>
+
+## Supported economy plugins
+
+Vault works with these economy plugins:
+- EssentialsX Economy
+- CMI Economy  
+- PlayerPoints
+- TokenManager
+- GemsEconomy
+- And many more
+
+## Supported permission plugins
+
+Vault works with these permission plugins:
+- LuckPerms
+- PermissionsEx
+- GroupManager
+- bPermissions
+- zPermissions
+
+## Related
+
+- [PlaceholderAPI](/integrations/placeholderapi) - Use `%vault_eco_balance%` placeholders
+- [Plugin integrations overview](/integrations/overview)

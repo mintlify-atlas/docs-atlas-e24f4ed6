@@ -1,0 +1,453 @@
+---
+title: Performance
+description: Measure and optimize your plugin's performance using Foundation's LagCatcher utility
+---
+
+Foundation's `LagCatcher` helps you identify performance bottlenecks and optimize your plugin.
+
+## Basic usage
+
+### Measuring execution time
+
+<Steps>
+  <Step title="Start timing">
+    Call `LagCatcher.start()` with a unique section name.
+    
+    ```java
+    import org.mineacademy.fo.debug.LagCatcher;
+    
+    LagCatcher.start("database-query");
+    ```
+  </Step>
+  
+  <Step title="Execute your code">
+    Run the code you want to measure.
+    
+    ```java
+    List<PlayerData> data = database.loadAllPlayers();
+    ```
+  </Step>
+  
+  <Step title="End timing">
+    Call `LagCatcher.end()` with the same section name.
+    
+    ```java
+    LagCatcher.end("database-query");
+    ```
+  </Step>
+</Steps>
+
+If execution time exceeds the threshold, you'll see a console message:
+
+```
+[MyPlugin 1.0.0] database-query took 156.42 ms
+```
+
+### Setting the threshold
+
+Configure the lag threshold in your `settings.yml`:
+
+```yaml
+# Lag threshold in milliseconds (-1 to disable)
+Lag_Threshold_Milliseconds: 100
+```
+
+Operations slower than this threshold will be logged.
+
+<Note>
+  Set to `-1` to completely disable lag catching for production servers.
+</Note>
+
+## Advanced usage
+
+### Rapid mode
+
+Always log execution time, regardless of threshold:
+
+```java
+LagCatcher.start("quick-operation");
+performOperation();
+LagCatcher.end("quick-operation", true); // true = rapid mode
+```
+
+Output:
+
+```
+[MyPlugin 1.0.0] quick-operation took 5.32 ms
+```
+
+### Custom threshold and message
+
+```java
+LagCatcher.start("critical-section");
+performCriticalOperation();
+
+// Only log if over 50ms, with custom message
+LagCatcher.end("critical-section", 50, 
+    "CRITICAL: {section} exceeded threshold at {time} ms!");
+```
+
+Use placeholders:
+- `{section}` - The section name
+- `{time}` - Time taken in milliseconds
+
+## Performance testing
+
+### Running benchmarks
+
+Test code performance across multiple iterations:
+
+```java
+LagCatcher.performanceTest(1000, "item-creation", () -> {
+    ItemStack item = new ItemStack(Material.DIAMOND_SWORD);
+    ItemMeta meta = item.getItemMeta();
+    meta.setDisplayName("Test Sword");
+    item.setItemMeta(meta);
+});
+```
+
+Output:
+
+```
+Test 'item-creation' took 245.67 ms. Average 0.24567 ms
+```
+
+### Measuring subsections
+
+Track individual parts within a performance test:
+
+```java
+LagCatcher.performanceTest(100, "complex-operation", () -> {
+    // Measure database read
+    LagCatcher.performancePartStart("db-read");
+    PlayerData data = loadFromDatabase();
+    LagCatcher.performancePartSnap("db-read");
+    
+    // Measure processing
+    LagCatcher.performancePartStart("processing");
+    processData(data);
+    LagCatcher.performancePartSnap("processing");
+    
+    // Measure database write
+    LagCatcher.performancePartStart("db-write");
+    saveToDatabase(data);
+    LagCatcher.performancePartSnap("db-write");
+});
+```
+
+Output:
+
+```
+Test 'complex-operation' took 1842.34 ms. Average 18.4234 ms
+    Section 'db-read' took 892.12 ms
+    Section 'processing' took 234.56 ms
+    Section 'db-write' took 715.66 ms
+Section measurement ended.
+```
+
+<Tip>
+  Performance parts automatically accumulate across all test iterations, giving you accurate averages.
+</Tip>
+
+## Real-world examples
+
+### Database operations
+
+```java
+public class DatabaseManager {
+    
+    public void saveAllPlayers() {
+        LagCatcher.start("save-all-players");
+        
+        Collection<? extends Player> players = Bukkit.getOnlinePlayers();
+        int saved = 0;
+        
+        for (Player player : players) {
+            LagCatcher.start("save-player-" + player.getName());
+            savePlayer(player);
+            LagCatcher.end("save-player-" + player.getName());
+            saved++;
+        }
+        
+        LagCatcher.end("save-all-players");
+        System.out.println("Saved " + saved + " players");
+    }
+    
+    private void savePlayer(Player player) {
+        // Database save logic
+    }
+}
+```
+
+### Region scanning
+
+```java
+public void scanRegion(Location corner1, Location corner2) {
+    LagCatcher.start("region-scan");
+    
+    int blocksScanned = 0;
+    int minX = Math.min(corner1.getBlockX(), corner2.getBlockX());
+    int maxX = Math.max(corner1.getBlockX(), corner2.getBlockX());
+    int minY = Math.min(corner1.getBlockY(), corner2.getBlockY());
+    int maxY = Math.max(corner1.getBlockY(), corner2.getBlockY());
+    int minZ = Math.min(corner1.getBlockZ(), corner2.getBlockZ());
+    int maxZ = Math.max(corner1.getBlockZ(), corner2.getBlockZ());
+    
+    World world = corner1.getWorld();
+    
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                Block block = world.getBlockAt(x, y, z);
+                processBlock(block);
+                blocksScanned++;
+            }
+        }
+    }
+    
+    LagCatcher.end("region-scan");
+    System.out.println("Scanned " + blocksScanned + " blocks");
+}
+```
+
+### Menu rendering
+
+```java
+public class CustomMenu extends Menu {
+    
+    @Override
+    protected void onDisplay(Player player) {
+        LagCatcher.start("menu-render-" + getTitle());
+        
+        // Render items
+        for (int slot = 0; slot < getSize(); slot++) {
+            ItemStack item = createMenuItem(slot, player);
+            setItem(slot, item);
+        }
+        
+        LagCatcher.end("menu-render-" + getTitle());
+    }
+    
+    private ItemStack createMenuItem(int slot, Player player) {
+        // Complex item creation
+        return new ItemStack(Material.STONE);
+    }
+}
+```
+
+### Event processing
+
+```java
+@EventHandler
+public void onBlockBreak(BlockBreakEvent event) {
+    LagCatcher.start("block-break-handler");
+    
+    Block block = event.getBlock();
+    Player player = event.getPlayer();
+    
+    // Check permissions
+    if (!canBreak(player, block)) {
+        event.setCancelled(true);
+        LagCatcher.end("block-break-handler");
+        return;
+    }
+    
+    // Custom drop logic
+    LagCatcher.start("calculate-drops");
+    List<ItemStack> drops = calculateCustomDrops(block, player);
+    LagCatcher.end("calculate-drops");
+    
+    // Give items
+    for (ItemStack drop : drops) {
+        player.getInventory().addItem(drop);
+    }
+    
+    LagCatcher.end("block-break-handler");
+}
+```
+
+## Optimization strategies
+
+### Identify bottlenecks
+
+```java
+public void complexOperation() {
+    LagCatcher.performanceTest(100, "full-operation", () -> {
+        LagCatcher.performancePartStart("part-1");
+        operationPart1();
+        LagCatcher.performancePartSnap("part-1");
+        
+        LagCatcher.performancePartStart("part-2");
+        operationPart2();
+        LagCatcher.performancePartSnap("part-2");
+        
+        LagCatcher.performancePartStart("part-3");
+        operationPart3();
+        LagCatcher.performancePartSnap("part-3");
+    });
+}
+```
+
+This reveals which part is slowest, so you know where to optimize.
+
+### Before/after comparison
+
+```java
+public void testOptimization() {
+    // Test old implementation
+    System.out.println("Testing old implementation:");
+    LagCatcher.performanceTest(1000, "old-method", this::oldImplementation);
+    
+    // Test new implementation
+    System.out.println("Testing new implementation:");
+    LagCatcher.performanceTest(1000, "new-method", this::newImplementation);
+}
+```
+
+Compare results to measure improvement.
+
+### Caching effectiveness
+
+```java
+private final Map<UUID, PlayerData> cache = new HashMap<>();
+
+public PlayerData getData(UUID playerId) {
+    // Check cache
+    if (cache.containsKey(playerId)) {
+        LagCatcher.start("get-cached-data");
+        PlayerData data = cache.get(playerId);
+        LagCatcher.end("get-cached-data", true); // Rapid to always log
+        return data;
+    }
+    
+    // Load from database
+    LagCatcher.start("load-data-from-db");
+    PlayerData data = loadFromDatabase(playerId);
+    LagCatcher.end("load-data-from-db", true);
+    
+    cache.put(playerId, data);
+    return data;
+}
+```
+
+Compare cache hits vs database loads to measure cache effectiveness.
+
+## Performance best practices
+
+<Steps>
+  <Step title="Profile before optimizing">
+    Measure actual performance to identify real bottlenecks, not assumed ones.
+    
+    ```java
+    // Add profiling first
+    LagCatcher.start("suspected-slow-code");
+    suspectedSlowMethod();
+    LagCatcher.end("suspected-slow-code", true);
+    ```
+  </Step>
+  
+  <Step title="Test with realistic data">
+    Use production-like data volumes for accurate results.
+    
+    ```java
+    // Test with 1000 players, not 10
+    LagCatcher.performanceTest(1000, "operation", () -> {
+        processPlayers(generateTestPlayers(1000));
+    });
+    ```
+  </Step>
+  
+  <Step title="Disable in production">
+    Set threshold to -1 in production to avoid overhead.
+    
+    ```yaml
+    Lag_Threshold_Milliseconds: -1
+    ```
+  </Step>
+  
+  <Step title="Clean up timing calls">
+    Remove or comment out LagCatcher calls after optimization.
+    
+    ```java
+    // LagCatcher.start("optimized-operation");
+    optimizedOperation();
+    // LagCatcher.end("optimized-operation");
+    ```
+  </Step>
+</Steps>
+
+## Common performance issues
+
+### Synchronous database calls
+
+```java
+// Bad - blocks main thread
+public void savePlayer(Player player) {
+    LagCatcher.start("save-sync");
+    database.save(player);
+    LagCatcher.end("save-sync"); // Often > 100ms!
+}
+
+// Good - async operation
+public void savePlayer(Player player) {
+    Common.runAsync(() -> {
+        LagCatcher.start("save-async");
+        database.save(player);
+        LagCatcher.end("save-async");
+    });
+}
+```
+
+### Inefficient loops
+
+```java
+// Bad - O(n²) complexity
+LagCatcher.performanceTest(100, "slow-loop", () -> {
+    for (Player p1 : Bukkit.getOnlinePlayers()) {
+        for (Player p2 : Bukkit.getOnlinePlayers()) {
+            checkPlayers(p1, p2);
+        }
+    }
+});
+
+// Good - O(n) complexity
+LagCatcher.performanceTest(100, "fast-loop", () -> {
+    List<Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
+    for (int i = 0; i < players.size(); i++) {
+        for (int j = i + 1; j < players.size(); j++) {
+            checkPlayers(players.get(i), players.get(j));
+        }
+    }
+});
+```
+
+### Repeated calculations
+
+```java
+// Bad - recalculates every time
+public void updatePlayer(Player player) {
+    LagCatcher.start("update-player-slow");
+    for (int i = 0; i < 100; i++) {
+        if (hasPermission(player)) { // Checks permission 100 times!
+            doSomething(i);
+        }
+    }
+    LagCatcher.end("update-player-slow");
+}
+
+// Good - calculate once
+public void updatePlayer(Player player) {
+    LagCatcher.start("update-player-fast");
+    boolean hasPerm = hasPermission(player);
+    for (int i = 0; i < 100; i++) {
+        if (hasPerm) {
+            doSomething(i);
+        }
+    }
+    LagCatcher.end("update-player-fast");
+}
+```
+
+<Warning>
+  Always move expensive operations (permissions checks, database queries, complex calculations) outside loops when possible.
+</Warning>

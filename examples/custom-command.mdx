@@ -1,0 +1,366 @@
+---
+title: Custom command
+description: Create powerful commands with arguments, permissions, and tab completion
+---
+
+Foundation's `SimpleCommand` class makes creating commands easy without needing plugin.yml. This example shows how to create a complete command with arguments, permissions, cooldowns, and tab completion.
+
+## Basic command structure
+
+<Steps>
+
+<Step title="Create a simple command class">
+
+Extend `SimpleCommand` and implement the required methods.
+
+```java HealCommand.java
+package com.example.plugin.commands;
+
+import org.bukkit.entity.Player;
+import org.mineacademy.fo.command.SimpleCommand;
+import org.mineacademy.fo.annotation.AutoRegister;
+
+@AutoRegister
+public class HealCommand extends SimpleCommand {
+
+    public HealCommand() {
+        super("heal|h");
+        
+        setDescription("Heal yourself or another player");
+        setUsage("[player]");
+        setPermission("myplugin.command.heal");
+        setMinArguments(0);
+    }
+
+    @Override
+    protected void onCommand() {
+        // Check if sender is a player
+        checkConsole();
+        
+        Player player = getPlayer();
+        
+        // Heal the player
+        player.setHealth(player.getMaxHealth());
+        player.setFoodLevel(20);
+        player.setFireTicks(0);
+        
+        tellSuccess("You have been healed!");
+    }
+}
+```
+
+<Note>
+The `@AutoRegister` annotation automatically registers this command when your plugin starts. No need to manually call `register()`!
+</Note>
+
+</Step>
+
+<Step title="Add command arguments">
+
+Create a command that accepts arguments to heal other players.
+
+```java HealCommand.java
+package com.example.plugin.commands;
+
+import org.bukkit.entity.Player;
+import org.mineacademy.fo.command.SimpleCommand;
+import org.mineacademy.fo.annotation.AutoRegister;
+import org.mineacademy.fo.remain.Remain;
+
+@AutoRegister
+public class HealCommand extends SimpleCommand {
+
+    public HealCommand() {
+        super("heal|h");
+        
+        setDescription("Heal yourself or another player");
+        setUsage("[player]");
+        setPermission("myplugin.command.heal");
+        setMinArguments(0);
+        setCooldown(5); // 5 second cooldown
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        
+        Player target;
+        
+        // Check if a player argument was provided
+        if (args.length == 0) {
+            // Heal the sender
+            target = getPlayer();
+            
+        } else {
+            // Check permission to heal others
+            checkPerm("myplugin.command.heal.others");
+            
+            // Find the target player
+            target = findPlayer(args[0]);
+        }
+        
+        // Heal the target player
+        target.setHealth(target.getMaxHealth());
+        target.setFoodLevel(20);
+        target.setFireTicks(0);
+        
+        // Send success messages
+        if (target == getPlayer()) {
+            tellSuccess("You have been healed!");
+        } else {
+            tellSuccess("You healed {player}!", "player", target.getName());
+            tell(target, "&aYou have been healed by {player}!", "player", sender.getName());
+        }
+    }
+
+    @Override
+    protected List<String> tabComplete() {
+        // Tab complete player names for the first argument
+        if (args.length == 1) {
+            return completeLastWord(Remain.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .collect(java.util.stream.Collectors.toList()));
+        }
+        
+        return NO_COMPLETE;
+    }
+}
+```
+
+</Step>
+
+<Step title="Create a command with subcommands">
+
+For more complex commands with multiple actions, use `SimpleCommandGroup`.
+
+```java GamemodeCommand.java
+package com.example.plugin.commands;
+
+import org.bukkit.GameMode;
+import org.bukkit.entity.Player;
+import org.mineacademy.fo.command.SimpleCommandGroup;
+import org.mineacademy.fo.command.SimpleSubCommand;
+import org.mineacademy.fo.annotation.AutoRegister;
+
+@AutoRegister
+public class GamemodeCommand extends SimpleCommandGroup {
+
+    @Override
+    protected void registerSubcommands() {
+        registerSubcommand(new SurvivalCommand());
+        registerSubcommand(new CreativeCommand());
+        registerSubcommand(new AdventureCommand());
+        registerSubcommand(new SpectatorCommand());
+    }
+
+    // Subcommand for survival mode
+    private class SurvivalCommand extends SimpleSubCommand {
+
+        protected SurvivalCommand() {
+            super("survival|s|0");
+            
+            setDescription("Change to survival mode");
+            setUsage("[player]");
+            setPermission("myplugin.gamemode.survival");
+        }
+
+        @Override
+        protected void onCommand() {
+            checkConsole();
+            
+            Player target = args.length > 0 ? findPlayer(args[0]) : getPlayer();
+            target.setGameMode(GameMode.SURVIVAL);
+            
+            tellSuccess("Set {player}'s gamemode to Survival", "player", target.getName());
+        }
+    }
+
+    // Subcommand for creative mode
+    private class CreativeCommand extends SimpleSubCommand {
+
+        protected CreativeCommand() {
+            super("creative|c|1");
+            
+            setDescription("Change to creative mode");
+            setUsage("[player]");
+            setPermission("myplugin.gamemode.creative");
+        }
+
+        @Override
+        protected void onCommand() {
+            checkConsole();
+            
+            Player target = args.length > 0 ? findPlayer(args[0]) : getPlayer();
+            target.setGameMode(GameMode.CREATIVE);
+            
+            tellSuccess("Set {player}'s gamemode to Creative", "player", target.getName());
+        }
+    }
+
+    // Subcommand for adventure mode
+    private class AdventureCommand extends SimpleSubCommand {
+
+        protected AdventureCommand() {
+            super("adventure|a|2");
+            
+            setDescription("Change to adventure mode");
+            setUsage("[player]");
+            setPermission("myplugin.gamemode.adventure");
+        }
+
+        @Override
+        protected void onCommand() {
+            checkConsole();
+            
+            Player target = args.length > 0 ? findPlayer(args[0]) : getPlayer();
+            target.setGameMode(GameMode.ADVENTURE);
+            
+            tellSuccess("Set {player}'s gamemode to Adventure", "player", target.getName());
+        }
+    }
+
+    // Subcommand for spectator mode
+    private class SpectatorCommand extends SimpleSubCommand {
+
+        protected SpectatorCommand() {
+            super("spectator|sp|3");
+            
+            setDescription("Change to spectator mode");
+            setUsage("[player]");
+            setPermission("myplugin.gamemode.spectator");
+        }
+
+        @Override
+        protected void onCommand() {
+            checkConsole();
+            
+            Player target = args.length > 0 ? findPlayer(args[0]) : getPlayer();
+            target.setGameMode(GameMode.SPECTATOR);
+            
+            tellSuccess("Set {player}'s gamemode to Spectator", "player", target.getName());
+        }
+    }
+}
+```
+
+</Step>
+
+<Step title="Register the command in your main class">
+
+If you're not using `@AutoRegister`, manually register commands in `onReloadablesStart()`.
+
+```java MyPlugin.java
+package com.example.plugin;
+
+import org.mineacademy.fo.plugin.SimplePlugin;
+import com.example.plugin.commands.HealCommand;
+import com.example.plugin.commands.GamemodeCommand;
+
+public class MyPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        // Plugin startup logic
+    }
+
+    @Override
+    protected void onReloadablesStart() {
+        // Register commands (only if not using @AutoRegister)
+        registerCommand(new HealCommand());
+        registerCommands(new GamemodeCommand());
+    }
+}
+```
+
+</Step>
+
+</Steps>
+
+## Advanced command features
+
+### Command cooldowns
+
+```java
+public class TeleportCommand extends SimpleCommand {
+
+    public TeleportCommand() {
+        super("tp|teleport");
+        
+        setCooldown(30); // 30 second cooldown
+        setCooldownBypassPermission("myplugin.cooldown.bypass");
+        setCooldownMessage("&cPlease wait {duration} before using this command again!");
+    }
+
+    @Override
+    protected void onCommand() {
+        // Command logic here
+    }
+}
+```
+
+### Argument validation
+
+```java
+@Override
+protected void onCommand() {
+    checkConsole();
+    
+    // Require at least 1 argument
+    if (args.length == 0) {
+        tellError("Usage: /command <player>");
+        return;
+    }
+    
+    // Find player or show error
+    Player target = findPlayer(args[0]);
+    
+    // Parse number argument
+    int amount = findNumber(1, "Please specify a valid number!");
+    
+    // Check if amount is in range
+    checkBoolean(amount >= 1 && amount <= 100, "Amount must be between 1 and 100!");
+}
+```
+
+### Multiple permissions
+
+```java
+@Override
+protected void onCommand() {
+    // Require one of multiple permissions
+    if (!hasPerm("myplugin.admin") && !hasPerm("myplugin.moderator")) {
+        returnNoPermission();
+        return;
+    }
+    
+    // Command logic
+}
+```
+
+## Common helper methods
+
+Foundation provides many helper methods in `SimpleCommand`:
+
+| Method | Description |
+|--------|-------------|
+| `checkConsole()` | Ensure sender is a player, not console |
+| `getPlayer()` | Get the player who sent the command |
+| `findPlayer(String)` | Find an online player by name |
+| `findNumber(int, String)` | Parse argument as integer |
+| `checkPerm(String)` | Check if sender has permission |
+| `hasPerm(String)` | Return true if sender has permission |
+| `tellSuccess(String)` | Send success message |
+| `tellError(String)` | Send error message |
+| `tellInfo(String)` | Send info message |
+| `returnTell(String)` | Send message and stop execution |
+| `completeLastWord(List)` | Helper for tab completion |
+
+<Tip>
+Use placeholders in messages with `{variable}` syntax and pass replacements as pairs: `tellSuccess("Hello {player}!", "player", name)`
+</Tip>
+
+## Next steps
+
+- [Create GUI menus](/examples/gui-menu)
+- [Store data in databases](/examples/database-storage)
+- [Manage configuration files](/examples/config-management)

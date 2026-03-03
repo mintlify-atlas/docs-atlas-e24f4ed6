@@ -1,0 +1,403 @@
+---
+title: Holograms
+description: Create floating text and entities with animations and particle effects
+---
+
+Foundation's `SimpleHologram` class provides an easy way to create floating text displays and animated entities without depending on external hologram plugins.
+
+## Creating a hologram
+
+Extend `SimpleHologram` and implement `createEntity()`:
+
+```java
+public class FloatingText extends SimpleHologram {
+
+    public FloatingText(Location location) {
+        super(location);
+        
+        setLore(
+            "&6&lWelcome",
+            "&7to our server!",
+            "&eEnjoy your stay"
+        );
+    }
+
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(false);
+        stand.setGravity(false);
+        stand.setCustomNameVisible(true);
+        stand.setCustomName("Main Hologram");
+        
+        return stand;
+    }
+}
+```
+
+## Spawning holograms
+
+```java
+Location loc = player.getLocation().add(0, 2, 0);
+FloatingText hologram = new FloatingText(loc);
+hologram.spawn();
+```
+
+## Text lines
+
+Set multiple lines of floating text above the hologram:
+
+```java
+public MyHologram(Location location) {
+    super(location);
+    
+    setLore(
+        "&6Line 1",
+        "&eLine 2",
+        "&7Line 3",
+        "&cLine 4"
+    );
+}
+```
+
+### Line spacing
+
+Adjust the distance between text lines:
+
+```java
+SimpleHologram.setLoreLineHeight(0.30); // Default: 0.26
+```
+
+## Animations
+
+Override `onTick()` to animate your hologram:
+
+```java
+public class RotatingHologram extends SimpleHologram {
+
+    private float yaw = 0;
+
+    public RotatingHologram(Location location) {
+        super(location);
+    }
+
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(true);
+        stand.setGravity(false);
+        stand.setHelmet(new ItemStack(Material.DIAMOND_BLOCK));
+        
+        return stand;
+    }
+
+    @Override
+    protected void onTick() {
+        yaw += 5;
+        if (yaw >= 360)
+            yaw = 0;
+        
+        ArmorStand stand = (ArmorStand) getEntity();
+        Location loc = getLocation();
+        loc.setYaw(yaw);
+        stand.teleport(loc);
+    }
+}
+```
+
+## Particles
+
+Add particle effects to your holograms:
+
+```java
+public MyHologram(Location location) {
+    super(location);
+    
+    // Simple particle
+    addParticleEffect(CompParticle.FLAME);
+    
+    // Particle with block data
+    addParticleEffect(CompParticle.BLOCK_CRACK, CompMaterial.DIAMOND_BLOCK);
+    
+    // Multiple particles
+    addParticleEffect(CompParticle.SPELL_WITCH);
+    addParticleEffect(CompParticle.SPELL_MOB);
+}
+```
+
+## Teleporting
+
+Move holograms to new locations:
+
+```java
+Location newLoc = player.getLocation();
+hologram.teleport(newLoc);
+```
+
+## Getting location
+
+```java
+Location current = hologram.getLocation();
+Location spawn = hologram.getLastTeleportLocation();
+```
+
+## Removing holograms
+
+Remove a specific hologram:
+
+```java
+hologram.remove();
+```
+
+Remove all holograms:
+
+```java
+SimpleHologram.deleteAll();
+```
+
+## Advanced examples
+
+### Leaderboard hologram
+
+```java
+public class LeaderboardHologram extends SimpleHologram {
+
+    public LeaderboardHologram(Location location) {
+        super(location);
+        updateLeaderboard();
+    }
+
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(false);
+        stand.setGravity(false);
+        
+        return stand;
+    }
+
+    public void updateLeaderboard() {
+        List<String> lines = new ArrayList<>();
+        lines.add("&6&l━━━━━━━━━━━━━━━━━");
+        lines.add("&e&lTOP PLAYERS");
+        lines.add("&6&l━━━━━━━━━━━━━━━━━");
+        lines.add("");
+        
+        List<PlayerData> top = PlayerData.getTopPlayers(10);
+        for (int i = 0; i < top.size(); i++) {
+            PlayerData data = top.get(i);
+            lines.add("&7" + (i + 1) + ". &f" + data.getName() + 
+                     " &7- &e" + data.getScore());
+        }
+        
+        setLore(lines.toArray(new String[0]));
+        
+        // Update if already spawned
+        if (isSpawned()) {
+            removeLore();
+            // Lore will be redrawn on next tick
+        }
+    }
+}
+```
+
+### Animated floating item
+
+```java
+public class FloatingItem extends SimpleHologram {
+
+    private final ItemStack item;
+    private double rotation = 0;
+    private double bobbing = 0;
+
+    public FloatingItem(Location location, ItemStack item) {
+        super(location);
+        this.item = item;
+        
+        setLore(
+            "&e&lRare Item!",
+            "&7Click to collect"
+        );
+        
+        addParticleEffect(CompParticle.VILLAGER_HAPPY);
+        addParticleEffect(CompParticle.SPELL_INSTANT);
+    }
+
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(false);
+        stand.setGravity(false);
+        stand.setSmall(true);
+        stand.setHelmet(item);
+        
+        return stand;
+    }
+
+    @Override
+    protected void onTick() {
+        // Rotate
+        rotation += 5;
+        if (rotation >= 360)
+            rotation = 0;
+        
+        // Bob up and down
+        bobbing += 0.1;
+        double yOffset = Math.sin(bobbing) * 0.1;
+        
+        Location loc = getLastTeleportLocation().clone();
+        loc.setYaw((float) rotation);
+        loc.add(0, yOffset, 0);
+        
+        getEntity().teleport(loc);
+    }
+}
+```
+
+### Information display
+
+```java
+public class InfoHologram extends SimpleHologram {
+
+    public InfoHologram(Location location) {
+        super(location);
+    }
+
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(false);
+        stand.setGravity(false);
+        
+        return stand;
+    }
+
+    @Override
+    protected void onTick() {
+        // Update info every tick (20 times per second)
+        updateInfo();
+    }
+
+    private void updateInfo() {
+        int players = Bukkit.getOnlinePlayers().size();
+        long tps = Remain.getTPS();
+        
+        setLore(
+            "&6&lSERVER INFO",
+            "",
+            "&7Players: &f" + players + "/" + Bukkit.getMaxPlayers(),
+            "&7TPS: &f" + tps,
+            "&7Time: &f" + getFormattedTime()
+        );
+        
+        // Update lore
+        removeLore();
+        // Will be redrawn
+    }
+    
+    private String getFormattedTime() {
+        return new SimpleDateFormat("HH:mm:ss").format(new Date());
+    }
+}
+```
+
+### NPC hologram
+
+```java
+public class NPCHologram extends SimpleHologram {
+
+    private final String npcName;
+    private final String[] dialogue;
+
+    public NPCHologram(Location location, String name, String... dialogue) {
+        super(location);
+        this.npcName = name;
+        this.dialogue = dialogue;
+        
+        List<String> lore = new ArrayList<>();
+        lore.add("&e" + npcName);
+        lore.add("");
+        lore.addAll(Arrays.asList(dialogue));
+        
+        setLore(lore.toArray(new String[0]));
+    }
+
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(true);
+        stand.setGravity(false);
+        stand.setBasePlate(false);
+        stand.setArms(true);
+        
+        // Equip NPC
+        stand.setHelmet(new ItemStack(Material.PLAYER_HEAD));
+        stand.setChestplate(new ItemStack(Material.DIAMOND_CHESTPLATE));
+        stand.setLeggings(new ItemStack(Material.DIAMOND_LEGGINGS));
+        stand.setBoots(new ItemStack(Material.DIAMOND_BOOTS));
+        stand.setItemInHand(new ItemStack(Material.DIAMOND_SWORD));
+        
+        return stand;
+    }
+}
+```
+
+## Managing holograms
+
+### Get all holograms
+
+```java
+Set<SimpleHologram> all = SimpleHologram.getRegisteredItems();
+```
+
+### Check if spawned
+
+```java
+if (hologram.isSpawned()) {
+    // Hologram is active
+}
+```
+
+### Get entities
+
+```java
+Entity mainEntity = hologram.getEntity();
+List<ArmorStand> loreStands = hologram.getLoreEntities();
+```
+
+## Cleanup
+
+Always remove holograms when your plugin disables:
+
+```java
+@Override
+protected void onPluginStop() {
+    SimpleHologram.deleteAll();
+}
+```
+
+<Note>
+Holograms automatically tick and update. The tick rate is 1 tick (50ms) and cannot be changed.
+</Note>
+
+<Warning>
+Too many holograms or complex animations can cause performance issues. Use sparingly!
+</Warning>

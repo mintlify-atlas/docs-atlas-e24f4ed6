@@ -1,0 +1,583 @@
+---
+title: Localization
+description: Add multi-language support to your plugin with SimpleLocalization and auto-updating message files
+---
+
+Foundation provides a complete localization system that allows your plugin to support multiple languages. The `SimpleLocalization` class manages language files with automatic updates and static access.
+
+## SimpleLocalization class
+
+The `SimpleLocalization` class is designed for managing `localization/messages_LOCALE.yml` files. It provides the same auto-update functionality as `SimpleSettings` but for translation files.
+
+### Setting up localization
+
+<Steps>
+  <Step title="Configure locale in settings">
+    First, set up locale selection in your `settings.yml`:
+    
+    ```yaml
+    # The language/locale file to use
+    Locale: en
+    ```
+    
+    This tells Foundation to load `localization/messages_en.yml`.
+  </Step>
+  
+  <Step title="Create your localization class">
+    Create a class extending `SimpleLocalization`:
+    
+    ```java
+    public class Lang extends SimpleLocalization {
+        
+        public static String WELCOME_MESSAGE;
+        public static String GOODBYE_MESSAGE;
+        public static String ERROR_NO_PERMISSION;
+        
+        private static void init() {
+            WELCOME_MESSAGE = getString("Welcome_Message");
+            GOODBYE_MESSAGE = getString("Goodbye_Message");
+            ERROR_NO_PERMISSION = getString("Error_No_Permission");
+        }
+        
+        @Override
+        protected int getConfigVersion() {
+            return 1;
+        }
+    }
+    ```
+  </Step>
+  
+  <Step title="Create default language file">
+    Create `src/main/resources/localization/messages_en.yml`:
+    
+    ```yaml
+    Version: 1
+    
+    # Player messages
+    Welcome_Message: '&aWelcome to the server, {player}!'
+    Goodbye_Message: '&7See you later, {player}!'
+    
+    # Error messages
+    Error_No_Permission: '&cYou do not have permission to do that.'
+    ```
+  </Step>
+  
+  <Step title="Load in your plugin">
+    Load the localization in your main plugin class:
+    
+    ```java
+    @Override
+    protected void onPluginStart() {
+        // Load settings first (contains locale preference)
+        Settings.load(Settings.class);
+        
+        // Then load localization
+        Lang.load(Lang.class);
+    }
+    ```
+  </Step>
+</Steps>
+
+### Using localized messages
+
+Access messages statically from anywhere:
+
+```java
+// Simple message
+Common.tell(player, Lang.WELCOME_MESSAGE);
+
+// Message with placeholders
+Common.tell(player, Lang.WELCOME_MESSAGE
+    .replace("{player}", player.getName()));
+
+// Multiple placeholders
+String message = Lang.SOME_MESSAGE
+    .replace("{player}", player.getName())
+    .replace("{world}", world.getName())
+    .replace("{amount}", String.valueOf(amount));
+```
+
+## Built-in localization
+
+`SimpleLocalization` provides built-in messages for common features:
+
+### Command messages
+
+```java
+SimpleLocalization.Commands.NO_CONSOLE
+SimpleLocalization.Commands.INVALID_ARGUMENT
+SimpleLocalization.Commands.COOLDOWN_WAIT
+SimpleLocalization.Commands.RELOAD_SUCCESS
+SimpleLocalization.Commands.ERROR
+```
+
+Example usage:
+
+```yaml
+Commands:
+  No_Console: '&cYou may only use this command as a player'
+  Invalid_Argument: '&cInvalid argument. Run &6/{label} ? &cfor help.'
+  Cooldown_Wait: '&cWait {duration} second(s) before using this command again.'
+  Reload_Success: '&6{plugin_name} {plugin_version} has been reloaded.'
+```
+
+### Player messages
+
+```java
+SimpleLocalization.Player.NOT_ONLINE
+SimpleLocalization.Player.NOT_PLAYED_BEFORE
+SimpleLocalization.Player.INVALID_UUID
+```
+
+Example:
+
+```yaml
+Player:
+  Not_Online: '&cPlayer {player} &cis not online on this server.'
+  Not_Played_Before: '&cPlayer {player} &chas not played before.'
+```
+
+### Other built-in sections
+
+```java
+// Conversation system
+SimpleLocalization.Conversation.CANCELLED
+SimpleLocalization.Conversation.ERROR
+
+// Pagination
+SimpleLocalization.Pages.NO_PAGES
+SimpleLocalization.Pages.GO_TO_PAGE
+
+// Menu system
+SimpleLocalization.Menu.ITEM_DELETED
+SimpleLocalization.Menu.ERROR
+
+// General
+SimpleLocalization.NO_PERMISSION
+SimpleLocalization.NONE
+SimpleLocalization.CONSOLE_NAME
+```
+
+## Supporting multiple languages
+
+### Creating language variants
+
+Create multiple language files:
+
+```
+resources/
+└── localization/
+    ├── messages_en.yml    # English (default)
+    ├── messages_es.yml    # Spanish
+    ├── messages_de.yml    # German
+    ├── messages_fr.yml    # French
+    └── messages_zh.yml    # Chinese
+```
+
+Each file contains the same keys with translated values:
+
+**messages_en.yml:**
+```yaml
+Welcome_Message: '&aWelcome to the server, {player}!'
+Goodbye_Message: '&7See you later, {player}!'
+```
+
+**messages_es.yml:**
+```yaml
+Welcome_Message: '&a¡Bienvenido al servidor, {player}!'
+Goodbye_Message: '&7¡Hasta luego, {player}!'
+```
+
+**messages_de.yml:**
+```yaml
+Welcome_Message: '&aWillkommen auf dem Server, {player}!'
+Goodbye_Message: '&7Bis später, {player}!'
+```
+
+### Users switch languages
+
+Users select their language in `settings.yml`:
+
+```yaml
+# Change this to: es, de, fr, zh, etc.
+Locale: en
+```
+
+<Note>
+  Foundation automatically validates that the requested locale file exists. If not found, it prevents the plugin from loading with a clear error message.
+</Note>
+
+## Organized messages with sections
+
+Use nested classes to organize messages by category:
+
+```java
+public class Lang extends SimpleLocalization {
+    
+    public static class Join {
+        public static String FIRST_TIME;
+        public static String WELCOME_BACK;
+        public static String BROADCAST;
+        
+        private static void init() {
+            setPathPrefix("Join");
+            
+            FIRST_TIME = getString("First_Time");
+            WELCOME_BACK = getString("Welcome_Back");
+            BROADCAST = getString("Broadcast");
+        }
+    }
+    
+    public static class Leave {
+        public static String GOODBYE;
+        public static String BROADCAST;
+        
+        private static void init() {
+            setPathPrefix("Leave");
+            
+            GOODBYE = getString("Goodbye");
+            BROADCAST = getString("Broadcast");
+        }
+    }
+    
+    public static class Errors {
+        public static String GENERIC;
+        public static String NOT_FOUND;
+        public static String NO_PERMISSION;
+        
+        private static void init() {
+            setPathPrefix("Errors");
+            
+            GENERIC = getString("Generic");
+            NOT_FOUND = getString("Not_Found");
+            NO_PERMISSION = getString("No_Permission");
+        }
+    }
+    
+    @Override
+    protected int getConfigVersion() {
+        return 1;
+    }
+}
+```
+
+Corresponding YAML structure:
+
+```yaml
+Version: 1
+
+Join:
+  First_Time: '&e{player} &7joined the server for the first time!'
+  Welcome_Back: '&aWelcome back, {player}!'
+  Broadcast: '&7[&a+&7] &f{player}'
+
+Leave:
+  Goodbye: '&7Thanks for playing, {player}!'
+  Broadcast: '&7[&c-&7] &f{player}'
+
+Errors:
+  Generic: '&cAn error occurred. Please contact an administrator.'
+  Not_Found: '&cCould not find {item}.'
+  No_Permission: '&cYou do not have permission: &7{permission}'
+```
+
+Access organized messages:
+
+```java
+Common.tell(player, Lang.Join.WELCOME_BACK);
+Common.broadcast(Lang.Leave.BROADCAST.replace("{player}", name));
+Common.tell(player, Lang.Errors.NO_PERMISSION
+    .replace("{permission}", "myplugin.admin"));
+```
+
+## Message lists
+
+Store multi-line messages as lists:
+
+```java
+public static List<String> HELP_MESSAGE;
+
+private static void init() {
+    HELP_MESSAGE = getStringList("Help_Message");
+}
+```
+
+```yaml
+Help_Message:
+  - '&6&lMY PLUGIN HELP'
+  - '&e/cmd help &7- Show this help'
+  - '&e/cmd reload &7- Reload the plugin'
+  - '&e/cmd info &7- Show plugin info'
+```
+
+Send multi-line messages:
+
+```java
+// Send all lines
+Common.tell(player, Lang.HELP_MESSAGE);
+
+// Or manually
+for (String line : Lang.HELP_MESSAGE) {
+    Common.tell(player, line);
+}
+```
+
+## Advanced message types
+
+Foundation supports complex message types:
+
+### Title messages
+
+```java
+public static TitleHelper WELCOME_TITLE;
+
+private static void init() {
+    WELCOME_TITLE = getTitle("Welcome_Title");
+}
+```
+
+```yaml
+Welcome_Title:
+  Title: '&6&lWELCOME'
+  Subtitle: '&7to our server'
+  Fade_In: 20
+  Stay: 60
+  Fade_Out: 20
+```
+
+Display the title:
+
+```java
+WELCOME_TITLE.playLong(player);
+```
+
+### Boxed messages
+
+```java
+public static BoxedMessage INFO_BOX;
+
+private static void init() {
+    INFO_BOX = getBoxedMessage("Info_Box");
+}
+```
+
+```yaml
+Info_Box:
+  - 'Server Information'
+  - 'Online: {players}'
+  - 'TPS: {tps}'
+```
+
+Display boxed message:
+
+```java
+INFO_BOX.send(player);
+```
+
+### Case helpers (pluralization)
+
+```java
+public static AccusativeHelper SECOND;
+public static AccusativeHelper PLAYER;
+
+private static void init() {
+    SECOND = getCasus("Second");
+    PLAYER = getCasus("Player");
+}
+```
+
+```yaml
+Cases:
+  Second:
+    1: second
+    x: seconds
+  Player:
+    1: player
+    x: players
+```
+
+Use pluralization:
+
+```java
+String msg = "Found " + count + " " + PLAYER.formatWithCount(count);
+// "Found 1 player" or "Found 5 players"
+
+String time = "Wait " + seconds + " " + SECOND.formatWithCount(seconds);
+// "Wait 1 second" or "Wait 30 seconds"
+```
+
+## Auto-updating localization files
+
+Like configurations, localization files auto-update:
+
+<Steps>
+  <Step title="User has old language file">
+    Version 1.0 `messages_en.yml`:
+    ```yaml
+    Version: 1
+    Welcome: '&aWelcome!'
+    ```
+  </Step>
+  
+  <Step title="You add new messages">
+    Version 2.0 with new features:
+    ```java
+    public static String WELCOME;
+    public static String NEW_FEATURE;
+    public static List<String> TUTORIAL;
+    
+    private static void init() {
+        WELCOME = getString("Welcome");
+        NEW_FEATURE = getString("New_Feature");
+        TUTORIAL = getStringList("Tutorial");
+    }
+    
+    @Override
+    protected int getConfigVersion() {
+        return 2; // Increment version
+    }
+    ```
+  </Step>
+  
+  <Step title="Auto-update preserves translations">
+    Foundation:
+    1. Keeps user's existing translations
+    2. Adds new keys from default file
+    3. Updates version number
+    4. Logs changes
+    
+    Result:
+    ```yaml
+    Version: 2
+    Welcome: '&aWelcome!'      # Preserved
+    New_Feature: '&eNew!'       # Added
+    Tutorial:                    # Added
+      - 'Line 1'
+      - 'Line 2'
+    ```
+  </Step>
+</Steps>
+
+## Best practices
+
+<Accordion title="Use clear, descriptive key names">
+  Make message keys self-explanatory:
+  - ✅ `Error_Player_Not_Found`
+  - ❌ `Err1`
+</Accordion>
+
+<Accordion title="Use placeholders consistently">
+  Always use the same placeholder format:
+  ```yaml
+  Message: 'Hello {player}, you have {points} points!'
+  ```
+</Accordion>
+
+<Accordion title="Organize by feature">
+  Group related messages:
+  ```java
+  public static class Shop {
+      public static String BUY_SUCCESS;
+      public static String SELL_SUCCESS;
+      public static String INSUFFICIENT_FUNDS;
+  }
+  ```
+</Accordion>
+
+<Accordion title="Provide context in comments">
+  Help translators understand usage:
+  ```yaml
+  # Shown when player tries to break a protected block
+  # Placeholders: {player}, {region}
+  Error_Protected: '&cYou cannot break blocks in {region}!'
+  ```
+</Accordion>
+
+<Accordion title="Test all supported languages">
+  If you provide multiple language files, test that all keys exist in all files.
+</Accordion>
+
+<Accordion title="Keep default language complete">
+  Always maintain a complete English (or your default) file. Other languages can reference it.
+</Accordion>
+
+## Complete example
+
+Here's a complete localization setup:
+
+```java
+public class Lang extends SimpleLocalization {
+    
+    // General messages
+    public static String PREFIX;
+    public static String NO_PERMISSION;
+    
+    // Player messages
+    public static class Player {
+        public static String JOIN_FIRST_TIME;
+        public static String JOIN_WELCOME_BACK;
+        public static String LEAVE;
+        
+        private static void init() {
+            setPathPrefix("Player");
+            JOIN_FIRST_TIME = getString("Join_First_Time");
+            JOIN_WELCOME_BACK = getString("Join_Welcome_Back");
+            LEAVE = getString("Leave");
+        }
+    }
+    
+    // Command messages
+    public static class Commands {
+        public static String RELOAD_SUCCESS;
+        public static String RELOAD_FAILED;
+        public static List<String> HELP;
+        
+        private static void init() {
+            setPathPrefix("Commands");
+            RELOAD_SUCCESS = getString("Reload_Success");
+            RELOAD_FAILED = getString("Reload_Failed");
+            HELP = getStringList("Help");
+        }
+    }
+    
+    private static void init() {
+        PREFIX = getString("Prefix");
+        NO_PERMISSION = getString("No_Permission");
+    }
+    
+    @Override
+    protected int getConfigVersion() {
+        return 1;
+    }
+}
+```
+
+```yaml
+Version: 1
+
+# Plugin prefix used in messages
+Prefix: '&8[&6MyPlugin&8]&7'
+
+# General permission error
+No_Permission: '{prefix} &cYou do not have permission.'
+
+Player:
+  Join_First_Time: '{prefix} &eWelcome &6{player}&e to the server!'
+  Join_Welcome_Back: '{prefix} &7Welcome back, &f{player}&7!'
+  Leave: '{prefix} &7{player} left the server.'
+
+Commands:
+  Reload_Success: '{prefix} &aPlugin reloaded successfully!'
+  Reload_Failed: '{prefix} &cFailed to reload! Check console.'
+  Help:
+    - '&8&m-------------------'
+    - '&6&lMY PLUGIN HELP'
+    - '&e/myplugin reload &7- Reload plugin'
+    - '&e/myplugin help &7- Show this help'
+    - '&8&m-------------------'
+```
+
+## Related documentation
+
+- [Configuration](/core/configuration) - Main configuration files
+- [SimplePlugin](/core/simple-plugin) - Load localization in plugin lifecycle

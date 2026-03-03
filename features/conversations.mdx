@@ -1,0 +1,401 @@
+---
+title: Conversations
+description: Create interactive chat-based conversations with players using prompts and responses
+---
+
+Foundation's `SimpleConversation` class allows you to create interactive chat conversations with players, isolating their chat and processing their messages as conversation input.
+
+## Creating a conversation
+
+Extend `SimpleConversation` and implement `getFirstPrompt()`:
+
+```java
+public class WarpCreationConversation extends SimpleConversation {
+
+    public WarpCreationConversation() {
+        // Optional: return to menu when done
+        super(null);
+    }
+
+    @Override
+    protected Prompt getFirstPrompt() {
+        return new NamePrompt();
+    }
+
+    private class NamePrompt extends SimplePrompt {
+
+        @Override
+        protected String getPrompt(ConversationContext context) {
+            return "&6Enter a name for your warp:";
+        }
+
+        @Override
+        protected boolean isInputValid(ConversationContext context, String input) {
+            return input.length() >= 3 && input.length() <= 16;
+        }
+
+        @Override
+        protected String getFailedValidationText(ConversationContext context, String input) {
+            return "&cWarp name must be between 3 and 16 characters!";
+        }
+
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext context, String input) {
+            context.setSessionData("name", input);
+            
+            return new ConfirmPrompt();
+        }
+    }
+
+    private class ConfirmPrompt extends SimplePrompt {
+
+        @Override
+        protected String getPrompt(ConversationContext context) {
+            String name = (String) context.getSessionData("name");
+            return "&aCreate warp '&e" + name + "&a'? (yes/no)";
+        }
+
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext context, String input) {
+            if (input.equalsIgnoreCase("yes")) {
+                String name = (String) context.getSessionData("name");
+                Player player = (Player) context.getForWhom();
+                
+                // Create warp
+                Warp.create(name, player.getLocation());
+                
+                tell(context.getForWhom(), "&aWarp created successfully!");
+            } else {
+                tell(context.getForWhom(), "&cWarp creation cancelled.");
+            }
+            
+            return END_OF_CONVERSATION;
+        }
+    }
+}
+```
+
+## Starting conversations
+
+```java
+new WarpCreationConversation().start(player);
+```
+
+## Prompt types
+
+### Simple prompt
+
+```java
+private class MyPrompt extends SimplePrompt {
+
+    @Override
+    protected String getPrompt(ConversationContext ctx) {
+        return "Enter something:";
+    }
+
+    @Override
+    protected Prompt acceptValidatedInput(ConversationContext ctx, String input) {
+        ctx.setSessionData("data", input);
+        return new NextPrompt();
+    }
+}
+```
+
+### Numeric prompt
+
+```java
+private class AmountPrompt extends NumericPrompt {
+
+    @Override
+    public String getPromptText(ConversationContext ctx) {
+        return "Enter an amount:";
+    }
+
+    @Override
+    protected Prompt acceptValidatedInput(ConversationContext ctx, Number input) {
+        ctx.setSessionData("amount", input.intValue());
+        return new NextPrompt();
+    }
+
+    @Override
+    protected String getFailedValidationText(ConversationContext ctx, String input) {
+        return "&c'" + input + "' is not a valid number!";
+    }
+}
+```
+
+### Boolean prompt
+
+```java
+private class ConfirmPrompt extends BooleanPrompt {
+
+    @Override
+    public String getPromptText(ConversationContext ctx) {
+        return "Are you sure? (yes/no)";
+    }
+
+    @Override
+    protected Prompt acceptValidatedInput(ConversationContext ctx, boolean input) {
+        if (input) {
+            // User said yes
+            tell(ctx.getForWhom(), "Confirmed!");
+        } else {
+            // User said no
+            tell(ctx.getForWhom(), "Cancelled.");
+        }
+        
+        return END_OF_CONVERSATION;
+    }
+}
+```
+
+### Fixed set prompt
+
+```java
+private class ModePrompt extends FixedSetPrompt {
+
+    public ModePrompt() {
+        super("creative", "survival", "adventure");
+    }
+
+    @Override
+    public String getPromptText(ConversationContext ctx) {
+        return "&6Choose a mode: &ecreative&7, &esurvival&7, or &eadventure";
+    }
+
+    @Override
+    protected Prompt acceptValidatedInput(ConversationContext ctx, String input) {
+        ctx.setSessionData("mode", input);
+        return END_OF_CONVERSATION;
+    }
+}
+```
+
+## Session data
+
+Store and retrieve data throughout the conversation:
+
+```java
+// Store data
+context.setSessionData("key", value);
+
+// Retrieve data
+String name = (String) context.getSessionData("name");
+int amount = (int) context.getSessionData("amount");
+
+// Check if exists
+if (context.getSessionData("key") != null) {
+    // ...
+}
+```
+
+## Messaging
+
+<Tabs>
+<Tab title="Basic">
+```java
+tell(conversable, "&aMessage to player");
+tellLater(5, conversable, "&eDelayed message");
+```
+</Tab>
+
+<Tab title="Boxed">
+```java
+tellBoxed(conversable, 
+    "Line 1",
+    "Line 2",
+    "Line 3"
+);
+
+tellBoxed(20, conversable, 
+    "Delayed box",
+    "After 1 second"
+);
+```
+</Tab>
+</Tabs>
+
+## Configuration
+
+### Prefix
+
+```java
+@Override
+protected ConversationPrefix getPrefix() {
+    return new SimplePrefix("&6[Warp] &r");
+}
+
+@Override
+protected boolean insertPrefix() {
+    return true; // Show prefix before messages
+}
+```
+
+### Timeout
+
+```java
+@Override
+protected int getTimeout() {
+    return 120; // 2 minutes of inactivity
+}
+```
+
+### Exit words
+
+```java
+@Override
+protected ConversationCanceller getCanceller() {
+    return new SimpleCanceller("quit", "cancel", "exit", "stop");
+}
+```
+
+### Modal mode
+
+```java
+@Override
+protected boolean isModal() {
+    return true; // Hide other plugin messages during conversation
+}
+```
+
+## Menu integration
+
+Return to a menu after conversation ends:
+
+```java
+public class MyConversation extends SimpleConversation {
+
+    public MyConversation(Menu menuToReturnTo) {
+        super(menuToReturnTo);
+    }
+
+    @Override
+    protected boolean reopenMenu() {
+        return true; // Reopen menu after conversation
+    }
+
+    @Override
+    public String getMenuAnimatedTitle() {
+        return "&aConversation completed!";
+    }
+}
+
+// Start from menu
+new MyConversation(this).start(player);
+```
+
+## Conversation lifecycle
+
+### On end
+
+```java
+@Override
+protected void onConversationEnd(ConversationAbandonedEvent event, boolean timeout) {
+    if (timeout) {
+        tell(event.getContext().getForWhom(), "&cConversation timed out!");
+    } else if (event.gracefulExit()) {
+        tell(event.getContext().getForWhom(), "&aConversation completed!");
+    } else {
+        tell(event.getContext().getForWhom(), "&cConversation cancelled.");
+    }
+}
+```
+
+### Prompt end
+
+```java
+private class MyPrompt extends SimplePrompt {
+
+    @Override
+    public void onConversationEnd(SimpleConversation conversation, 
+                                   ConversationAbandonedEvent event) {
+        // Cleanup for this specific prompt
+    }
+}
+```
+
+## Example: Multi-step setup
+
+```java
+public class ShopSetupConversation extends SimpleConversation {
+
+    @Override
+    protected Prompt getFirstPrompt() {
+        return new NamePrompt();
+    }
+
+    private class NamePrompt extends SimplePrompt {
+        @Override
+        protected String getPrompt(ConversationContext ctx) {
+            tellBoxed((Conversable) ctx.getForWhom(),
+                "&6&lShop Setup Wizard",
+                "",
+                "&7Step 1/3: Enter shop name",
+                "&7Type 'cancel' to quit"
+            );
+            return "&eShop name:";
+        }
+
+        @Override
+        protected boolean isInputValid(ConversationContext ctx, String input) {
+            return input.length() >= 3;
+        }
+
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext ctx, String input) {
+            ctx.setSessionData("name", input);
+            return new LocationPrompt();
+        }
+    }
+
+    private class LocationPrompt extends SimplePrompt {
+        @Override
+        protected String getPrompt(ConversationContext ctx) {
+            return "&7Step 2/3: Type 'here' to set location, or 'skip':";
+        }
+
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext ctx, String input) {
+            if (input.equalsIgnoreCase("here")) {
+                Player player = (Player) ctx.getForWhom();
+                ctx.setSessionData("location", player.getLocation());
+            }
+            return new PricePrompt();
+        }
+    }
+
+    private class PricePrompt extends NumericPrompt {
+        @Override
+        public String getPromptText(ConversationContext ctx) {
+            return "&7Step 3/3: Enter price:";
+        }
+
+        @Override
+        protected Prompt acceptValidatedInput(ConversationContext ctx, Number input) {
+            String name = (String) ctx.getSessionData("name");
+            Location loc = (Location) ctx.getSessionData("location");
+            double price = input.doubleValue();
+            
+            // Create shop
+            Shop.create(name, loc, price);
+            
+            tellBoxed(ctx.getForWhom(),
+                "&a&lShop Created!",
+                "",
+                "&7Name: &f" + name,
+                "&7Price: &f$" + price
+            );
+            
+            return END_OF_CONVERSATION;
+        }
+    }
+}
+```
+
+<Note>
+Conversations automatically close the player's inventory to allow typing.
+</Note>
+
+<Warning>
+Always validate user input - never trust it directly without checking!
+</Warning>

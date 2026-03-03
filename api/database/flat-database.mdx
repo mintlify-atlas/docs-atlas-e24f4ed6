@@ -1,0 +1,511 @@
+---
+title: SimpleFlatDatabase
+description: UUID-based flat database system for player data storage
+---
+
+Represents a simple database where values are flattened and stored by UUID. This class automatically handles table creation, data serialization to JSON, and expiration of old entries.
+
+The table structure is automatically created as follows:
+
+```
+UUID varchar(64) | Name text       | Data text      | Updated bigint
+--------------------------------------------------------------------
+Player's uuid    | Last known name | {json data}    | Date of last save
+```
+
+<Note>
+This class uses JSON to flatten values and provides `onLoad()` and `onSave()` methods for easy data persistence. For more control over table structure, use `SimpleDatabase` instead.
+</Note>
+
+## Setup
+
+Extend `SimpleFlatDatabase` with your cache type and implement the required methods.
+
+```java
+public class PlayerDatabase extends SimpleFlatDatabase<PlayerCache> {
+    
+    public PlayerDatabase() {
+        // Required: set the table name variable
+        addVariable("table", "player_data");
+    }
+    
+    public void connect(DatabaseSettings settings) {
+        connect(
+            settings.getHost(),
+            settings.getPort(),
+            settings.getDatabase(),
+            settings.getUser(),
+            settings.getPassword()
+        );
+    }
+    
+    @Override
+    protected void onLoad(SerializedMap map, PlayerCache cache) {
+        // Deserialize data from map into cache
+        cache.setBalance(map.getDouble("balance", 0.0));
+        cache.setLevel(map.getInteger("level", 1));
+        cache.setLastSeen(map.getLong("last_seen"));
+    }
+    
+    @Override
+    protected SerializedMap onSave(PlayerCache cache) {
+        // Serialize cache data to map
+        return SerializedMap.of(
+            "balance", cache.getBalance(),
+            "level", cache.getLevel(),
+            "last_seen", System.currentTimeMillis()
+        );
+    }
+}
+```
+
+## Required implementation
+
+### onLoad(SerializedMap map, T data)
+
+Deserializes data from the database into your cache object.
+
+<ParamField path="map" type="SerializedMap" required>
+  The map automatically converted from the JSON array stored in the database
+</ParamField>
+
+<ParamField path="data" type="T" required>
+  Your cache object to populate with data
+</ParamField>
+
+```java
+@Override
+protected void onLoad(SerializedMap map, PlayerCache cache) {
+    // Load primitive values
+    cache.setBalance(map.getDouble("balance", 0.0));
+    cache.setLevel(map.getInteger("level", 1));
+    
+    // Load collections
+    cache.setHomes(map.getMap("homes", String.class, Location.class));
+    cache.setPermissions(map.getList("permissions", String.class));
+    
+    // Load custom objects
+    if (map.containsKey("settings")) {
+        cache.setSettings(map.get("settings", PlayerSettings.class));
+    }
+}
+```
+
+### onSave(T data)
+
+Serializes your cache object to a map for database storage.
+
+<ParamField path="data" type="T" required>
+  Your cache object to serialize
+</ParamField>
+
+<ParamField return="SerializedMap">
+  The serialized data map (return empty map or null to delete the row)
+</ParamField>
+
+```java
+@Override
+protected SerializedMap onSave(PlayerCache cache) {
+    // Return null or empty map to delete the row
+    if (cache.isEmpty()) {
+        return null;
+    }
+    
+    return SerializedMap.of(
+        "balance", cache.getBalance(),
+        "level", cache.getLevel(),
+        "homes", cache.getHomes(),
+        "permissions", cache.getPermissions(),
+        "settings", cache.getSettings()
+    );
+}
+```
+
+<Note>
+Returning an empty `SerializedMap` or `null` from `onSave()` will automatically delete the player's row from the database.
+</Note>
+
+## Loading data
+
+### load(Player player, T cache)
+
+Loads data for a player into the cache asynchronously.
+
+<ParamField path="player" type="Player" required>
+  The player to load data for
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to populate
+</ParamField>
+
+```java
+PlayerCache cache = new PlayerCache();
+database.load(player, cache);
+```
+
+### load(Player player, T cache, Runnable runAfterLoad)
+
+Loads data with a callback that runs on the main thread after loading completes.
+
+<ParamField path="player" type="Player" required>
+  The player to load data for
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to populate
+</ParamField>
+
+<ParamField path="runAfterLoad" type="Runnable">
+  Callback executed on the main thread when loading is complete
+</ParamField>
+
+```java
+PlayerCache cache = new PlayerCache();
+
+database.load(player, cache, () -> {
+    // This runs on the main thread after data is loaded
+    player.sendMessage("Welcome back! Balance: " + cache.getBalance());
+});
+```
+
+### load(UUID uuid, T cache)
+
+Loads data by UUID instead of Player object.
+
+<ParamField path="uuid" type="UUID" required>
+  The player's unique ID
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to populate
+</ParamField>
+
+```java
+UUID uuid = UUID.fromString("...");
+PlayerCache cache = new PlayerCache();
+database.load(uuid, cache);
+```
+
+### load(UUID uuid, T cache, Runnable runAfterLoad)
+
+Loads data by UUID with a completion callback.
+
+<ParamField path="uuid" type="UUID" required>
+  The player's unique ID
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to populate
+</ParamField>
+
+<ParamField path="runAfterLoad" type="Runnable">
+  Callback executed on the main thread when loading is complete
+</ParamField>
+
+```java
+database.load(uuid, cache, () -> {
+    Common.log("Data loaded for " + uuid);
+});
+```
+
+## Saving data
+
+### save(Player player, T cache)
+
+Saves player data to the database asynchronously.
+
+<ParamField path="player" type="Player" required>
+  The player to save data for
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to save
+</ParamField>
+
+```java
+database.save(player, cache);
+```
+
+### save(Player player, T cache, Runnable runAfterSave)
+
+Saves data with a callback that runs on the main thread after saving completes.
+
+<ParamField path="player" type="Player" required>
+  The player to save data for
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to save
+</ParamField>
+
+<ParamField path="runAfterSave" type="Runnable">
+  Callback executed on the main thread when saving is complete
+</ParamField>
+
+```java
+database.save(player, cache, () -> {
+    player.sendMessage("Your data has been saved!");
+});
+```
+
+### save(String name, UUID uuid, T cache)
+
+Saves data using name and UUID.
+
+<ParamField path="name" type="String" required>
+  The player's name (stored for reference)
+</ParamField>
+
+<ParamField path="uuid" type="UUID" required>
+  The player's unique ID
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to save
+</ParamField>
+
+```java
+database.save("Steve", uuid, cache);
+```
+
+### save(String name, UUID uuid, T cache, Runnable runAfterSave)
+
+Saves data with name, UUID, and a completion callback.
+
+<ParamField path="name" type="String" required>
+  The player's name
+</ParamField>
+
+<ParamField path="uuid" type="UUID" required>
+  The player's unique ID
+</ParamField>
+
+<ParamField path="cache" type="T" required>
+  Your cache object to save
+</ParamField>
+
+<ParamField path="runAfterSave" type="Runnable">
+  Callback executed on the main thread when saving is complete
+</ParamField>
+
+```java
+database.save(playerName, uuid, cache, () -> {
+    Common.log("Saved data for " + playerName);
+});
+```
+
+## Lifecycle hooks
+
+### onConnectFinish()
+
+Called after the connection is established and the table is created and purged.
+
+```java
+@Override
+protected void onConnectFinish() {
+    // Run any initialization code
+    Common.log("Database connected and ready!");
+    
+    // Load global data, run migrations, etc.
+}
+```
+
+### getExpirationDays()
+
+Defines how many days of inactivity before a row is automatically deleted.
+
+<ParamField return="int" default="90">
+  The number of days before expiration
+</ParamField>
+
+```java
+@Override
+protected int getExpirationDays() {
+    return 180; // Keep data for 180 days
+}
+```
+
+<Warning>
+Rows are deleted based on the `Updated` column, which is set whenever `save()` is called. Inactive players will have their data automatically removed.
+</Warning>
+
+## Complete example
+
+```java
+public class PlayerDatabase extends SimpleFlatDatabase<PlayerCache> {
+    
+    private static PlayerDatabase instance;
+    
+    public PlayerDatabase() {
+        addVariable("table", "player_data");
+    }
+    
+    public static PlayerDatabase getInstance() {
+        if (instance == null) {
+            instance = new PlayerDatabase();
+        }
+        return instance;
+    }
+    
+    public void connect() {
+        String host = Settings.Database.HOST;
+        int port = Settings.Database.PORT;
+        String database = Settings.Database.DATABASE;
+        String user = Settings.Database.USER;
+        String password = Settings.Database.PASSWORD;
+        
+        connect(host, port, database, user, password);
+    }
+    
+    @Override
+    protected void onConnectFinish() {
+        Common.log("Player database connected successfully!");
+    }
+    
+    @Override
+    protected int getExpirationDays() {
+        return 365; // Keep data for 1 year
+    }
+    
+    @Override
+    protected void onLoad(SerializedMap map, PlayerCache cache) {
+        // Load basic data
+        cache.setBalance(map.getDouble("balance", 0.0));
+        cache.setLevel(map.getInteger("level", 1));
+        cache.setExperience(map.getInteger("experience", 0));
+        
+        // Load collections
+        cache.setHomes(map.getMap("homes", String.class, Location.class));
+        cache.setFriends(map.getList("friends", UUID.class));
+        
+        // Load nested objects
+        if (map.containsKey("statistics")) {
+            cache.setStatistics(map.get("statistics", PlayerStatistics.class));
+        }
+        
+        // Load timestamps
+        cache.setFirstJoin(map.getLong("first_join", System.currentTimeMillis()));
+        cache.setLastSeen(map.getLong("last_seen", System.currentTimeMillis()));
+    }
+    
+    @Override
+    protected SerializedMap onSave(PlayerCache cache) {
+        // Don't save empty/default data
+        if (cache.isDefault()) {
+            return null; // This will delete the row
+        }
+        
+        return SerializedMap.of(
+            "balance", cache.getBalance(),
+            "level", cache.getLevel(),
+            "experience", cache.getExperience(),
+            "homes", cache.getHomes(),
+            "friends", cache.getFriends(),
+            "statistics", cache.getStatistics(),
+            "first_join", cache.getFirstJoin(),
+            "last_seen", System.currentTimeMillis()
+        );
+    }
+}
+
+// Usage in your plugin
+public class PlayerListener implements Listener {
+    
+    private final PlayerDatabase database = PlayerDatabase.getInstance();
+    private final Map<UUID, PlayerCache> cache = new HashMap<>();
+    
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        PlayerCache playerCache = new PlayerCache();
+        
+        database.load(player, playerCache, () -> {
+            // This runs on main thread after loading
+            cache.put(player.getUniqueId(), playerCache);
+            player.sendMessage("Welcome! Your balance: " + playerCache.getBalance());
+        });
+    }
+    
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        PlayerCache playerCache = cache.remove(player.getUniqueId());
+        
+        if (playerCache != null) {
+            database.save(player, playerCache, () -> {
+                Common.log("Saved data for " + player.getName());
+            });
+        }
+    }
+}
+```
+
+## Best practices
+
+<Tabs>
+  <Tab title="Always use callbacks">
+    Load and save operations are asynchronous. Use callbacks to ensure data is ready before using it.
+    
+    ```java
+    // Good
+    database.load(player, cache, () -> {
+        // Data is loaded, safe to use
+        player.sendMessage("Balance: " + cache.getBalance());
+    });
+    
+    // Bad
+    database.load(player, cache);
+    player.sendMessage("Balance: " + cache.getBalance()); // Cache might be empty!
+    ```
+  </Tab>
+  <Tab title="Save on important events">
+    Save data regularly and on important events to prevent data loss.
+    
+    ```java
+    // Save on quit
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        database.save(event.getPlayer(), getCache(event.getPlayer()));
+    }
+    
+    // Save periodically
+    Common.runTimer(20 * 60 * 5, () -> { // Every 5 minutes
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            database.save(player, getCache(player));
+        }
+    });
+    ```
+  </Tab>
+  <Tab title="Handle empty data">
+    Return null or empty map from `onSave()` to delete rows for players with no data.
+    
+    ```java
+    @Override
+    protected SerializedMap onSave(PlayerCache cache) {
+        if (cache.isDefault() || cache.isEmpty()) {
+            return null; // Delete the row
+        }
+        
+        return SerializedMap.of(...);
+    }
+    ```
+  </Tab>
+  <Tab title="Set appropriate expiration">
+    Configure expiration based on your server's needs.
+    
+    ```java
+    @Override
+    protected int getExpirationDays() {
+        // Minigame server: short retention
+        return 30;
+        
+        // Survival server: long retention
+        return 365;
+        
+        // Never expire
+        return Integer.MAX_VALUE;
+    }
+    ```
+  </Tab>
+</Tabs>

@@ -1,0 +1,424 @@
+---
+title: BungeeCord
+description: Send plugin messages between servers on your BungeeCord network
+---
+
+Foundation provides utilities for sending plugin messages between servers on a BungeeCord network, allowing cross-server communication.
+
+## Setup
+
+### Create a message type enum
+
+Define your custom message types:
+
+```java
+public enum MyMessages implements BungeeMessageType {
+    
+    PLAYER_JOIN(String.class),
+    PLAYER_LEAVE(String.class),
+    COIN_UPDATE(String.class, Integer.class),
+    BROADCAST(String.class);
+    
+    private final Class<?>[] content;
+    
+    MyMessages(Class<?>... content) {
+        this.content = content;
+    }
+    
+    @Override
+    public Class<?>[] getContent() {
+        return content;
+    }
+}
+```
+
+### Create a listener
+
+Extend `BungeeListener` with the `@AutoRegister` annotation:
+
+```java
+import org.mineacademy.fo.annotation.AutoRegister;
+import org.mineacademy.fo.bungee.BungeeListener;
+import org.mineacademy.fo.bungee.BungeeMessageType;
+
+@AutoRegister
+public final class MyBungeeListener extends BungeeListener {
+
+    @Override
+    protected String getChannel() {
+        return "MyPlugin";
+    }
+
+    @Override
+    protected void onMessageReceived(Player player, String serverName, 
+                                      BungeeMessageType action, 
+                                      ByteArrayDataInput data) {
+        
+        if (action == MyMessages.PLAYER_JOIN) {
+            String playerName = data.readUTF();
+            Bukkit.broadcastMessage(playerName + " joined " + serverName);
+            
+        } else if (action == MyMessages.COIN_UPDATE) {
+            String playerName = data.readUTF();
+            int coins = data.readInt();
+            
+            Player p = Bukkit.getPlayer(playerName);
+            if (p != null) {
+                // Update coins for player
+            }
+        }
+    }
+}
+```
+
+### Register the listener
+
+Return your listener instance in your main plugin class:
+
+```java
+@Override
+public BungeeListener getBungeeCord() {
+    return new MyBungeeListener();
+}
+```
+
+## Sending messages
+
+### Basic usage
+
+```java
+// Send to all servers
+BungeeUtil.sendPluginMessage(MyMessages.BROADCAST, 
+    "Hello from " + Remain.getServerName());
+
+// Multiple parameters
+BungeeUtil.sendPluginMessage(MyMessages.COIN_UPDATE, 
+    player.getName(), 
+    1000);
+```
+
+### As specific player
+
+```java
+BungeeUtil.sendPluginMessageAs(player, MyMessages.PLAYER_JOIN, 
+    player.getName());
+```
+
+### With custom channel
+
+```java
+BungeeUtil.sendPluginMessage("MyChannel", MyMessages.BROADCAST, 
+    "Custom message");
+```
+
+## Supported data types
+
+<CodeGroup>
+```java String
+BungeeUtil.sendPluginMessage(action, "text");
+
+// Read
+String text = data.readUTF();
+```
+
+```java Integer
+BungeeUtil.sendPluginMessage(action, 42);
+
+// Read
+int number = data.readInt();
+```
+
+```java Double
+BungeeUtil.sendPluginMessage(action, 3.14);
+
+// Read
+double value = data.readDouble();
+```
+
+```java Long
+BungeeUtil.sendPluginMessage(action, 123456789L);
+
+// Read
+long value = data.readLong();
+```
+
+```java Boolean
+BungeeUtil.sendPluginMessage(action, true);
+
+// Read
+boolean flag = data.readBoolean();
+```
+
+```java UUID
+BungeeUtil.sendPluginMessage(action, player.getUniqueId());
+
+// Read
+String uuidStr = data.readUTF();
+UUID uuid = UUID.fromString(uuidStr);
+```
+
+```java Enum
+BungeeUtil.sendPluginMessage(action, GameMode.CREATIVE);
+
+// Read
+String enumStr = data.readUTF();
+GameMode mode = GameMode.valueOf(enumStr);
+```
+
+```java SerializedMap
+SerializedMap map = SerializedMap.ofArray(
+    "key1", "value1",
+    "key2", 42
+);
+BungeeUtil.sendPluginMessage(action, map);
+
+// Read
+String json = data.readUTF();
+SerializedMap map = SerializedMap.fromJson(json);
+```
+</CodeGroup>
+
+## Standard BungeeCord messages
+
+Send vanilla BungeeCord plugin messages:
+
+```java
+// Connect player to another server
+BungeeUtil.connect(player, "lobby");
+
+// Send raw BungeeCord message
+BungeeUtil.sendBungeeMessage(player, "GetServer");
+```
+
+## Message header
+
+All Foundation plugin messages include a header:
+
+1. Channel name (String)
+2. Sender UUID (String)
+3. Server name (String)
+4. Action type (String)
+
+Then your custom data follows.
+
+## Cross-server examples
+
+### Player coins sync
+
+```java
+// On server A - Player earns coins
+public void addCoins(Player player, int amount) {
+    PlayerData data = PlayerData.from(player);
+    data.addCoins(amount);
+    
+    // Sync to all servers
+    BungeeUtil.sendPluginMessage(MyMessages.COIN_UPDATE,
+        player.getName(),
+        data.getCoins());
+}
+
+// On server B - Listener receives update
+@Override
+protected void onMessageReceived(Player player, String serverName,
+                                  BungeeMessageType action,
+                                  ByteArrayDataInput data) {
+    if (action == MyMessages.COIN_UPDATE) {
+        String playerName = data.readUTF();
+        int coins = data.readInt();
+        
+        Player p = Bukkit.getPlayer(playerName);
+        if (p != null) {
+            PlayerData.from(p).setCoins(coins);
+        }
+    }
+}
+```
+
+### Global announcements
+
+```java
+// Command to broadcast to all servers
+public class GlobalBroadcastCommand extends SimpleCommand {
+
+    public GlobalBroadcastCommand() {
+        super("gbroadcast|gbc");
+        setPermission("admin.broadcast");
+        setMinArguments(1);
+    }
+
+    @Override
+    protected void onCommand() {
+        String message = joinArgs(0);
+        
+        BungeeUtil.sendPluginMessage(MyMessages.BROADCAST, message);
+        tellSuccess("Broadcast sent to all servers!");
+    }
+}
+
+// Listener handles broadcast
+@Override
+protected void onMessageReceived(Player player, String serverName,
+                                  BungeeMessageType action,
+                                  ByteArrayDataInput data) {
+    if (action == MyMessages.BROADCAST) {
+        String message = data.readUTF();
+        
+        Bukkit.broadcastMessage(
+            Common.colorize("&8[&6Global&8] &f" + message)
+        );
+    }
+}
+```
+
+### Staff chat
+
+```java
+public enum StaffMessages implements BungeeMessageType {
+    STAFF_CHAT(String.class, String.class); // sender, message
+    
+    private final Class<?>[] content;
+    
+    StaffMessages(Class<?>... content) {
+        this.content = content;
+    }
+    
+    @Override
+    public Class<?>[] getContent() {
+        return content;
+    }
+}
+
+// Send staff message
+public void sendStaffMessage(Player sender, String message) {
+    BungeeUtil.sendPluginMessage(StaffMessages.STAFF_CHAT,
+        sender.getName(),
+        message);
+}
+
+// Receive and display to staff
+@Override
+protected void onMessageReceived(Player player, String serverName,
+                                  BungeeMessageType action,
+                                  ByteArrayDataInput data) {
+    if (action == StaffMessages.STAFF_CHAT) {
+        String sender = data.readUTF();
+        String message = data.readUTF();
+        
+        for (Player staff : Bukkit.getOnlinePlayers()) {
+            if (staff.hasPermission("staff.chat")) {
+                staff.sendMessage(
+                    "§7[§cStaff§7] §8[" + serverName + "]§r " +
+                    sender + "§7: §f" + message
+                );
+            }
+        }
+    }
+}
+```
+
+### Party system
+
+```java
+public enum PartyMessages implements BungeeMessageType {
+    PARTY_INVITE(String.class, String.class),  // inviter, invited
+    PARTY_JOIN(String.class, String.class),    // player, party leader
+    PARTY_LEAVE(String.class, String.class),   // player, party leader
+    PARTY_CHAT(String.class, String.class, String.class); // party, sender, msg
+    
+    private final Class<?>[] content;
+    
+    PartyMessages(Class<?>... content) {
+        this.content = content;
+    }
+    
+    @Override
+    public Class<?>[] getContent() {
+        return content;
+    }
+}
+
+// Invite player across servers
+public void invitePlayer(Player inviter, String invitedName) {
+    BungeeUtil.sendPluginMessage(PartyMessages.PARTY_INVITE,
+        inviter.getName(),
+        invitedName);
+}
+
+// Handle invite
+@Override
+protected void onMessageReceived(Player player, String serverName,
+                                  BungeeMessageType action,
+                                  ByteArrayDataInput data) {
+    if (action == PartyMessages.PARTY_INVITE) {
+        String inviter = data.readUTF();
+        String invited = data.readUTF();
+        
+        Player p = Bukkit.getPlayer(invited);
+        if (p != null) {
+            p.sendMessage("§a" + inviter + " §7invited you to their party!");
+            // Store invite for acceptance
+        }
+    }
+}
+```
+
+## Best practices
+
+<Steps>
+<Step title="Use enums for message types">
+Always define message types as enums implementing `BungeeMessageType`:
+
+```java
+public enum MyMessages implements BungeeMessageType {
+    MESSAGE_TYPE(String.class, Integer.class);
+    // ...
+}
+```
+</Step>
+
+<Step title="Validate data">
+Always check if data exists before reading:
+
+```java
+if (action == MyMessages.UPDATE) {
+    if (data.available() > 0) {
+        String value = data.readUTF();
+    }
+}
+```
+</Step>
+
+<Step title="Handle player offline">
+Players might not be online when messages arrive:
+
+```java
+String playerName = data.readUTF();
+Player player = Bukkit.getPlayer(playerName);
+
+if (player != null && player.isOnline()) {
+    // Process message
+} else {
+    // Queue for later or ignore
+}
+```
+</Step>
+
+<Step title="Use @AutoRegister">
+Always annotate your listener:
+
+```java
+@AutoRegister
+public final class MyListener extends BungeeListener {
+    // ...
+}
+```
+</Step>
+</Steps>
+
+<Note>
+Plugin messages are sent through a random online player. If no players are online, the message won't be sent.
+</Note>
+
+<Warning>
+Messages larger than ~32KB will be rejected! Keep your data small or split into multiple messages.
+</Warning>

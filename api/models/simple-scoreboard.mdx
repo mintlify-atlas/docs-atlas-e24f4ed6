@@ -1,0 +1,440 @@
+---
+title: SimpleScoreboard
+description: Create custom scoreboards with automatic updates and minimal flickering
+---
+
+## Overview
+
+SimpleScoreboard provides an easy way to create and manage custom scoreboards for players. It handles automatic updates, supports color themes, and minimizes flickering.
+
+## Maximum lengths
+
+- **Lines (1.8):** 66 chars with color, 70 without
+- **Lines (1.13+):** 98 chars with color, 104 without  
+- **Lines (1.18+):** 32,889 chars with color, 32,895 without
+- **Title (1.8):** 30 chars with color, 32 without
+- **Title (1.13+):** 126 chars with color, 128 without
+
+## Creating a scoreboard
+
+```java
+public class MyScoreboard extends SimpleScoreboard {
+    
+    public MyScoreboard() {
+        super("&6&lMY SERVER", 20); // Title, update delay in ticks
+    }
+    
+    @Override
+    protected void onUpdate() {
+        // Called every update cycle
+        clearRows();
+        
+        addRows(
+            "",
+            "&7Players: &f" + Bukkit.getOnlinePlayers().size(),
+            "&7Time: &f" + System.currentTimeMillis(),
+            ""
+        );
+    }
+}
+```
+
+## Constructors
+
+### SimpleScoreboard()
+
+Creates a scoreboard with no title, updating every second.
+
+```java
+SimpleScoreboard scoreboard = new SimpleScoreboard();
+```
+
+### SimpleScoreboard(String title)
+
+Creates a scoreboard with a title, updating every second.
+
+<ParamField path="title" type="String">
+  The scoreboard title. Supports color codes.
+</ParamField>
+
+```java
+SimpleScoreboard scoreboard = new SimpleScoreboard("&6My Server");
+```
+
+### SimpleScoreboard(String title, int updateDelayTicks)
+
+Creates a scoreboard with a title and custom update interval.
+
+<ParamField path="title" type="String">
+  The scoreboard title. Supports color codes.
+</ParamField>
+
+<ParamField path="updateDelayTicks" type="int">
+  How often to update in ticks (20 = 1 second).
+</ParamField>
+
+```java
+SimpleScoreboard scoreboard = new SimpleScoreboard("&6My Server", 40);
+```
+
+<Note>
+  Scoreboards require Minecraft 1.7 or higher.
+</Note>
+
+## Methods
+
+### show
+
+Shows the scoreboard to a player and starts the update task if not running.
+
+<ParamField path="player" type="Player">
+  The player to show the scoreboard to.
+</ParamField>
+
+```java
+scoreboard.show(player);
+```
+
+### hide
+
+Hides the scoreboard from a player and stops the update task if no viewers remain.
+
+<ParamField path="player" type="Player">
+  The player to hide the scoreboard from.
+</ParamField>
+
+```java
+scoreboard.hide(player);
+```
+
+### isViewing
+
+Checks if a player is currently viewing this scoreboard.
+
+<ParamField path="player" type="Player">
+  The player to check.
+</ParamField>
+
+<ParamField path="isViewing" type="boolean">
+  True if the player is viewing this scoreboard.
+</ParamField>
+
+```java
+if (scoreboard.isViewing(player)) {
+    scoreboard.hide(player);
+}
+```
+
+### setTitle
+
+Sets the scoreboard title.
+
+<ParamField path="title" type="String">
+  The new title. Automatically truncated if too long.
+</ParamField>
+
+```java
+scoreboard.setTitle("&6&lNEW TITLE");
+```
+
+### getTitle
+
+Gets the current scoreboard title.
+
+<ParamField path="getTitle" type="String">
+  The current title.
+</ParamField>
+
+```java
+String title = scoreboard.getTitle();
+```
+
+### addRows
+
+Adds rows to the scoreboard.
+
+<ParamField path="entries" type="Object...">
+  The rows to add. Maximum 15 rows total.
+</ParamField>
+
+```java
+scoreboard.addRows(
+    "",
+    "&7Player: &f" + player.getName(),
+    "&7Rank: &6VIP",
+    ""
+);
+```
+
+<Warning>
+  Maximum 15 rows can be added. An error will be thrown if you exceed this limit.
+</Warning>
+
+### setRow
+
+Changes a specific row by index.
+
+<ParamField path="index" type="int">
+  The row index (0-based).
+</ParamField>
+
+<ParamField path="value" type="String">
+  The new row value.
+</ParamField>
+
+```java
+scoreboard.setRow(0, "&7Updated row");
+```
+
+### getRows
+
+Gets the list of rows that you can modify.
+
+<ParamField path="getRows" type="List<String>">
+  The mutable list of rows.
+</ParamField>
+
+```java
+List<String> rows = scoreboard.getRows();
+rows.add("&7New row");
+```
+
+### clearRows
+
+Removes all rows from the scoreboard.
+
+```java
+scoreboard.clearRows();
+```
+
+### removeRow (by index)
+
+Removes a row at the specified index.
+
+<ParamField path="index" type="int">
+  The row index to remove.
+</ParamField>
+
+```java
+scoreboard.removeRow(2);
+```
+
+### removeRow (by content)
+
+Removes all rows that contain the specified text.
+
+<ParamField path="thatContains" type="String">
+  Text to search for in rows.
+</ParamField>
+
+```java
+scoreboard.removeRow("Player:");
+```
+
+### setTheme
+
+Sets a color theme for rows containing ":" (key: value pairs).
+
+<ParamField path="primary" type="ChatColor">
+  Color for the key (before the colon).
+</ParamField>
+
+<ParamField path="secondary" type="ChatColor" optional>
+  Color for the value (after the colon).
+</ParamField>
+
+```java
+scoreboard.setTheme(ChatColor.GOLD, ChatColor.WHITE);
+scoreboard.addRows(
+    "Players: 10",    // Will be "&6Players: &f10"
+    "Mode: survival"  // Will be "&6Mode: &fsurvival"
+);
+```
+
+### setUpdateDelayTicks
+
+Sets how often the scoreboard updates.
+
+<ParamField path="updateDelayTicks" type="int">
+  Update interval in ticks (20 = 1 second).
+</ParamField>
+
+```java
+scoreboard.setUpdateDelayTicks(40); // Update every 2 seconds
+```
+
+### getUpdateDelayTicks
+
+Gets the current update interval.
+
+<ParamField path="getUpdateDelayTicks" type="int">
+  The update delay in ticks.
+</ParamField>
+
+```java
+int delay = scoreboard.getUpdateDelayTicks();
+```
+
+### isRunning
+
+Checks if the scoreboard is currently running and rendering.
+
+<ParamField path="isRunning" type="boolean">
+  True if the update task is active.
+</ParamField>
+
+```java
+if (scoreboard.isRunning()) {
+    scoreboard.stop();
+}
+```
+
+### stop
+
+Stops the scoreboard and removes it from all viewers.
+
+```java
+scoreboard.stop();
+```
+
+## Protected methods
+
+### onUpdate
+
+Called automatically every update cycle. Override to update scoreboard content.
+
+```java
+@Override
+protected void onUpdate() {
+    clearRows();
+    
+    addRows(
+        "",
+        "&7Online: &f" + Bukkit.getOnlinePlayers().size(),
+        "&7Balance: &a$" + getBalance(player),
+        ""
+    );
+}
+```
+
+### replaceVariables
+
+Called for each row to replace custom placeholders. Override for player-specific variables.
+
+<ParamField path="player" type="Player">
+  The player viewing the scoreboard.
+</ParamField>
+
+<ParamField path="message" type="String">
+  The row text.
+</ParamField>
+
+<ParamField path="replaceVariables" type="String">
+  The row text with variables replaced.
+</ParamField>
+
+```java
+@Override
+protected String replaceVariables(Player player, String message) {
+    return message
+        .replace("{balance}", String.valueOf(getBalance(player)))
+        .replace("{rank}", getRank(player));
+}
+```
+
+## Static methods
+
+### clearBoards
+
+Clears all registered scoreboards. Usually called on reload.
+
+```java
+SimpleScoreboard.clearBoards();
+```
+
+### clearBoardsFor
+
+Removes all scoreboards for a specific player.
+
+<ParamField path="player" type="Player">
+  The player to clear scoreboards for.
+</ParamField>
+
+```java
+SimpleScoreboard.clearBoardsFor(player);
+```
+
+### getRegisteredBoards
+
+Gets all registered scoreboards.
+
+<ParamField path="getRegisteredBoards" type="List<SimpleScoreboard>">
+  List of all registered scoreboards.
+</ParamField>
+
+```java
+List<SimpleScoreboard> boards = SimpleScoreboard.getRegisteredBoards();
+```
+
+## Complete example
+
+```java
+public class StatsScoreboard extends SimpleScoreboard {
+    
+    public StatsScoreboard(Player player) {
+        super("&6&l" + player.getName(), 20);
+        
+        setTheme(ChatColor.GRAY, ChatColor.WHITE);
+    }
+    
+    @Override
+    protected void onUpdate() {
+        clearRows();
+        
+        addRows(
+            "",
+            "Rank: {rank}",
+            "Balance: ${balance}",
+            "",
+            "&7play.example.com"
+        );
+    }
+    
+    @Override
+    protected String replaceVariables(Player player, String message) {
+        return message
+            .replace("{rank}", getRank(player))
+            .replace("{balance}", String.valueOf(getBalance(player)));
+    }
+    
+    private String getRank(Player player) {
+        return HookManager.getPlayerPermissionGroup(player);
+    }
+    
+    private double getBalance(Player player) {
+        return HookManager.getBalance(player);
+    }
+}
+
+// Usage
+@EventHandler
+public void onJoin(PlayerJoinEvent event) {
+    StatsScoreboard scoreboard = new StatsScoreboard(event.getPlayer());
+    scoreboard.show(event.getPlayer());
+}
+
+@EventHandler
+public void onQuit(PlayerQuitEvent event) {
+    SimpleScoreboard.clearBoardsFor(event.getPlayer());
+}
+```
+
+## Notes
+
+<Note>
+  - Scoreboards automatically handle color codes and long lines
+  - The `{player}` variable is automatically replaced with the player's name
+  - Empty strings create blank lines for spacing
+  - Use themes for consistent coloring of key-value pairs
+  - The update task automatically stops when no players are viewing
+</Note>

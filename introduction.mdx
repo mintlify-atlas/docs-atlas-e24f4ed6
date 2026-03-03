@@ -1,0 +1,104 @@
+---
+title: Foundation
+description: A powerful framework for building Minecraft plugins with reduced boilerplate and enhanced functionality
+---
+
+## Build Minecraft plugins faster
+
+Foundation is a battle-tested framework that helps you create Minecraft plugins faster by providing time-saving APIs and reducing boilerplate code. Focus on putting your ideas out there instead of dealing with limited Spigot/Bukkit/Paper APIs.
+
+Thousands of servers have been running on Foundation since 2013, powering plugins like ChatControl, Boss, CoreArena, Confiscate, and many others.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Wide compatibility" icon="server">
+    Supports Minecraft 1.2.5 through 1.21.x with automatic version wrappers that work across all versions
+  </Card>
+  
+  <Card title="Advanced commands" icon="terminal">
+    Create powerful commands without plugin.yml, with built-in tab completion and permission handling
+  </Card>
+  
+  <Card title="GUI menu system" icon="grid">
+    Intuitive API for creating interactive menus and inventory GUIs with automatic click handling
+  </Card>
+  
+  <Card title="Smart configuration" icon="file-code">
+    Auto-updating YAML configs with comments support and type-safe access to settings
+  </Card>
+  
+  <Card title="Library support" icon="puzzle-piece">
+    Automatic integration with popular plugins: ProtocolLib, Citizens, Towny, Vault, PlaceholderAPI, and more
+  </Card>
+  
+  <Card title="Time-saving utilities" icon="wand-magic-sparkles">
+    Databases (MySQL, HikariCP, flatfile), holograms, custom items, skulls, NBT editing, and much more
+  </Card>
+</CardGroup>
+
+## Quick example
+
+Here's how simple it is to create a plugin with Foundation:
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    @Override
+    protected void onPluginStart() {
+        // Your startup logic here
+        Common.log("My plugin has started!");
+    }
+    
+    @Override
+    protected void onPluginStop() {
+        // Your shutdown logic here
+    }
+}
+```
+
+Compare this to traditional JavaPlugin where you need to manually register listeners, load configs, handle commands, and more.
+
+## Platform support
+
+Foundation provides broad compatibility across:
+
+- **Minecraft versions**: 1.2.5 - 1.21.x (continuous updates for newer versions)
+- **Server software**: Bukkit, Spigot, Paper, and Folia
+- **Java version**: Java 8 and above
+
+<Note>
+  Legacy versions (1.2.5-1.6.4) have limited API support due to lack of features in those Minecraft versions.
+</Note>
+
+## Learning resources
+
+<CardGroup cols={2}>
+  <Card title="Quick start guide" icon="rocket" href="/quickstart">
+    Get your first Foundation plugin running in minutes
+  </Card>
+  
+  <Card title="Installation" icon="download" href="/installation">
+    Complete setup with Maven or Gradle including shading configuration
+  </Card>
+  
+  <Card title="Project Orion" icon="graduation-cap" href="https://mineacademy.org/project-orion">
+    Complete training course on plugin development with Foundation
+  </Card>
+  
+  <Card title="Plugin Template" icon="code" href="https://github.com/kangarko/PluginTemplate">
+    Example project showing Foundation best practices
+  </Card>
+</CardGroup>
+
+## Getting help
+
+Join our community:
+
+- **GitHub Issues**: Report bugs or suggest features at [github.com/kangarko/Foundation](https://github.com/kangarko/Foundation)
+- **Documentation**: Ask our AI assistant at [DeepWiki](https://deepwiki.com/kangarko/Foundation)
+- **Video Tutorial**: Watch the installation guide on [YouTube](https://www.youtube.com/watch?v=gXbZnKYE7ww)
+
+<Warning>
+  Foundation requires proper shading configuration to work correctly. Make sure to follow the installation guide carefully to avoid including unnecessary dependencies in your plugin jar.
+</Warning>

@@ -1,0 +1,358 @@
+---
+title: SimpleTime
+description: Parse and work with human-readable time values
+---
+
+## Overview
+
+SimpleTime is a utility class for working with time values in a human-readable format. It converts strings like "5 minutes" or "2 hours" into ticks, seconds, or milliseconds.
+
+## Creating time instances
+
+### from
+
+Creates a SimpleTime from a human-readable string.
+
+<ParamField path="time" type="String">
+  Time string like "1 second", "5 minutes", "2 hours", etc.
+</ParamField>
+
+<ParamField path="from" type="SimpleTime">
+  A new SimpleTime instance.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.from("5 minutes");
+SimpleTime disabled = SimpleTime.from("none");
+SimpleTime ticks = SimpleTime.from("100 ticks");
+```
+
+### fromSeconds
+
+Creates a SimpleTime from a number of seconds.
+
+<ParamField path="seconds" type="int">
+  The number of seconds.
+</ParamField>
+
+<ParamField path="fromSeconds" type="SimpleTime">
+  A new SimpleTime instance.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.fromSeconds(300); // 5 minutes
+```
+
+## Supported formats
+
+SimpleTime accepts various time formats:
+
+- **Ticks:** `"20 ticks"`, `"100 ticks"`
+- **Seconds:** `"1 second"`, `"30 seconds"`
+- **Minutes:** `"5 minutes"`, `"1 minute"`
+- **Hours:** `"2 hours"`, `"1 hour"`
+- **Days:** `"7 days"`, `"1 day"`
+- **Disabled:** `"none"`, `"never"`, `"0"`
+
+```java
+SimpleTime ticks = SimpleTime.from("20 ticks");
+SimpleTime seconds = SimpleTime.from("30 seconds");
+SimpleTime minutes = SimpleTime.from("5 minutes");
+SimpleTime hours = SimpleTime.from("2 hours");
+SimpleTime days = SimpleTime.from("7 days");
+SimpleTime disabled = SimpleTime.from("none");
+```
+
+## Methods
+
+### getTimeTicks
+
+Gets the time in ticks (1 second = 20 ticks).
+
+<ParamField path="getTimeTicks" type="int">
+  The time in ticks.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.from("5 seconds");
+int ticks = time.getTimeTicks(); // 100
+```
+
+<Warning>
+  If the time ticks exceeds `Integer.MAX_VALUE`, it will overflow. Use the long variant if needed.
+</Warning>
+
+### getTimeSeconds
+
+Gets the time in seconds.
+
+<ParamField path="getTimeSeconds" type="long">
+  The time in seconds.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.from("2 minutes");
+long seconds = time.getTimeSeconds(); // 120
+```
+
+### getTimeMilliseconds
+
+Gets the time in milliseconds.
+
+<ParamField path="getTimeMilliseconds" type="long">
+  The time in milliseconds.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.from("1 second");
+long millis = time.getTimeMilliseconds(); // 1000
+```
+
+### getRaw
+
+Gets the original human-readable string.
+
+<ParamField path="getRaw" type="String">
+  The original time string.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.from("5 minutes");
+String raw = time.getRaw(); // "5 minutes"
+```
+
+### isEnabled
+
+Checks if the time is enabled (not "none", "never", or "0").
+
+<ParamField path="isEnabled" type="boolean">
+  True if the time is enabled.
+</ParamField>
+
+```java
+SimpleTime time = SimpleTime.from("5 minutes");
+if (time.isEnabled()) {
+    // Schedule task
+}
+
+SimpleTime disabled = SimpleTime.from("none");
+if (!disabled.isEnabled()) {
+    // Skip scheduling
+}
+```
+
+## Time comparison methods
+
+### isOverLimitMs
+
+Checks if the given timestamp has passed the time limit.
+
+<ParamField path="limitMs" type="long">
+  The timestamp in milliseconds to check against.
+</ParamField>
+
+<ParamField path="isOverLimitMs" type="boolean">
+  True if current time - limit > this time.
+</ParamField>
+
+```java
+SimpleTime cooldown = SimpleTime.from("5 minutes");
+long lastUsed = System.currentTimeMillis();
+
+// Later...
+if (cooldown.isOverLimitMs(lastUsed)) {
+    // Cooldown expired
+    player.sendMessage("You can use this ability again!");
+}
+```
+
+### isUnderLimitMs
+
+Checks if the given timestamp has not yet passed the time limit.
+
+<ParamField path="limitMs" type="long">
+  The timestamp in milliseconds to check against.
+</ParamField>
+
+<ParamField path="isUnderLimitMs" type="boolean">
+  True if current time - limit < this time.
+</ParamField>
+
+```java
+SimpleTime cooldown = SimpleTime.from("10 seconds");
+long lastUsed = System.currentTimeMillis();
+
+if (cooldown.isUnderLimitMs(lastUsed)) {
+    // Still on cooldown
+    String timeLeft = cooldown.formatWaitTime(lastUsed);
+    player.sendMessage("Wait " + timeLeft + " before using again!");
+}
+```
+
+### formatWaitTime
+
+Formats the remaining wait time in a human-readable format.
+
+<ParamField path="lastLastExecutionMs" type="long">
+  The timestamp of the last execution.
+</ParamField>
+
+<ParamField path="formatWaitTime" type="String">
+  Human-readable time remaining (e.g., "5m 23s").
+</ParamField>
+
+```java
+SimpleTime cooldown = SimpleTime.from("30 minutes");
+long lastUsed = System.currentTimeMillis();
+
+String remaining = cooldown.formatWaitTime(lastUsed);
+player.sendMessage("Cooldown: " + remaining);
+// Output: "Cooldown: 29m 59s"
+```
+
+## Usage examples
+
+### Cooldown system
+
+```java
+public class AbilityCooldown {
+    private final Map<UUID, Long> cooldowns = new HashMap<>();
+    private final SimpleTime cooldownTime;
+    
+    public AbilityCooldown(String cooldown) {
+        this.cooldownTime = SimpleTime.from(cooldown);
+    }
+    
+    public boolean canUse(Player player) {
+        if (!cooldowns.containsKey(player.getUniqueId())) {
+            return true;
+        }
+        
+        long lastUsed = cooldowns.get(player.getUniqueId());
+        return cooldownTime.isOverLimitMs(lastUsed);
+    }
+    
+    public void use(Player player) {
+        cooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+    }
+    
+    public String getRemainingTime(Player player) {
+        if (!cooldowns.containsKey(player.getUniqueId())) {
+            return "Ready";
+        }
+        
+        long lastUsed = cooldowns.get(player.getUniqueId());
+        if (cooldownTime.isOverLimitMs(lastUsed)) {
+            return "Ready";
+        }
+        
+        return cooldownTime.formatWaitTime(lastUsed);
+    }
+}
+
+// Usage
+AbilityCooldown cooldown = new AbilityCooldown("5 minutes");
+
+if (cooldown.canUse(player)) {
+    // Execute ability
+    cooldown.use(player);
+    player.sendMessage("Ability used!");
+} else {
+    String remaining = cooldown.getRemainingTime(player);
+    player.sendMessage("Wait " + remaining + " before using again!");
+}
+```
+
+### Configuration with SimpleTime
+
+```java
+public class MyConfig {
+    
+    @Getter
+    private static SimpleTime saveInterval;
+    
+    @Getter
+    private static SimpleTime sessionTimeout;
+    
+    private static void init() {
+        saveInterval = SimpleTime.from(
+            getString("Save_Interval", "5 minutes")
+        );
+        
+        sessionTimeout = SimpleTime.from(
+            getString("Session_Timeout", "30 minutes")
+        );
+    }
+}
+
+// Start auto-save task
+if (MyConfig.getSaveInterval().isEnabled()) {
+    Common.runTimer(
+        MyConfig.getSaveInterval().getTimeTicks(),
+        () -> saveData()
+    );
+}
+```
+
+### Scheduled tasks
+
+```java
+public void scheduleAnnouncement(String message, String interval) {
+    SimpleTime time = SimpleTime.from(interval);
+    
+    if (!time.isEnabled()) {
+        return; // Skip if disabled
+    }
+    
+    Common.runTimer(
+        time.getTimeTicks(),
+        time.getTimeTicks(),
+        () -> Bukkit.broadcastMessage(message)
+    );
+}
+
+// Usage
+scheduleAnnouncement("&6Server restart in 1 hour!", "10 minutes");
+scheduleAnnouncement("&7Tip: Use /help for commands", "5 minutes");
+```
+
+### Session expiration
+
+```java
+public class UserSession {
+    private final UUID playerId;
+    private long lastActivity;
+    
+    private static final SimpleTime TIMEOUT = SimpleTime.from("30 minutes");
+    
+    public UserSession(UUID playerId) {
+        this.playerId = playerId;
+        this.lastActivity = System.currentTimeMillis();
+    }
+    
+    public void updateActivity() {
+        this.lastActivity = System.currentTimeMillis();
+    }
+    
+    public boolean isExpired() {
+        return TIMEOUT.isOverLimitMs(lastActivity);
+    }
+    
+    public String getTimeUntilExpiry() {
+        if (isExpired()) {
+            return "Expired";
+        }
+        return TIMEOUT.formatWaitTime(lastActivity);
+    }
+}
+```
+
+## Notes
+
+<Note>
+  - SimpleTime automatically converts between ticks, seconds, and milliseconds
+  - Use `"none"`, `"never"`, or `"0"` to create disabled time instances
+  - The `getTimeTicks()` method returns an int and may overflow for very large values
+  - Time comparisons use `System.currentTimeMillis()` internally
+  - All time values are immutable once created
+</Note>

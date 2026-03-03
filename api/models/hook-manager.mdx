@@ -1,0 +1,494 @@
+---
+title: HookManager
+description: Hook into popular Minecraft plugins for extended functionality
+---
+
+## Overview
+
+HookManager provides a centralized way to integrate with popular Minecraft plugins. It automatically detects installed plugins and provides convenient methods to interact with them.
+
+## Initialization
+
+Call this method during your plugin startup to detect and load all available plugin hooks.
+
+### loadDependencies
+
+Detects and loads hooks for all supported plugins.
+
+```java
+@Override
+public void onPluginStart() {
+    HookManager.loadDependencies();
+}
+```
+
+<Note>
+  This method automatically detects which plugins are installed and initializes the appropriate hooks.
+</Note>
+
+## Supported plugins
+
+HookManager supports integration with the following plugins:
+
+- **Economy:** Vault
+- **Permissions:** Vault, LuckPerms (via Vault)
+- **Chat:** Vault, EssentialsX, CMI
+- **Placeholders:** PlaceholderAPI, MVdWPlaceholderAPI
+- **Factions:** FactionsUUID, MassiveFactions
+- **Land Protection:** WorldGuard, Residence, Towny, Lands, PlotSquared
+- **Vanish:** EssentialsX, CMI, AdvancedVanish, PremiumVanish
+- **Moderation:** LiteBans, BanManager
+- **NPCs:** Citizens
+- **Mobs:** MythicMobs, Boss
+- **Discord:** DiscordSRV
+- **Other:** mcMMO, Multiverse-Core, AuthMe, ProtocolLib, ItemsAdder
+
+## Plugin detection
+
+Check if specific plugins are loaded:
+
+```java
+if (HookManager.isVaultLoaded()) {
+    double balance = HookManager.getBalance(player);
+}
+
+if (HookManager.isPlaceholderAPILoaded()) {
+    String parsed = HookManager.replacePlaceholders(player, message);
+}
+
+if (HookManager.isWorldGuardLoaded()) {
+    List<String> regions = HookManager.getRegions(location);
+}
+```
+
+## Vault integration
+
+### Economy
+
+Work with player balances and currency.
+
+<ParamField path="player" type="Player">
+  The player to interact with.
+</ParamField>
+
+```java
+// Get balance
+double balance = HookManager.getBalance(player);
+
+// Withdraw money
+HookManager.withdraw(player, 100.0);
+
+// Deposit money
+HookManager.deposit(player, 50.0);
+
+// Get currency names
+String singular = HookManager.getCurrencySingular(); // "Dollar"
+String plural = HookManager.getCurrencyPlural();     // "Dollars"
+```
+
+### Permissions
+
+Check and manage player permissions.
+
+```java
+// Check permission
+boolean hasPerm = HookManager.hasVaultPermission(player, "my.permission");
+
+// Get primary group
+String group = HookManager.getPlayerPrimaryGroup(player);
+```
+
+### Chat
+
+Get player prefixes, suffixes, and groups.
+
+```java
+// Get prefix
+String prefix = HookManager.getPlayerPrefix(player);
+
+// Get suffix  
+String suffix = HookManager.getPlayerSuffix(player);
+
+// Get permission group
+String group = HookManager.getPlayerPermissionGroup(player);
+```
+
+### Check integration
+
+```java
+if (HookManager.isEconomyIntegrated()) {
+    // Economy plugin is available
+}
+
+if (HookManager.isChatIntegrated()) {
+    // Chat plugin is available
+}
+```
+
+## Placeholder integration
+
+### PlaceholderAPI and MVdWPlaceholderAPI
+
+Replace placeholders in messages.
+
+```java
+// Replace standard placeholders
+String message = "Hello %player_name%, you have %vault_eco_balance%";
+String parsed = HookManager.replacePlaceholders(player, message);
+
+// Replace relational placeholders (PlaceholderAPI only)
+String relation = "%rel_factions_relation%";
+String parsed = HookManager.replaceRelationPlaceholders(player1, player2, relation);
+```
+
+### Register custom placeholders
+
+```java
+HookManager.addPlaceholder("health", player -> 
+    String.valueOf(player.getHealth())
+);
+
+HookManager.addPlaceholder("rank", player -> 
+    HookManager.getPlayerPermissionGroup(player)
+);
+```
+
+## Player state
+
+### Vanish
+
+Check and set vanish status across multiple plugins.
+
+```java
+// Check if vanished (checks all vanish plugins)
+if (HookManager.isVanished(player)) {
+    // Player is vanished
+}
+
+// Set vanish status
+HookManager.setVanished(player, true);
+```
+
+### AFK
+
+Check AFK status in EssentialsX or CMI.
+
+```java
+if (HookManager.isAfk(player)) {
+    player.sendMessage("You are AFK!");
+}
+```
+
+### God mode
+
+Check and set god mode in EssentialsX or CMI.
+
+```java
+// Check god mode
+if (HookManager.hasGodMode(player)) {
+    // Player has god mode
+}
+
+// Set god mode
+HookManager.setGodMode(player, true);
+```
+
+### Muted
+
+Check if a player is muted across multiple moderation plugins.
+
+```java
+if (HookManager.isMuted(player)) {
+    event.setCancelled(true);
+    return;
+}
+```
+
+### Authentication
+
+Check if a player is logged in via AuthMe.
+
+```java
+if (!HookManager.isLogged(player)) {
+    player.sendMessage("Please login first!");
+    event.setCancelled(true);
+}
+```
+
+## Nicknames
+
+Get and set player nicknames across EssentialsX, CMI, and Nicky.
+
+```java
+// Get nickname (colored)
+String nick = HookManager.getNickColored(player);
+
+// Get nickname (no colors)
+String nick = HookManager.getNickColorless(player);
+
+// Set nickname
+HookManager.setNick(player.getUniqueId(), "&6CoolName");
+
+// Get name from nickname (reverse lookup)
+String realName = HookManager.getNameFromNick("CoolName");
+```
+
+## Ignore system
+
+Manage player ignore lists in EssentialsX and CMI.
+
+```java
+// Check if ignoring
+if (HookManager.isIgnoring(player.getUniqueId(), target.getUniqueId())) {
+    // Player is ignoring target
+    return;
+}
+
+// Set ignore status
+HookManager.setIgnore(player.getUniqueId(), target.getUniqueId(), true);
+```
+
+## Factions
+
+Work with Factions plugins.
+
+```java
+// Get player's faction
+String faction = HookManager.getFaction(player);
+
+// Get all factions
+Collection<String> factions = HookManager.getFactions();
+
+// Get faction at location
+String faction = HookManager.getFaction(location);
+
+// Get faction owner at location
+String owner = HookManager.getFactionOwner(location);
+
+// Get online faction members
+Collection<? extends Player> members = HookManager.getOnlineFactionPlayers(player);
+```
+
+## Towny
+
+Work with Towny plugin.
+
+```java
+// Get player's town
+String town = HookManager.getTownName(player);
+
+// Get player's nation
+String nation = HookManager.getNation(player);
+
+// Get all towns
+List<String> towns = HookManager.getTowns();
+
+// Get town at location
+String town = HookManager.getTown(location);
+
+// Get town owner at location
+String owner = HookManager.getTownOwner(location);
+
+// Get online town residents
+Collection<? extends Player> residents = HookManager.getTownResidentsOnline(player);
+
+// Get online nation members
+Collection<? extends Player> nation = HookManager.getNationPlayersOnline(player);
+
+// Get online allies
+Collection<? extends Player> allies = HookManager.getAllyPlayersOnline(player);
+```
+
+## WorldGuard
+
+Work with WorldGuard regions.
+
+```java
+// Get regions at location
+List<String> regions = HookManager.getRegions(location);
+
+// Get all regions
+List<String> allRegions = HookManager.getRegions();
+
+// Get specific region
+Region region = HookManager.getRegion("spawn");
+if (region != null) {
+    Location min = region.getMinimum();
+    Location max = region.getMaximum();
+}
+```
+
+## Residence
+
+Work with Residence plugin.
+
+```java
+// Get all residences
+Collection<String> residences = HookManager.getResidences();
+
+// Get residence at location
+String residence = HookManager.getResidence(location);
+
+// Get residence owner
+String owner = HookManager.getResidenceOwner(location);
+```
+
+## MythicMobs and Boss
+
+Get custom mob names.
+
+```java
+// Get MythicMob name
+String mobName = HookManager.getMythicMobName(entity);
+if (mobName != null) {
+    // Entity is a MythicMob
+}
+
+// Get Boss name
+String bossName = HookManager.getBossName(entity);
+if (bossName != null) {
+    // Entity is a Boss
+}
+```
+
+## Citizens
+
+Work with NPCs.
+
+```java
+// Check if entity is NPC
+if (HookManager.isNPC(entity)) {
+    // Don't process this entity
+    return;
+}
+
+// Get NPC target
+Entity target = HookManager.getNPCTarget(entity);
+```
+
+## DiscordSRV
+
+Send messages to Discord.
+
+```java
+// Get linked channels
+Set<String> channels = HookManager.getDiscordChannels();
+
+// Send message to channel
+HookManager.sendDiscordMessage("global", "Server started!");
+
+// Send message from player
+HookManager.sendDiscordMessage(player, "global", "Hello Discord!");
+```
+
+## ProtocolLib
+
+Work with packets.
+
+```java
+// Add packet listener
+HookManager.addPacketListener(new PacketAdapter(
+    plugin,
+    PacketType.Play.Server.CHAT
+) {
+    @Override
+    public void onPacketSending(PacketEvent event) {
+        // Modify packet
+    }
+});
+
+// Send packet to player
+PacketContainer packet = new PacketContainer(PacketType.Play.Server.CHAT);
+HookManager.sendPacket(player, packet);
+
+// Check ProtocolLib permission (for temporary players)
+boolean hasPerm = HookManager.hasProtocolLibPermission(player, "my.permission");
+```
+
+## Multiverse-Core
+
+Get world aliases.
+
+```java
+World world = player.getWorld();
+String alias = HookManager.getWorldAlias(world);
+player.sendMessage("You are in: " + alias);
+```
+
+## ItemsAdder
+
+Replace font images in messages.
+
+```java
+// Replace for all players
+String message = HookManager.replaceFontImages(":smile: Hello!");
+
+// Replace based on player permission
+String message = HookManager.replaceFontImages(player, ":crown: VIP");
+```
+
+## Complete example
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    @Override
+    protected void onPluginStart() {
+        // Load all hooks
+        HookManager.loadDependencies();
+        
+        // Log what's available
+        if (HookManager.isVaultLoaded()) {
+            log("Vault integration enabled");
+        }
+        if (HookManager.isPlaceholderAPILoaded()) {
+            log("PlaceholderAPI integration enabled");
+        }
+    }
+    
+    @EventHandler
+    public void onChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        String message = event.getMessage();
+        
+        // Check if muted
+        if (HookManager.isMuted(player)) {
+            event.setCancelled(true);
+            return;
+        }
+        
+        // Check if vanished
+        if (HookManager.isVanished(player)) {
+            tellWarn(player, "You cannot chat while vanished!");
+            event.setCancelled(true);
+            return;
+        }
+        
+        // Format with Vault prefix/suffix
+        String prefix = HookManager.getPlayerPrefix(player);
+        String suffix = HookManager.getPlayerSuffix(player);
+        
+        // Replace placeholders
+        message = HookManager.replacePlaceholders(player, message);
+        
+        // Set format
+        event.setFormat(prefix + player.getName() + suffix + ": " + message);
+        
+        // Send to Discord
+        if (HookManager.isDiscordSRVLoaded()) {
+            HookManager.sendDiscordMessage(player, "global", 
+                player.getName() + ": " + message);
+        }
+    }
+}
+```
+
+## Notes
+
+<Note>
+  - Always check if a hook is loaded before using its methods
+  - Some methods return null or empty collections if the plugin isn't loaded
+  - HookManager handles version compatibility automatically
+  - Call `loadDependencies()` only once during plugin startup
+  - Some hooks require specific plugin versions (check console warnings)
+</Note>

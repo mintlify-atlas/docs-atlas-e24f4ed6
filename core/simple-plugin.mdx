@@ -1,0 +1,316 @@
+---
+title: SimplePlugin
+description: Learn how to create plugins using the SimplePlugin base class and understand the plugin lifecycle
+---
+
+The `SimplePlugin` class is the foundation of every plugin built with Foundation. It extends JavaPlugin and provides enhanced functionality, automatic registration, and a well-defined lifecycle.
+
+## Creating your main plugin class
+
+Extend `SimplePlugin` to create your main plugin class:
+
+```java
+public class MyPlugin extends SimplePlugin {
+
+    @Override
+    protected void onPluginStart() {
+        // Your plugin initialization code
+    }
+}
+```
+
+## Plugin lifecycle
+
+Foundation provides several lifecycle methods that are called in a specific order during plugin startup, reload, and shutdown.
+
+<Steps>
+  <Step title="onPluginLoad()">
+    Called before the plugin starts, during the `onLoad()` phase.
+    
+    ```java
+    @Override
+    protected void onPluginLoad() {
+        // Load libraries, register world generators, etc.
+    }
+    ```
+    
+    Use this for early initialization that must happen before the server is fully loaded.
+  </Step>
+
+  <Step title="onReloadablesStart()">
+    Called when the plugin starts and whenever it's reloaded. Register your commands, events, and tasks here.
+    
+    ```java
+    @Override
+    protected void onReloadablesStart() {
+        // Register events
+        registerEvents(new MyListener());
+        
+        // Register commands
+        registerCommand(new MyCommand());
+        
+        // Start tasks
+        Common.runTimer(20, () -> {
+            // Repeating task every second
+        });
+    }
+    ```
+    
+    <Note>
+      Everything registered in `onReloadablesStart()` is automatically unregistered when the plugin reloads, preventing duplicate registrations.
+    </Note>
+  </Step>
+
+  <Step title="onPluginStart()">
+    Called once when the plugin starts. Use this for one-time initialization.
+    
+    ```java
+    @Override
+    protected void onPluginStart() {
+        // Load configuration
+        // Initialize databases
+        // One-time setup
+    }
+    ```
+  </Step>
+
+  <Step title="onPluginPreReload()">
+    Called before the plugin reloads. Use this to save state or clean up resources.
+    
+    ```java
+    @Override
+    protected void onPluginPreReload() {
+        // Save data before reload
+    }
+    ```
+  </Step>
+
+  <Step title="onPluginReload()">
+    Called after the plugin reloads. Use this for post-reload initialization.
+    
+    ```java
+    @Override
+    protected void onPluginReload() {
+        // Re-initialize after reload
+    }
+    ```
+  </Step>
+
+  <Step title="onPluginStop()">
+    Called when the plugin is disabled. Use this for cleanup.
+    
+    ```java
+    @Override
+    protected void onPluginStop() {
+        // Save data
+        // Close connections
+        // Clean up resources
+    }
+    ```
+  </Step>
+</Steps>
+
+## Accessing the plugin instance
+
+Foundation provides convenient static access to your plugin instance:
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    public static MyPlugin getInstance() {
+        return (MyPlugin) SimplePlugin.getInstance();
+    }
+    
+    @Override
+    protected void onPluginStart() {
+        // Your code
+    }
+}
+```
+
+Then access it anywhere:
+
+```java
+MyPlugin plugin = MyPlugin.getInstance();
+```
+
+## Static shortcuts
+
+The `SimplePlugin` class provides static shortcuts for common operations:
+
+```java
+// Get plugin version
+String version = SimplePlugin.getVersion(); // "1.0.0"
+
+// Get plugin name
+String name = SimplePlugin.getNamed(); // "MyPlugin"
+
+// Get plugin data folder
+File dataFolder = SimplePlugin.getData();
+
+// Get plugin JAR file
+File jarFile = SimplePlugin.getSource();
+
+// Check if reloading
+boolean reloading = SimplePlugin.isReloading();
+```
+
+## Registering components
+
+Foundation provides convenient methods for registering events and commands:
+
+### Registering events
+
+```java
+@Override
+protected void onReloadablesStart() {
+    // Register a single listener
+    registerEvents(new MyListener());
+    
+    // Register all listeners extending a class
+    registerAllEvents(MyBaseListener.class);
+}
+```
+
+### Registering commands
+
+```java
+@Override
+protected void onReloadablesStart() {
+    // Register a single command
+    registerCommand(new MyCommand());
+    
+    // Register a command group
+    registerCommands(new MyCommandGroup());
+    
+    // Register all commands extending a class
+    registerAllCommands(MyBaseCommand.class);
+}
+```
+
+<Note>
+  Components registered in `onReloadablesStart()` are automatically managed and cleaned up during reloads.
+</Note>
+
+## Plugin configuration
+
+Foundation provides several configuration options you can override:
+
+### Version requirements
+
+```java
+@Override
+public MinecraftVersion.V getMinimumVersion() {
+    return MinecraftVersion.V.v1_8; // Require MC 1.8+
+}
+
+@Override
+public MinecraftVersion.V getMaximumVersion() {
+    return MinecraftVersion.V.v1_20; // Support up to MC 1.20
+}
+```
+
+### Startup logo
+
+```java
+@Override
+protected String[] getStartupLogo() {
+    return new String[] {
+        "&6  __  __       ____  _             _       ",
+        "&6 |  \\/  |_   _|  _ \\| |_   _  __ _(_)_ __  ",
+        "&6 | |\/| | | | | |_) | | | | |/ _` | | '_ \\ ",
+        "&6 | |  | | |_| |  __/| | |_| | (_| | | | | |",
+        "&6 |_|  |_|\\__, |_|   |_|\\__,_|\\__, |_|_| |_|",
+        "&6         |___/                |___/         "
+    };
+}
+```
+
+### Metrics and updates
+
+```java
+@Override
+public int getMetricsPluginId() {
+    return 12345; // Your bStats plugin ID
+}
+
+@Override
+public SpigotUpdater getUpdateCheck() {
+    return new SpigotUpdater(12345); // Your Spigot resource ID
+}
+
+@Override
+public int getFoundedYear() {
+    return 2024; // Shows in command help
+}
+```
+
+### Feature toggles
+
+```java
+@Override
+public boolean areMenusEnabled() {
+    return true; // Enable Foundation menu system
+}
+
+@Override
+public boolean areToolsEnabled() {
+    return true; // Enable Foundation tool system
+}
+
+@Override
+public boolean areRegionsEnabled() {
+    return false; // Enable region support
+}
+```
+
+## Reloading
+
+Foundation provides built-in reload support:
+
+```java
+// Reload the plugin programmatically
+SimplePlugin.getInstance().reload();
+
+// Check if currently reloading
+if (SimplePlugin.isReloading()) {
+    // Handle reload state
+}
+```
+
+<Warning>
+  During reload, all reloadable components (events, commands, tasks) are automatically unregistered and re-registered. Make sure to register them in `onReloadablesStart()`.
+</Warning>
+
+## Best practices
+
+<Accordion title="Use the correct lifecycle method">
+  - Use `onPluginLoad()` for early initialization
+  - Use `onReloadablesStart()` for events, commands, and tasks
+  - Use `onPluginStart()` for one-time initialization
+  - Use `onPluginStop()` for cleanup
+</Accordion>
+
+<Accordion title="Handle reloads properly">
+  Register all reloadable components in `onReloadablesStart()` to ensure they work correctly after `/reload`.
+</Accordion>
+
+<Accordion title="Provide an instance getter">
+  Override `getInstance()` to return your plugin type for easier access:
+  
+  ```java
+  public static MyPlugin getInstance() {
+      return (MyPlugin) SimplePlugin.getInstance();
+  }
+  ```
+</Accordion>
+
+<Accordion title="Set version requirements">
+  Always specify minimum (and optionally maximum) supported Minecraft versions to prevent incompatibility issues.
+</Accordion>
+
+## Related documentation
+
+- [Multi-version support](/core/multi-version-support) - Learn about cross-version compatibility
+- [Configuration](/core/configuration) - Set up plugin configuration files
+- [Localization](/core/localization) - Add multi-language support

@@ -1,0 +1,396 @@
+---
+title: Menu
+description: The core class for creating interactive inventory menus with buttons, animations, and player interactions
+---
+
+The `Menu` class is the foundation of the menu system in Foundation. It provides a framework for creating interactive inventory GUIs with automatic button registration, parent menu navigation, and event handling.
+
+## Creating a menu
+
+To create a menu, extend the `Menu` class and customize it in your constructor:
+
+```java
+public class MyMenu extends Menu {
+    
+    public MyMenu() {
+        setTitle("&6My Custom Menu");
+        setSize(9 * 3);
+    }
+    
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 13) {
+            return ItemCreator.of(CompMaterial.DIAMOND)
+                .name("&bClick me!")
+                .lore("This is a clickable item")
+                .make();
+        }
+        return NO_ITEM;
+    }
+}
+```
+
+## Constructors
+
+<ParamField path="Menu()" type="constructor">
+  Create a new menu without a parent menu with default size of 9*3.
+</ParamField>
+
+<ParamField path="Menu(Menu parent)" type="constructor">
+  Create a new menu with a parent menu.
+  
+  <Expandable title="parameters">
+    - `parent` - The parent menu to return to
+  </Expandable>
+</ParamField>
+
+<ParamField path="Menu(Menu parent, boolean returnMakesNewInstance)" type="constructor">
+  Create a new menu with a parent menu and control whether returning creates a new instance.
+  
+  <Expandable title="parameters">
+    - `parent` - The parent menu
+    - `returnMakesNewInstance` - Should we re-instantiate the parent menu when returning to it?
+  </Expandable>
+</ParamField>
+
+## Core methods
+
+### Display methods
+
+<ParamField path="displayTo(Player player)" type="void">
+  Display this menu to the specified player.
+  
+  ```java
+  MyMenu menu = new MyMenu();
+  menu.displayTo(player);
+  ```
+</ParamField>
+
+<ParamField path="restartMenu()" type="void">
+  Redraws and refreshes all buttons in the current menu.
+  
+  ```java
+  @Override
+  public void onButtonClick(Player player, int slot, InventoryAction action, ClickType click, Button button) {
+      // Update some data
+      updatePlayerData();
+      
+      // Refresh the menu
+      restartMenu();
+  }
+  ```
+</ParamField>
+
+<ParamField path="restartMenu(String animatedTitle)" type="void">
+  Redraws and refreshes all buttons while showing an animated title.
+  
+  <Expandable title="parameters">
+    - `animatedTitle` - The temporary title to display
+  </Expandable>
+  
+  ```java
+  restartMenu("&aItem purchased!");
+  ```
+</ParamField>
+
+### Configuration methods
+
+<ParamField path="setTitle(String title)" type="void">
+  Sets the title of the menu. Color codes with `&` are supported.
+  
+  ```java
+  setTitle("&6&lMy Menu");
+  ```
+</ParamField>
+
+<ParamField path="setSize(Integer size)" type="void">
+  Sets the size of the menu. Must be a multiple of 9 (max 54).
+  
+  ```java
+  setSize(9 * 6); // 6 rows
+  ```
+</ParamField>
+
+<ParamField path="setSlotNumbersVisible()" type="void">
+  Enable debug mode to show slot numbers in empty slots. Useful during development.
+  
+  ```java
+  public MyMenu() {
+      setSlotNumbersVisible();
+  }
+  ```
+</ParamField>
+
+### Button registration
+
+<ParamField path="registerButton(Button button)" type="void">
+  Manually register a button that is not a field. The button must have its slot set.
+  
+  <Warning>
+    Do NOT use this for buttons that are fields - field buttons are automatically registered.
+  </Warning>
+  
+  ```java
+  Button dynamicButton = new Button(10) {
+      @Override
+      public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+          player.sendMessage("Clicked!");
+      }
+      
+      @Override
+      public ItemStack getItem() {
+          return ItemCreator.of(CompMaterial.STONE).make();
+      }
+  };
+  
+  registerButton(dynamicButton);
+  ```
+</ParamField>
+
+<ParamField path="redrawButtons()" type="void">
+  Redraws all registered buttons without restarting the entire menu.
+  
+  ```java
+  // Update button appearance
+  redrawButtons();
+  ```
+</ParamField>
+
+### Item management
+
+<ParamField path="getItemAt(int slot)" type="ItemStack">
+  Returns the item to display at a specific slot. Override this method to populate your menu.
+  
+  <Expandable title="parameters">
+    - `slot` - The slot number (0-based)
+  </Expandable>
+  
+  ```java
+  @Override
+  public ItemStack getItemAt(int slot) {
+      if (slot == 0) {
+          return ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+              .name("&6Weapon")
+              .make();
+      }
+      return NO_ITEM;
+  }
+  ```
+</ParamField>
+
+<ParamField path="setItem(int slot, ItemStack item)" type="void">
+  Updates a specific slot with a new item.
+  
+  <Note>
+    If the slot contains a button and you want it to remain functional, use the `@Position` annotation or set the button's slot.
+  </Note>
+  
+  ```java
+  setItem(10, ItemCreator.of(CompMaterial.GOLD_INGOT).make());
+  ```
+</ParamField>
+
+## Event hooks
+
+<ParamField path="onMenuClick(Player player, int slot, ItemStack clicked)" type="void">
+  Called when any slot in the menu is clicked.
+  
+  ```java
+  @Override
+  protected void onMenuClick(Player player, int slot, ItemStack clicked) {
+      player.sendMessage("You clicked slot " + slot);
+  }
+  ```
+</ParamField>
+
+<ParamField path="onButtonClick(Player player, int slot, InventoryAction action, ClickType click, Button button)" type="void">
+  Called when a registered button is clicked.
+  
+  ```java
+  @Override
+  protected void onButtonClick(Player player, int slot, InventoryAction action, ClickType click, Button button) {
+      if (click.isRightClick()) {
+          player.sendMessage("Right clicked button!");
+      }
+  }
+  ```
+</ParamField>
+
+<ParamField path="onMenuClose(Player player, Inventory inventory)" type="void">
+  Called when the menu is closed.
+  
+  ```java
+  @Override
+  protected void onMenuClose(Player player, Inventory inventory) {
+      savePlayerData(player);
+  }
+  ```
+</ParamField>
+
+<ParamField path="onPreDisplay(InventoryDrawer drawer)" type="void">
+  Called before the menu is displayed, after items have been drawn. Use for last-minute modifications.
+  
+  ```java
+  @Override
+  protected void onPreDisplay(InventoryDrawer drawer) {
+      drawer.setItem(0, ItemCreator.of(CompMaterial.BARRIER).make());
+  }
+  ```
+</ParamField>
+
+<ParamField path="onRestart()" type="void">
+  Called when the menu is restarted. Called after registerButtons() and before getItemAt().
+</ParamField>
+
+## Utility methods
+
+### Slot helpers
+
+<ParamField path="getCenterSlot()" type="int">
+  Calculates and returns the center slot of the menu.
+  
+  ```java
+  int center = getCenterSlot();
+  setItem(center, ItemCreator.of(CompMaterial.NETHER_STAR).make());
+  ```
+</ParamField>
+
+<ParamField path="getBottomCenterSlot()" type="int">
+  Returns the middle slot in the last row (hotbar area).
+</ParamField>
+
+### Messaging
+
+<ParamField path="tell(String... messages)" type="void">
+  Send a message to the viewer.
+  
+  ```java
+  tell("&aWelcome to the menu!");
+  ```
+</ParamField>
+
+<ParamField path="tellInfo(String message)" type="void">
+  Send an info message to the viewer.
+</ParamField>
+
+<ParamField path="tellSuccess(String message)" type="void">
+  Send a success message to the viewer.
+</ParamField>
+
+<ParamField path="tellWarn(String message)" type="void">
+  Send a warning message to the viewer.
+</ParamField>
+
+<ParamField path="tellError(String message)" type="void">
+  Send an error message to the viewer.
+</ParamField>
+
+### Getters
+
+<ParamField path="getViewer()" type="Player">
+  Get the player viewing this menu instance.
+</ParamField>
+
+<ParamField path="getTitle()" type="String">
+  Get the current title of the menu.
+</ParamField>
+
+<ParamField path="getSize()" type="Integer">
+  Get the size of the menu.
+</ParamField>
+
+<ParamField path="getParent()" type="Menu">
+  Get the parent menu, or null if none exists.
+</ParamField>
+
+<ParamField path="getInventory()" type="Inventory">
+  Return the currently opened inventory if viewer exists.
+</ParamField>
+
+## Animation
+
+<ParamField path="animateTitle(String title)" type="void">
+  Animate the menu title temporarily, then revert to the original title.
+  
+  ```java
+  animateTitle("&6Processing...");
+  ```
+</ParamField>
+
+<ParamField path="animate(int periodTicks, MenuRunnable task)" type="void">
+  Start a repeating task on the main thread that stops when the viewer closes the menu.
+  
+  <Expandable title="parameters">
+    - `periodTicks` - The period between executions in ticks
+    - `task` - The task to run
+  </Expandable>
+  
+  ```java
+  animate(20, () -> {
+      // Update every second
+      redrawButtons();
+  });
+  ```
+</ParamField>
+
+## Static methods
+
+<ParamField path="getMenu(Player player)" type="Menu" static>
+  Returns the current menu for a player, or null if none.
+  
+  ```java
+  Menu currentMenu = Menu.getMenu(player);
+  ```
+</ParamField>
+
+<ParamField path="getPreviousMenu(Player player)" type="Menu" static>
+  Returns the previous menu for a player, or null if none.
+</ParamField>
+
+<ParamField path="setSound(SimpleSound sound)" type="void" static>
+  Set the default sound played when opening menus. Set to null to disable.
+  
+  ```java
+  Menu.setSound(new SimpleSound(CompSound.BLOCK_NOTE_BLOCK_PLING, 1.0F));
+  ```
+</ParamField>
+
+## Complete example
+
+```java
+public class ShopMenu extends Menu {
+    
+    private final Button buyButton;
+    
+    public ShopMenu() {
+        setTitle("&6&lItem Shop");
+        setSize(9 * 3);
+        
+        // Buttons as fields are automatically registered
+        buyButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                player.sendMessage("Item purchased!");
+                restartMenu("&aThank you!");
+            }
+            
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(CompMaterial.DIAMOND)
+                    .name("&6Buy Diamond")
+                    .lore("&7Click to purchase")
+                    .lore("&7Cost: $100")
+                    .make();
+            }
+        };
+    }
+    
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 13) {
+            return buyButton.getItem();
+        }
+        return NO_ITEM;
+    }
+}
+```

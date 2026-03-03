@@ -1,0 +1,369 @@
+---
+title: WorldGuard integration
+description: Access WorldGuard regions and protection data
+---
+
+WorldGuard provides region protection for your server. Foundation's integration lets you query regions, check locations, and retrieve region data without managing WorldGuard dependencies.
+
+## Check if loaded
+
+```java
+if (HookManager.isWorldGuardLoaded()) {
+    // WorldGuard is available
+}
+```
+
+## Get regions at location
+
+Find all regions at a specific location:
+
+```java
+Location loc = player.getLocation();
+List<String> regions = HookManager.getRegions(loc);
+
+if (regions.isEmpty()) {
+    Common.tell(player, "You're in the wilderness!");
+} else {
+    Common.tell(player, "Regions: " + String.join(", ", regions));
+}
+```
+
+## Get all regions
+
+Retrieve all loaded regions across all worlds:
+
+```java
+List<String> allRegions = HookManager.getRegions();
+
+Common.tell(player, "Total regions: " + allRegions.size());
+Common.tell(player, "Regions: " + String.join(", ", allRegions));
+```
+
+## Get region by name
+
+Retrieve a specific region's data:
+
+```java
+String regionName = "spawn";
+Region region = HookManager.getRegion(regionName);
+
+if (region == null) {
+    Common.tell(player, "Region not found!");
+    return;
+}
+
+Common.tell(player, "Region: " + region.getName());
+Common.tell(player, "Min: " + region.getMinimum());
+Common.tell(player, "Max: " + region.getMaximum());
+```
+
+## Region object
+
+Foundation's `Region` class provides a simplified interface:
+
+```java
+Region region = HookManager.getRegion("pvp_arena");
+
+if (region != null) {
+    String name = region.getName();
+    Location min = region.getMinimum();
+    Location max = region.getMaximum();
+    
+    // Calculate region size
+    int sizeX = max.getBlockX() - min.getBlockX();
+    int sizeY = max.getBlockY() - min.getBlockY();
+    int sizeZ = max.getBlockZ() - min.getBlockZ();
+    
+    Common.tell(player, "Region size: " + sizeX + "x" + sizeY + "x" + sizeZ);
+}
+```
+
+## Check if player is in region
+
+```java
+public boolean isInRegion(Player player, String regionName) {
+    List<String> regions = HookManager.getRegions(player.getLocation());
+    
+    for (String region : regions) {
+        if (region.equalsIgnoreCase(regionName))
+            return true;
+    }
+    
+    return false;
+}
+```
+
+Usage:
+
+```java
+if (isInRegion(player, "safezone")) {
+    Common.tell(player, "You are in a safe zone!");
+}
+```
+
+## Practical examples
+
+### Region-based permissions
+
+```java
+@EventHandler
+public void onBlockBreak(BlockBreakEvent event) {
+    Player player = event.getPlayer();
+    Location loc = event.getBlock().getLocation();
+    
+    if (!HookManager.isWorldGuardLoaded())
+        return;
+    
+    List<String> regions = HookManager.getRegions(loc);
+    
+    // Check if in protected spawn region
+    if (regions.contains("spawn")) {
+        if (!player.hasPermission("myplugin.build.spawn")) {
+            event.setCancelled(true);
+            Common.tell(player, "You can't build in spawn!");
+        }
+    }
+}
+```
+
+### Region announcements
+
+```java
+public class RegionListener implements Listener {
+
+    private final Map<UUID, Set<String>> playerRegions = new HashMap<>();
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
+        // Only check when moving to new block
+        if (event.getFrom().getBlock().equals(event.getTo().getBlock()))
+            return;
+            
+        if (!HookManager.isWorldGuardLoaded())
+            return;
+        
+        Player player = event.getPlayer();
+        List<String> currentRegions = HookManager.getRegions(event.getTo());
+        Set<String> previousRegions = playerRegions.getOrDefault(
+            player.getUniqueId(), new HashSet<>());
+        
+        // Find new regions
+        for (String region : currentRegions) {
+            if (!previousRegions.contains(region)) {
+                Common.tell(player, "&aEntering region: &f" + region);
+            }
+        }
+        
+        // Find left regions
+        for (String region : previousRegions) {
+            if (!currentRegions.contains(region)) {
+                Common.tell(player, "&cLeaving region: &f" + region);
+            }
+        }
+        
+        playerRegions.put(player.getUniqueId(), new HashSet<>(currentRegions));
+    }
+}
+```
+
+### Region list command
+
+```java
+public class RegionsCommand extends SimpleCommand {
+
+    public RegionsCommand() {
+        super("regions|rg");
+    }
+
+    @Override
+    protected void onCommand() {
+        checkBoolean(HookManager.isWorldGuardLoaded(), 
+            "WorldGuard is not installed!");
+        
+        List<String> regions = HookManager.getRegions();
+        
+        if (regions.isEmpty()) {
+            tellError("No regions found!");
+            return;
+        }
+        
+        tellSuccess("Total regions: " + regions.size());
+        tell("");
+        
+        // Sort alphabetically
+        Collections.sort(regions);
+        
+        for (String region : regions) {
+            tell("&7- &f" + region);
+        }
+    }
+}
+```
+
+### Region info command
+
+```java
+public class RegionInfoCommand extends SimpleCommand {
+
+    public RegionInfoCommand() {
+        super("regioninfo|rgi");
+    }
+
+    @Override
+    protected void onCommand() {
+        checkBoolean(HookManager.isWorldGuardLoaded(), 
+            "WorldGuard is not installed!");
+        checkArgs(1, "Usage: /regioninfo <region>");
+        
+        String regionName = args[0];
+        Region region = HookManager.getRegion(regionName);
+        
+        checkNotNull(region, "Region '" + regionName + "' not found!");
+        
+        Location min = region.getMinimum();
+        Location max = region.getMaximum();
+        
+        tellSuccess("Region: " + region.getName());
+        tell("&7World: &f" + min.getWorld().getName());
+        tell("&7Minimum: &f" + formatLocation(min));
+        tell("&7Maximum: &f" + formatLocation(max));
+        
+        int volume = calculateVolume(min, max);
+        tell("&7Volume: &f" + volume + " blocks");
+    }
+    
+    private String formatLocation(Location loc) {
+        return loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ();
+    }
+    
+    private int calculateVolume(Location min, Location max) {
+        int x = Math.abs(max.getBlockX() - min.getBlockX()) + 1;
+        int y = Math.abs(max.getBlockY() - min.getBlockY()) + 1;
+        int z = Math.abs(max.getBlockZ() - min.getBlockZ()) + 1;
+        return x * y * z;
+    }
+}
+```
+
+## Implementation details
+
+Foundation supports both WorldGuard 6 (legacy) and WorldGuard 7+:
+
+```java WorldGuardHook.java
+public WorldGuardHook(final WorldEditHook we) {
+    final Plugin wg = Bukkit.getPluginManager().getPlugin("WorldGuard");
+    
+    this.legacy = !wg.getDescription().getVersion().startsWith("7") 
+        || we != null && we.legacy;
+}
+```
+
+Getting regions at a location:
+
+```java WorldGuardHook.java
+public List<String> getRegionsAt(final Location location) {
+    final List<String> list = new ArrayList<>();
+    
+    this.getApplicableRegions(location).forEach(region -> {
+        final String name = Common.stripColors(region.getId());
+        
+        // Skip internal regions (starting with "__")
+        if (!name.startsWith("__"))
+            list.add(name);
+    });
+    
+    return list;
+}
+```
+
+<Note>
+Foundation automatically filters out internal WorldGuard regions (those starting with `__`) to keep your region lists clean.
+</Note>
+
+## Version compatibility
+
+Foundation supports:
+- **WorldGuard 7.x** - Modern versions (recommended)
+- **WorldGuard 6.x** - Legacy versions (MC 1.12.2 and older)
+
+The hook automatically detects the version and uses the appropriate API.
+
+## Safe defaults
+
+When WorldGuard isn't loaded:
+
+```java HookManager.java
+public static List<String> getRegions(final Location loc) {
+    return isWorldGuardLoaded() ? worldguardHook.getRegionsAt(loc) : new ArrayList<>();
+}
+
+public static List<String> getRegions() {
+    return isWorldGuardLoaded() ? worldguardHook.getAllRegions() : new ArrayList<>();
+}
+
+public static Region getRegion(final String name) {
+    return isWorldGuardLoaded() ? worldguardHook.getRegion(name) : null;
+}
+```
+
+<Warning>
+Always check `isWorldGuardLoaded()` before relying on region data. Empty lists are returned when WorldGuard isn't available.
+</Warning>
+
+## Best practices
+
+**Cache region checks** - Don't check regions on every tick:
+
+```java
+// Bad - checks every tick
+@EventHandler
+public void onPlayerMove(PlayerMoveEvent event) {
+    List<String> regions = HookManager.getRegions(event.getTo());
+}
+
+// Good - only check when changing blocks
+@EventHandler
+public void onPlayerMove(PlayerMoveEvent event) {
+    if (event.getFrom().getBlock().equals(event.getTo().getBlock()))
+        return;
+        
+    List<String> regions = HookManager.getRegions(event.getTo());
+}
+```
+
+**Handle multiple regions** - Locations can be in multiple regions:
+
+```java
+List<String> regions = HookManager.getRegions(location);
+
+if (regions.isEmpty()) {
+    // Wilderness
+} else if (regions.size() == 1) {
+    // Single region
+} else {
+    // Multiple overlapping regions
+}
+```
+
+**Case-insensitive comparison** - Region names may have different casing:
+
+```java
+for (String region : regions) {
+    if (region.equalsIgnoreCase("spawn")) {
+        // Found spawn region
+    }
+}
+```
+
+## Related plugins
+
+Foundation also integrates with other protection plugins:
+- **Residence** - `HookManager.getResidence(location)`
+- **Towny** - `HookManager.getTown(location)`
+- **Factions** - `HookManager.getFaction(location)`
+- **PlotSquared** - `HookManager.getPlotPlayers(player)`
+
+## Related
+
+- [Plugin integrations overview](/integrations/overview)
+- [Region API](/api/region) - Foundation's Region class

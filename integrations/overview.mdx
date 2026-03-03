@@ -1,0 +1,155 @@
+---
+title: Plugin integrations
+description: Connect Foundation with popular Minecraft plugins for extended functionality
+---
+
+Foundation provides seamless integration with popular Minecraft plugins through the `HookManager` class. These integrations allow you to leverage features from other plugins without managing complex dependencies.
+
+## Available integrations
+
+Foundation supports integration with the following plugins:
+
+<CardGroup cols={2}>
+  <Card title="Vault" icon="vault" href="/integrations/vault">
+    Economy, permissions, and chat management
+  </Card>
+  <Card title="PlaceholderAPI" icon="code" href="/integrations/placeholderapi">
+    Dynamic placeholder replacement system
+  </Card>
+  <Card title="WorldGuard" icon="shield" href="/integrations/worldguard">
+    Region protection and management
+  </Card>
+  <Card title="Citizens" icon="user" href="/integrations/citizens">
+    NPC detection and interaction
+  </Card>
+  <Card title="DiscordSRV" icon="discord" href="/integrations/discordsrv">
+    Discord chat bridge integration
+  </Card>
+</CardGroup>
+
+## How it works
+
+Foundation automatically detects installed plugins on server startup and creates hook instances for available integrations. You don't need to add dependencies to your plugin - Foundation handles everything.
+
+### Loading integrations
+
+Integrations are loaded automatically when your plugin extends `SimplePlugin`:
+
+```java
+public class YourPlugin extends SimplePlugin {
+    @Override
+    protected void onPluginStart() {
+        // Integrations are already loaded by Foundation
+        // Use HookManager methods directly
+    }
+}
+```
+
+### Checking availability
+
+Always check if a plugin is loaded before using its features:
+
+```java
+if (HookManager.isVaultLoaded()) {
+    double balance = HookManager.getBalance(player);
+    Common.tell(player, "Your balance: " + balance);
+}
+```
+
+## Hook pattern
+
+All integrations follow a consistent pattern:
+
+1. **Detection** - Foundation checks if the plugin exists using `Common.doesPluginExist()`
+2. **Hook creation** - A hook class is instantiated if the plugin is found
+3. **Safe access** - Methods return safe defaults if the plugin isn't loaded
+
+```java HookManager.java
+public static void loadDependencies() {
+    if (Common.doesPluginExist("Vault"))
+        vaultHook = new VaultHook();
+        
+    if (Common.doesPluginExist("PlaceholderAPI"))
+        placeholderAPIHook = new PlaceholderAPIHook();
+        
+    // ... more integrations
+}
+```
+
+<Note>
+Hook methods return safe default values when plugins aren't loaded:
+- Boolean methods return `false`
+- String methods return empty strings or `null`
+- Collection methods return empty collections
+</Note>
+
+## Benefits
+
+**No hard dependencies** - Your plugin doesn't need to depend on other plugins at compile time
+
+**Automatic detection** - Foundation detects and loads integrations automatically
+
+**Safe defaults** - Methods return sensible defaults when plugins aren't available
+
+**Version compatibility** - Foundation handles version differences internally
+
+**Error handling** - Integration errors don't crash your plugin
+
+## Example usage
+
+Here's a practical example combining multiple integrations:
+
+```java
+public void handlePlayerAction(Player player) {
+    // Check if player is an NPC
+    if (HookManager.isNPC(player))
+        return;
+        
+    // Get economy balance
+    if (HookManager.isVaultLoaded()) {
+        double balance = HookManager.getBalance(player);
+        
+        if (balance >= 100) {
+            HookManager.withdraw(player, 100);
+            
+            // Send notification to Discord
+            if (HookManager.isDiscordSRVLoaded()) {
+                HookManager.sendDiscordMessage("global", 
+                    player.getName() + " made a purchase!");
+            }
+        }
+    }
+    
+    // Replace placeholders in message
+    String message = "Hello {player_name}, you have {vault_eco_balance}!";
+    message = HookManager.replacePlaceholders(player, message);
+    Common.tell(player, message);
+}
+```
+
+## Supported plugins
+
+Foundation provides integrations for over 25 popular plugins including:
+
+- **Economy**: Vault
+- **Permissions**: Vault, LuckPerms (via Vault)
+- **Placeholders**: PlaceholderAPI, MVdWPlaceholderAPI
+- **Protection**: WorldGuard, Residence, Towny, Factions, Lands
+- **NPCs**: Citizens
+- **Chat**: DiscordSRV, EssentialsX, CMI
+- **Vanish**: EssentialsX, CMI, PremiumVanish, AdvancedVanish
+- **Other**: AuthMe, mcMMO, MythicMobs, ProtocolLib, PlotSquared
+
+<Warning>
+Some integrations require specific plugin versions. Foundation will log warnings if incompatible versions are detected.
+</Warning>
+
+## Next steps
+
+Explore specific integration guides:
+
+- [Vault](/integrations/vault) - Economy and permissions
+- [PlaceholderAPI](/integrations/placeholderapi) - Custom placeholders
+- [WorldGuard](/integrations/worldguard) - Region management
+- [Citizens](/integrations/citizens) - NPC handling
+- [DiscordSRV](/integrations/discordsrv) - Discord integration

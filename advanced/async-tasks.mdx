@@ -1,0 +1,427 @@
+---
+title: Async tasks
+description: Master asynchronous task scheduling in Foundation with Common utility methods and Folia compatibility
+---
+
+Foundation provides a unified API for scheduling tasks that works seamlessly across Bukkit, Spigot, Paper, and Folia.
+
+## Task scheduling methods
+
+All task methods are available through the `Common` class and return a `SimpleTask` instance.
+
+### Delayed tasks
+
+#### runLater
+
+Schedule a task to run on the main thread after a delay:
+
+```java
+import org.mineacademy.fo.Common;
+import org.mineacademy.fo.model.SimpleTask;
+
+// Run after 1 tick (default)
+Common.runLater(() -> {
+    player.sendMessage("This runs 1 tick later!");
+});
+
+// Run after specific delay (in ticks)
+Common.runLater(20, () -> {
+    player.sendMessage("This runs after 1 second!");
+});
+
+// Store the task reference to cancel it later
+SimpleTask task = Common.runLater(100, () -> {
+    player.sendMessage("This might get cancelled!");
+});
+```
+
+<Note>
+  20 ticks = 1 second in Minecraft. Use this conversion when scheduling time-based tasks.
+</Note>
+
+#### runLaterAsync
+
+Schedule a task to run asynchronously after a delay:
+
+```java
+// Run async immediately (0 tick delay)
+Common.runAsync(() -> {
+    // Perform heavy computation off the main thread
+    String data = fetchDataFromAPI();
+    
+    // Switch back to main thread for Bukkit API calls
+    Common.runLater(() -> {
+        player.sendMessage("Data loaded: " + data);
+    });
+});
+
+// Run async after delay
+Common.runLaterAsync(20, () -> {
+    // Async task after 1 second
+    performExpensiveCalculation();
+});
+```
+
+<Warning>
+  Never call Bukkit API methods from async tasks! Always use `Common.runLater()` to switch back to the main thread before interacting with Bukkit objects.
+</Warning>
+
+### Repeating tasks
+
+#### runTimer
+
+Schedule a repeating task on the main thread:
+
+```java
+// Run every 20 ticks (1 second) with no initial delay
+SimpleTask timer = Common.runTimer(20, () -> {
+    player.sendMessage("Tick!");
+});
+
+// Run every 20 ticks with 40 tick initial delay
+Common.runTimer(40, 20, () -> {
+    updateScoreboard(player);
+});
+
+// Cancel after some time
+Common.runLater(200, timer::cancel);
+```
+
+#### runTimerAsync
+
+Schedule a repeating task asynchronously:
+
+```java
+// Auto-save data every 5 minutes (6000 ticks)
+Common.runTimerAsync(6000, () -> {
+    saveDataToDatabase();
+});
+
+// With initial delay
+Common.runTimerAsync(100, 6000, () -> {
+    performPeriodicCheck();
+});
+```
+
+## SimpleTask API
+
+The `SimpleTask` class wraps Bukkit's `BukkitTask` and provides Folia compatibility.
+
+### Task control
+
+```java
+SimpleTask task = Common.runLater(100, () -> {
+    player.sendMessage("Hello!");
+});
+
+// Check if task is sync or async
+boolean isSync = task.isSync();
+
+// Get the task ID
+int id = task.getTaskId();
+
+// Check if cancelled
+if (task.isCancelled()) {
+    return;
+}
+
+// Cancel the task
+task.cancel();
+
+// Get the owning plugin
+Plugin owner = task.getOwner();
+```
+
+### Folia compatibility
+
+`SimpleTask` automatically handles Folia's different scheduling system:
+
+```java
+// This works on both Bukkit and Folia!
+SimpleTask task = Common.runLater(20, () -> {
+    player.sendMessage("Works everywhere!");
+});
+
+task.cancel(); // Calls the correct cancel method for the platform
+```
+
+<Tip>
+  Foundation automatically detects if you're running on Folia using `Remain.isFolia()` and uses the appropriate scheduling mechanism.
+</Tip>
+
+## Common patterns
+
+### Database operations
+
+Always perform database operations asynchronously:
+
+```java
+public void loadPlayerData(Player player) {
+    Common.runAsync(() -> {
+        // Fetch from database (slow operation)
+        PlayerData data = database.loadData(player.getUniqueId());
+        
+        // Apply data on main thread
+        Common.runLater(() -> {
+            if (player.isOnline()) {
+                applyPlayerData(player, data);
+            }
+        });
+    });
+}
+
+public void savePlayerData(Player player, PlayerData data) {
+    Common.runAsync(() -> {
+        // Save to database asynchronously
+        database.saveData(player.getUniqueId(), data);
+    });
+}
+```
+
+### Delayed cleanup
+
+```java
+public void removeTemporaryBlock(Block block) {
+    // Store original type
+    Material original = block.getType();
+    
+    // Place temporary block
+    block.setType(Material.BARRIER);
+    
+    // Restore after 5 seconds
+    Common.runLater(100, () -> {
+        block.setType(original);
+    });
+}
+```
+
+### Countdown timers
+
+```java
+public void startCountdown(Player player, int seconds) {
+    final int[] remaining = {seconds};
+    
+    SimpleTask timer = Common.runTimer(20, () -> {
+        if (remaining[0] <= 0) {
+            player.sendMessage("Time's up!");
+            return;
+        }
+        
+        player.sendMessage("Time remaining: " + remaining[0] + "s");
+        remaining[0]--;
+    });
+    
+    // Auto-cancel when done
+    Common.runLater(seconds * 20 + 1, timer::cancel);
+}
+```
+
+### Periodic checks
+
+```java
+private SimpleTask regionCheckTask;
+
+public void startRegionMonitoring() {
+    regionCheckTask = Common.runTimer(20, () -> {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Region region = getRegionAt(player.getLocation());
+            
+            if (region != null && !region.canEnter(player)) {
+                player.teleport(region.getExitLocation());
+                player.sendMessage("You cannot enter this region!");
+            }
+        }
+    });
+}
+
+public void stopRegionMonitoring() {
+    if (regionCheckTask != null) {
+        regionCheckTask.cancel();
+        regionCheckTask = null;
+    }
+}
+```
+
+## Advanced usage
+
+### Chain multiple async operations
+
+```java
+public void processPlayerJoin(Player player) {
+    Common.runAsync(() -> {
+        // Step 1: Load player data
+        PlayerData data = loadFromDatabase(player.getUniqueId());
+        
+        Common.runLater(() -> {
+            // Step 2: Apply data on main thread
+            applyData(player, data);
+            
+            Common.runAsync(() -> {
+                // Step 3: Log login to external API
+                logLoginToAPI(player.getUniqueId());
+                
+                Common.runLater(() -> {
+                    // Step 4: Final main thread operations
+                    player.sendMessage("Welcome back!");
+                });
+            });
+        });
+    });
+}
+```
+
+### Task cancellation on disable
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    private final List<SimpleTask> activeTasks = new ArrayList<>();
+    
+    public void scheduleTask(Runnable task) {
+        SimpleTask simpleTask = Common.runLater(task);
+        activeTasks.add(simpleTask);
+    }
+    
+    @Override
+    protected void onPluginStop() {
+        // Cancel all active tasks
+        for (SimpleTask task : activeTasks) {
+            if (!task.isCancelled()) {
+                task.cancel();
+            }
+        }
+        activeTasks.clear();
+    }
+}
+```
+
+### Conditional repeating task
+
+```java
+public void repeatUntilCondition(Runnable action, Supplier<Boolean> condition) {
+    SimpleTask[] taskHolder = new SimpleTask[1];
+    
+    taskHolder[0] = Common.runTimer(20, () -> {
+        if (condition.get()) {
+            taskHolder[0].cancel();
+            return;
+        }
+        
+        action.run();
+    });
+}
+
+// Usage example
+repeatUntilCondition(
+    () -> player.sendMessage("Waiting..."),
+    () -> player.getLevel() >= 10
+);
+```
+
+## Performance considerations
+
+<Steps>
+  <Step title="Use async for heavy operations">
+    Database queries, file I/O, network requests, and complex calculations should always run asynchronously.
+    
+    ```java
+    // Good
+    Common.runAsync(() -> {
+        expensiveCalculation();
+    });
+    
+    // Bad - blocks main thread
+    expensiveCalculation();
+    ```
+  </Step>
+  
+  <Step title="Minimize sync/async switching">
+    Excessive switching between threads can hurt performance. Group operations when possible.
+    
+    ```java
+    // Better
+    Common.runAsync(() -> {
+        Data data1 = fetchData1();
+        Data data2 = fetchData2();
+        Data data3 = fetchData3();
+        
+        Common.runLater(() -> {
+            applyAllData(data1, data2, data3);
+        });
+    });
+    
+    // Worse - too much switching
+    Common.runAsync(() -> {
+        Data data1 = fetchData1();
+        Common.runLater(() -> applyData(data1));
+    });
+    Common.runAsync(() -> {
+        Data data2 = fetchData2();
+        Common.runLater(() -> applyData(data2));
+    });
+    ```
+  </Step>
+  
+  <Step title="Cancel tasks when no longer needed">
+    Always cancel repeating tasks to prevent memory leaks.
+    
+    ```java
+    private final Map<UUID, SimpleTask> playerTasks = new HashMap<>();
+    
+    public void startPlayerTask(Player player) {
+        SimpleTask task = Common.runTimer(20, () -> {
+            // Do something
+        });
+        playerTasks.put(player.getUniqueId(), task);
+    }
+    
+    public void stopPlayerTask(Player player) {
+        SimpleTask task = playerTasks.remove(player.getUniqueId());
+        if (task != null && !task.isCancelled()) {
+            task.cancel();
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Thread safety
+
+<Warning>
+  Most Bukkit API methods are **not thread-safe**. Only call them from the main thread.
+</Warning>
+
+Safe to call from async tasks:
+- Reading configuration files
+- Database operations
+- File I/O operations
+- Mathematical calculations
+- Network requests
+
+Must be called from main thread:
+- Player/Entity modifications
+- Block/World changes
+- Inventory operations
+- Event firing
+- Bukkit API calls
+
+```java
+// Example: Safe async data processing
+Common.runAsync(() -> {
+    // Safe: Reading data
+    List<String> lines = Files.readAllLines(dataFile);
+    
+    // Safe: Processing data
+    List<ItemStack> items = parseItems(lines);
+    
+    // UNSAFE: Don't do this!
+    // player.getInventory().addItem(items);
+    
+    // Safe: Switch to main thread
+    Common.runLater(() -> {
+        for (ItemStack item : items) {
+            player.getInventory().addItem(item);
+        }
+    });
+});
+```

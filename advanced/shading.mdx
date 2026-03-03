@@ -1,0 +1,412 @@
+---
+title: Shading
+description: Properly configure Maven shading to include only Foundation and required dependencies in your plugin JAR
+---
+
+Shading is the process of bundling dependencies into your plugin's JAR file. Foundation requires proper shading configuration to work correctly.
+
+## Why shading matters
+
+Foundation includes several libraries for optional features (WorldEdit, Citizens, Towny, etc.) that you don't need to bundle. **Without proper configuration, all these dependencies will bloat your JAR file.**
+
+<Warning>
+  Incorrect shading configuration can result in a plugin JAR that's 10-50 MB instead of 1-2 MB, and may cause conflicts with other plugins.
+</Warning>
+
+## Maven shade plugin setup
+
+### Basic configuration
+
+Add this to your `pom.xml` in the `<plugins>` section:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    
+    <!-- Use latest version from https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-shade-plugin -->
+    <version>3.5.1</version>
+    
+    <executions>
+        <execution>
+            <phase>package</phase>
+            <goals>
+                <goal>shade</goal>
+            </goals>
+        </execution>
+    </executions>
+    
+    <configuration>
+        <createDependencyReducedPom>false</createDependencyReducedPom>
+        
+        <artifactSet>
+            <includes>
+                <!-- CRITICAL: Only include Foundation -->
+                <include>com.github.kangarko:Foundation*</include>
+            </includes>
+        </artifactSet>
+        
+        <relocations>
+            <!-- Move Foundation to your package to prevent conflicts -->
+            <relocation>
+                <pattern>org.mineacademy.fo</pattern>
+                <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+            </relocation>
+        </relocations>
+    </configuration>
+</plugin>
+```
+
+<Note>
+  Replace `com.yourname.yourplugin` with your actual plugin's package name.
+</Note>
+
+### What each part does
+
+<Steps>
+  <Step title="artifactSet includes">
+    Specifies which dependencies to include in the JAR.
+    
+    ```xml
+    <includes>
+        <!-- Only Foundation will be shaded -->
+        <include>com.github.kangarko:Foundation*</include>
+    </includes>
+    ```
+    
+    <Tip>
+      The `*` wildcard ensures all Foundation modules are included.
+    </Tip>
+  </Step>
+  
+  <Step title="relocations">
+    Moves Foundation classes into your plugin's package to prevent conflicts.
+    
+    ```xml
+    <relocation>
+        <pattern>org.mineacademy.fo</pattern>
+        <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+    </relocation>
+    ```
+    
+    This transforms:
+    - `org.mineacademy.fo.Common` → `com.yourname.yourplugin.lib.Common`
+    - `org.mineacademy.fo.menu.Menu` → `com.yourname.yourplugin.lib.menu.Menu`
+  </Step>
+  
+  <Step title="createDependencyReducedPom">
+    Prevents Maven from creating an extra POM file.
+    
+    ```xml
+    <createDependencyReducedPom>false</createDependencyReducedPom>
+    ```
+  </Step>
+</Steps>
+
+## Including additional libraries
+
+If you need to shade other dependencies (like a database library), add them to the includes:
+
+```xml
+<artifactSet>
+    <includes>
+        <!-- Foundation -->
+        <include>com.github.kangarko:Foundation*</include>
+        
+        <!-- HikariCP for database connection pooling -->
+        <include>com.zaxxer:HikariCP</include>
+        
+        <!-- Your custom library -->
+        <include>com.example:my-library</include>
+    </includes>
+</artifactSet>
+```
+
+And relocate them to prevent conflicts:
+
+```xml
+<relocations>
+    <!-- Foundation -->
+    <relocation>
+        <pattern>org.mineacademy.fo</pattern>
+        <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+    </relocation>
+    
+    <!-- HikariCP -->
+    <relocation>
+        <pattern>com.zaxxer.hikari</pattern>
+        <shadedPattern>com.yourname.yourplugin.lib.hikari</shadedPattern>
+    </relocation>
+</relocations>
+```
+
+## Complete example
+
+Here's a complete working configuration:
+
+```xml
+<build>
+    <plugins>
+        <!-- Java Compiler -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
+            <configuration>
+                <source>1.8</source>
+                <target>1.8</target>
+            </configuration>
+        </plugin>
+        
+        <!-- Shade Plugin -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.5.1</version>
+            
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>shade</goal>
+                    </goals>
+                </execution>
+            </executions>
+            
+            <configuration>
+                <createDependencyReducedPom>false</createDependencyReducedPom>
+                
+                <artifactSet>
+                    <includes>
+                        <include>com.github.kangarko:Foundation*</include>
+                    </includes>
+                </artifactSet>
+                
+                <relocations>
+                    <relocation>
+                        <pattern>org.mineacademy.fo</pattern>
+                        <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+                    </relocation>
+                </relocations>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+## Verifying shading
+
+<Steps>
+  <Step title="Build your plugin">
+    Run Maven package command.
+    
+    ```bash
+    mvn clean package
+    ```
+  </Step>
+  
+  <Step title="Check JAR size">
+    A properly shaded plugin with Foundation should be 1-3 MB.
+    
+    ```bash
+    ls -lh target/YourPlugin.jar
+    ```
+    
+    <Warning>
+      If your JAR is over 10 MB, you likely have unnecessary dependencies included!
+    </Warning>
+  </Step>
+  
+  <Step title="Inspect JAR contents">
+    Extract and check the JAR to verify Foundation was relocated.
+    
+    ```bash
+    unzip -l target/YourPlugin.jar | grep mineacademy
+    ```
+    
+    You should see paths like:
+    ```
+    com/yourname/yourplugin/lib/Common.class
+    com/yourname/yourplugin/lib/menu/Menu.class
+    ```
+    
+    NOT:
+    ```
+    org/mineacademy/fo/Common.class  ← Wrong!
+    ```
+  </Step>
+  
+  <Step title="Test on server">
+    Deploy to a test server and verify:
+    
+    - Plugin loads without errors
+    - No conflicts with other plugins
+    - All Foundation features work
+  </Step>
+</Steps>
+
+## Common mistakes
+
+### Missing includes section
+
+```xml
+<!-- WRONG - will shade ALL dependencies! -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>3.5.1</version>
+    <configuration>
+        <relocations>
+            <relocation>
+                <pattern>org.mineacademy.fo</pattern>
+                <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+            </relocation>
+        </relocations>
+    </configuration>
+</plugin>
+
+<!-- CORRECT - only shades Foundation -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>3.5.1</version>
+    <configuration>
+        <artifactSet>
+            <includes>
+                <include>com.github.kangarko:Foundation*</include>
+            </includes>
+        </artifactSet>
+        <relocations>
+            <relocation>
+                <pattern>org.mineacademy.fo</pattern>
+                <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+            </relocation>
+        </relocations>
+    </configuration>
+</plugin>
+```
+
+### Wrong artifact ID
+
+```xml
+<!-- WRONG - missing wildcard -->
+<include>com.github.kangarko:Foundation</include>
+
+<!-- CORRECT - includes all Foundation modules -->
+<include>com.github.kangarko:Foundation*</include>
+```
+
+### No relocation
+
+```xml
+<!-- WRONG - Foundation in default package causes conflicts -->
+<configuration>
+    <artifactSet>
+        <includes>
+            <include>com.github.kangarko:Foundation*</include>
+        </includes>
+    </artifactSet>
+    <!-- Missing relocations! -->
+</configuration>
+
+<!-- CORRECT - relocates to prevent conflicts -->
+<configuration>
+    <artifactSet>
+        <includes>
+            <include>com.github.kangarko:Foundation*</include>
+        </includes>
+    </artifactSet>
+    <relocations>
+        <relocation>
+            <pattern>org.mineacademy.fo</pattern>
+            <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+        </relocation>
+    </relocations>
+</configuration>
+```
+
+## Troubleshooting
+
+### JAR is too large
+
+**Problem:** Your plugin JAR is 10+ MB instead of 1-3 MB.
+
+**Solution:** You're shading unnecessary dependencies. Ensure you have the `<artifactSet><includes>` section:
+
+```xml
+<artifactSet>
+    <includes>
+        <include>com.github.kangarko:Foundation*</include>
+    </includes>
+</artifactSet>
+```
+
+### ClassNotFoundException
+
+**Problem:** `ClassNotFoundException: org.mineacademy.fo.Common`
+
+**Solution:** Foundation wasn't shaded into your JAR. Check your `<includes>` section and make sure you're running `mvn clean package`, not just `mvn package`.
+
+### NoClassDefFoundError after shading
+
+**Problem:** Plugin loads but crashes with `NoClassDefFoundError`.
+
+**Solution:** You relocated Foundation but forgot to update the import in your code. With proper relocation, your imports should remain as `org.mineacademy.fo.*` - Maven handles the transformation automatically.
+
+### Conflicts with other plugins
+
+**Problem:** Your plugin conflicts with other Foundation-based plugins.
+
+**Solution:** Ensure you're using relocation to move Foundation into your plugin's package:
+
+```xml
+<relocation>
+    <pattern>org.mineacademy.fo</pattern>
+    <shadedPattern>com.yourname.yourplugin.lib</shadedPattern>
+</relocation>
+```
+
+Each plugin should have its own relocated copy of Foundation.
+
+## Alternative build tools
+
+### Gradle
+
+If you're using Gradle instead of Maven:
+
+```groovy
+plugins {
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+dependencies {
+    implementation 'com.github.kangarko:Foundation:VERSION'
+}
+
+shadowJar {
+    // Only include Foundation
+    dependencies {
+        include(dependency('com.github.kangarko:Foundation:.*'))
+    }
+    
+    // Relocate Foundation
+    relocate 'org.mineacademy.fo', 'com.yourname.yourplugin.lib'
+}
+```
+
+<Tip>
+  For detailed Gradle setup, see the [Foundation GitHub repository](https://github.com/kangarko/Foundation) README.
+</Tip>
+
+## Best practices
+
+1. **Always use relocation** - Prevents conflicts between plugins
+2. **Only shade what you need** - Keep JAR size small
+3. **Test after shading** - Verify everything works on a test server
+4. **Clean build** - Use `mvn clean package` not just `mvn package`
+5. **Check JAR size** - Should be 1-3 MB with just Foundation
+6. **Update shade plugin** - Use the latest version for bug fixes
+
+<Note>
+  For the complete Foundation setup guide including importing and initial configuration, see the [Quick Start guide](/introduction/quick-start).
+</Note>

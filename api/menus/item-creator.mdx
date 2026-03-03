@@ -1,0 +1,470 @@
+---
+title: ItemCreator
+description: A fluent builder for creating customized ItemStacks with enchantments, lore, skulls, and NBT tags
+---
+
+The `ItemCreator` class provides a powerful and intuitive API for building customized `ItemStack` objects. It uses a fluent builder pattern for easy chaining of modifications.
+
+## Creating items
+
+### Basic creation
+
+```java
+ItemStack item = ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+    .name("&6Legendary Sword")
+    .lore("&7A powerful weapon")
+    .make();
+```
+
+### From existing ItemStack
+
+```java
+ItemStack existing = player.getInventory().getItemInMainHand();
+ItemStack modified = ItemCreator.of(existing)
+    .name("&aRenamed Item")
+    .lore("&7Additional lore line")
+    .make();
+```
+
+## Static factory methods
+
+<ParamField path="of(CompMaterial material)" type="ItemCreator" static>
+  Create a new ItemCreator from a material.
+  
+  ```java
+  ItemCreator creator = ItemCreator.of(CompMaterial.DIAMOND);
+  ```
+</ParamField>
+
+<ParamField path="of(CompMaterial material, String name, String... lore)" type="ItemCreator" static>
+  Create an ItemCreator with material, name, and lore. Automatically hides tags.
+  
+  ```java
+  ItemCreator creator = ItemCreator.of(
+      CompMaterial.DIAMOND_SWORD,
+      "&6Epic Sword",
+      "&7Damage: +10",
+      "&7Speed: +5"
+  );
+  ```
+</ParamField>
+
+<ParamField path="of(ItemStack item)" type="ItemCreator" static>
+  Create an ItemCreator from an existing ItemStack.
+  
+  ```java
+  ItemStack existing = new ItemStack(Material.STONE);
+  ItemCreator creator = ItemCreator.of(existing);
+  ```
+</ParamField>
+
+<ParamField path="ofWool(CompColor color)" type="ItemCreator" static>
+  Create a colored wool item.
+  
+  ```java
+  ItemStack redWool = ItemCreator.ofWool(CompColor.RED).make();
+  ```
+</ParamField>
+
+<ParamField path="ofEgg(EntityType entityType)" type="ItemCreator" static>
+  Create a spawn egg for the specified entity type.
+  
+  ```java
+  ItemStack creeperEgg = ItemCreator.ofEgg(EntityType.CREEPER)
+      .name("&aCreeper Egg")
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="ofPotion(PotionEffectType potionEffect)" type="ItemCreator" static>
+  Create a potion with the specified effect.
+  
+  ```java
+  ItemStack speedPotion = ItemCreator.ofPotion(PotionEffectType.SPEED)
+      .name("&bSpeed Potion")
+      .make();
+  ```
+</ParamField>
+
+## Builder methods
+
+### Basic properties
+
+<ParamField path="material(CompMaterial material)" type="ItemCreator">
+  Set the material of the item.
+  
+  ```java
+  ItemCreator.of(CompMaterial.STONE)
+      .material(CompMaterial.DIAMOND)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="amount(int amount)" type="ItemCreator">
+  Set the stack size.
+  
+  ```java
+  ItemCreator.of(CompMaterial.ARROW)
+      .amount(64)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="damage(int damage)" type="ItemCreator">
+  Set the damage/durability of the item.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND_PICKAXE)
+      .damage(100)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="name(String name)" type="ItemCreator">
+  Set the display name. Color codes with `&` are automatically replaced.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND)
+      .name("&b&lRare Diamond")
+      .make();
+  ```
+</ParamField>
+
+### Lore
+
+<ParamField path="lore(String... lore)" type="ItemCreator">
+  Add lore lines. Color codes are replaced automatically.
+  
+  ```java
+  ItemCreator.of(CompMaterial.SWORD)
+      .lore("&7Damage: 10")
+      .lore("&7Durability: 100")
+      .lore("") // Empty line
+      .lore("&eRare weapon")
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="lore(List<String> lore)" type="ItemCreator">
+  Add multiple lore lines from a list.
+  
+  ```java
+  List<String> loreLines = Arrays.asList(
+      "&7Line 1",
+      "&7Line 2"
+  );
+  ItemCreator.of(CompMaterial.BOOK)
+      .lore(loreLines)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="clearLore()" type="ItemCreator">
+  Remove all existing lore.
+  
+  ```java
+  ItemCreator.of(existingItem)
+      .clearLore()
+      .lore("&7New lore")
+      .make();
+  ```
+</ParamField>
+
+### Enchantments
+
+<ParamField path="enchant(Enchantment enchantment)" type="ItemCreator">
+  Add an enchantment at level 1.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+      .enchant(CompEnchantment.SHARPNESS)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="enchant(Enchantment enchantment, int level)" type="ItemCreator">
+  Add an enchantment at a specific level.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+      .enchant(CompEnchantment.SHARPNESS, 5)
+      .enchant(CompEnchantment.FIRE_ASPECT, 2)
+      .make();
+  ```
+</ParamField>
+
+### Visual effects
+
+<ParamField path="glow(boolean glow)" type="ItemCreator">
+  Make the item glow (adds hidden enchantment).
+  
+  ```java
+  ItemCreator.of(CompMaterial.NETHER_STAR)
+      .name("&6Special Item")
+      .glow(true)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="color(CompColor color)" type="ItemCreator">
+  Set the color for leather armor or colorable blocks.
+  
+  ```java
+  ItemCreator.of(CompMaterial.LEATHER_CHESTPLATE)
+      .color(CompColor.RED)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="modelData(int modelData)" type="ItemCreator">
+  Set custom model data (MC 1.14+).
+  
+  ```java
+  ItemCreator.of(CompMaterial.STICK)
+      .name("&6Magic Wand")
+      .modelData(1001)
+      .make();
+  ```
+</ParamField>
+
+### Item flags
+
+<ParamField path="flags(CompItemFlag... flags)" type="ItemCreator">
+  Add item flags to hide certain properties.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+      .enchant(CompEnchantment.SHARPNESS, 1)
+      .flags(CompItemFlag.HIDE_ENCHANTS)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="hideTags(boolean hideTags)" type="ItemCreator">
+  Hide all tags (enchantments, attributes, etc.).
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+      .enchant(CompEnchantment.SHARPNESS, 5)
+      .hideTags(true)
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="unbreakable(boolean unbreakable)" type="ItemCreator">
+  Make the item unbreakable.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND_PICKAXE)
+      .unbreakable(true)
+      .make();
+  ```
+</ParamField>
+
+### Skull customization
+
+<ParamField path="skullOwner(String skullOwner)" type="ItemCreator">
+  Set the skull owner by player name.
+  
+  ```java
+  ItemCreator.of(CompMaterial.PLAYER_HEAD)
+      .skullOwner("Notch")
+      .name("&6Notch's Head")
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="skullUrl(String skullUrl)" type="ItemCreator">
+  Set the skull texture from a URL or base64 string.
+  
+  ```java
+  ItemCreator.of(CompMaterial.PLAYER_HEAD)
+      .skullUrl("http://textures.minecraft.net/texture/...")
+      .name("&6Custom Head")
+      .make();
+  ```
+</ParamField>
+
+### NBT tags
+
+<ParamField path="tag(String key, String value)" type="ItemCreator">
+  Add a custom NBT tag to the item.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND)
+      .name("&6Rare Diamond")
+      .tag("rarity", "legendary")
+      .tag("item_id", "diamond_rare_001")
+      .make();
+  ```
+  
+  <Note>
+    Retrieve tags later using `CompMetadata.getMetadata(item, key)`
+  </Note>
+</ParamField>
+
+### Book customization
+
+<ParamField path="bookPages(String... pages)" type="ItemCreator">
+  Set the pages of a book.
+  
+  ```java
+  ItemCreator.of(CompMaterial.WRITTEN_BOOK)
+      .bookTitle("&6Tutorial")
+      .bookAuthor("Admin")
+      .bookPages(
+          "&6Chapter 1\n\n&7Welcome to the server!",
+          "&6Chapter 2\n\n&7Here are the rules..."
+      )
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="bookAuthor(String bookAuthor)" type="ItemCreator">
+  Set the author of a book.
+</ParamField>
+
+<ParamField path="bookTitle(String bookTitle)" type="ItemCreator">
+  Set the title of a book.
+</ParamField>
+
+## Building items
+
+<ParamField path="make()" type="ItemStack">
+  Construct the final ItemStack with all specified properties.
+  
+  ```java
+  ItemStack item = ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+      .name("&6Sword")
+      .make();
+  ```
+</ParamField>
+
+<ParamField path="makeMenuTool()" type="ItemStack">
+  Create an item suitable for menus (all tags hidden, unbreakable).
+  
+  ```java
+  ItemStack menuItem = ItemCreator.of(CompMaterial.COMPASS)
+      .name("&6Navigation")
+      .makeMenuTool();
+  ```
+</ParamField>
+
+## Convenience methods
+
+<ParamField path="give(Player player)" type="void">
+  Add this item directly to a player's inventory.
+  
+  ```java
+  ItemCreator.of(CompMaterial.DIAMOND)
+      .name("&6Reward")
+      .give(player);
+  ```
+</ParamField>
+
+<ParamField path="drop(Location location)" type="void">
+  Drop this item at a specific location.
+  
+  ```java
+  ItemCreator.of(CompMaterial.GOLD_INGOT)
+      .amount(10)
+      .drop(player.getLocation());
+  ```
+</ParamField>
+
+## Advanced examples
+
+### Creating a menu tool
+
+```java
+ItemStack menuItem = ItemCreator.of(CompMaterial.CHEST)
+    .name("&6Storage")
+    .lore(
+        "",
+        "&7Click to open your storage",
+        "&7Capacity: 54 slots"
+    )
+    .glow(true)
+    .makeMenuTool();
+```
+
+### Custom skull with NBT
+
+```java
+ItemStack customHead = ItemCreator.of(CompMaterial.PLAYER_HEAD)
+    .skullUrl("http://textures.minecraft.net/texture/abc123...")
+    .name("&6Custom NPC")
+    .lore(
+        "&7Type: Quest Giver",
+        "&7Level: 50"
+    )
+    .tag("npc_id", "quest_giver_001")
+    .tag("npc_level", "50")
+    .makeMenuTool();
+```
+
+### Enchanted tool with custom model
+
+```java
+ItemStack magicWand = ItemCreator.of(CompMaterial.STICK)
+    .name("&5&lMagic Wand")
+    .lore(
+        "",
+        "&7Spell Power: 100",
+        "&7Mana Cost: 20",
+        "",
+        "&eRare Item"
+    )
+    .enchant(CompEnchantment.UNBREAKING, 3)
+    .modelData(5001)
+    .glow(true)
+    .unbreakable(true)
+    .tag("item_type", "wand")
+    .tag("spell_power", "100")
+    .make();
+```
+
+### Colored leather armor
+
+```java
+ItemStack redArmor = ItemCreator.of(CompMaterial.LEATHER_CHESTPLATE)
+    .name("&cFire Armor")
+    .color(CompColor.RED)
+    .enchant(CompEnchantment.PROTECTION, 4)
+    .enchant(CompEnchantment.FIRE_PROTECTION, 4)
+    .unbreakable(true)
+    .hideTags(true)
+    .make();
+```
+
+### Reward item with glow
+
+```java
+ItemStack reward = ItemCreator.of(CompMaterial.NETHER_STAR)
+    .name("&6&lDaily Reward")
+    .lore(
+        "",
+        "&7Right-click to claim:",
+        "&7• 1000 coins",
+        "&7• 10 experience",
+        "&7• Random item"
+    )
+    .glow(true)
+    .tag("reward_id", "daily_001")
+    .tag("expires", String.valueOf(System.currentTimeMillis() + 86400000))
+    .make();
+```
+
+## Static configuration
+
+<ParamField path="setLorePrefix(String prefix)" type="void" static>
+  Set the default prefix added to all lore lines. Default is "&7".
+  
+  ```java
+  ItemCreator.setLorePrefix("&f"); // White lore instead of gray
+  ```
+</ParamField>
+
+<ParamField path="getLorePrefix()" type="String" static>
+  Get the current lore prefix.
+</ParamField>

@@ -1,0 +1,343 @@
+---
+title: Multi-version support
+description: Build plugins that work across multiple Minecraft versions using MinecraftVersion and Remain classes
+---
+
+Foundation makes it easy to create plugins that work across multiple Minecraft versions, from 1.8 through the latest releases. This is achieved through the `MinecraftVersion` and `Remain` utility classes.
+
+## MinecraftVersion class
+
+The `MinecraftVersion` class provides version detection and comparison utilities.
+
+### Getting the current version
+
+```java
+// Get the current version enum
+MinecraftVersion.V current = MinecraftVersion.getCurrent();
+// Returns: V.v1_20, V.v1_19, V.v1_8, etc.
+
+// Get the full version string
+String fullVersion = MinecraftVersion.getFullVersion();
+// Returns: "1.20.4", "1.8.8", etc.
+
+// Get the subversion number
+int subversion = MinecraftVersion.getSubversion();
+// Returns: 4 for 1.20.4, 8 for 1.8.8
+```
+
+### Version comparison
+
+Foundation provides intuitive methods for comparing Minecraft versions:
+
+```java
+// Check if running exactly this version
+if (MinecraftVersion.equals(V.v1_20)) {
+    // Running MC 1.20.x
+}
+
+// Check if running older than a version
+if (MinecraftVersion.olderThan(V.v1_13)) {
+    // Running MC 1.12 or older
+    // Use legacy Material names
+}
+
+// Check if running newer than a version
+if (MinecraftVersion.newerThan(V.v1_12)) {
+    // Running MC 1.13 or newer
+    // Can use new features
+}
+
+// Check if running at least a version
+if (MinecraftVersion.atLeast(V.v1_16)) {
+    // Running MC 1.16 or newer
+    // Can use hex colors
+}
+```
+
+### Supported versions
+
+Foundation supports these Minecraft versions:
+
+```java
+public enum V {
+    v1_22(22),
+    v1_21(21),
+    v1_20(20),
+    v1_19(19),
+    v1_18(18),
+    v1_17(17),
+    v1_16(16),
+    v1_15(15),
+    v1_14(14),
+    v1_13(13),
+    v1_12(12),
+    v1_11(11),
+    v1_10(10),
+    v1_9(9),
+    v1_8(8),
+    v1_7(7),
+    v1_6(6),
+    v1_5(5),
+    v1_4(4),
+    v1_3_AND_BELOW(3);
+}
+```
+
+## Remain class
+
+The `Remain` class provides cross-version compatible methods for common operations that have changed across Minecraft versions.
+
+### Getting online players
+
+The method signature for getting online players changed in MC 1.8:
+
+```java
+// Use Remain for compatibility
+Collection<? extends Player> players = Remain.getOnlinePlayers();
+
+// Instead of:
+// Bukkit.getOnlinePlayers() // Returns array in 1.7, collection in 1.8+
+```
+
+### Health and damage
+
+Health changed from integers to doubles in MC 1.6:
+
+```java
+// Get entity health (always returns int)
+int health = Remain.getHealth(entity);
+
+// Get max health
+int maxHealth = Remain.getMaxHealth(entity);
+
+// Instead of:
+// entity.getHealth() // Returns int in old versions, double in new
+```
+
+### Titles and action bars
+
+```java
+// Send title with fade times
+Remain.sendTitle(player, 20, 60, 20, 
+    "&6Welcome", "&7to the server");
+
+// Send simpler title (3 second default)
+Remain.sendTitle(player, "&6Hello", "&7World");
+
+// Reset title
+Remain.resetTitle(player);
+
+// Send action bar
+Remain.sendActionBar(player, "&eHealth: &c❤ " + health);
+
+// Send tab list header/footer
+Remain.sendTablist(player, 
+    "&6&lMY SERVER", 
+    "&7Online: &f" + players);
+```
+
+### Boss bars
+
+```java
+// Send boss bar with percentage
+Remain.sendBossbarPercent(player, "&6Downloading...", 0.75f);
+
+// Send boss bar with custom color and style
+Remain.sendBossbarPercent(player, "&cBoss Fight", 1.0f,
+    CompBarColor.RED, CompBarStyle.SEGMENTED_10);
+
+// Send timed boss bar (auto-removes)
+Remain.sendBossbarTimed(player, "&aEvent starting!", 10);
+
+// Remove boss bar
+Remain.removeBossbar(player);
+```
+
+### Block and material handling
+
+```java
+// Set block type and data (works pre and post 1.13)
+Remain.setTypeAndData(block, Material.WOOL, (byte) 14);
+Remain.setTypeAndData(block, CompMaterial.RED_WOOL);
+
+// Set block data
+Remain.setData(block, 5);
+
+// Spawn falling block
+FallingBlock falling = Remain.spawnFallingBlock(location, Material.SAND);
+FallingBlock falling = Remain.spawnFallingBlock(block); // From block
+```
+
+### JSON and chat components
+
+```java
+// Convert legacy text to JSON
+String json = Remain.toJson("&6Hello &lWorld");
+
+// Convert JSON to legacy text
+String legacy = Remain.toLegacyText(json);
+
+// Send JSON message
+Remain.sendJson(player, json);
+
+// Convert components to JSON
+BaseComponent[] components = TextComponent.fromLegacyText("&aTest");
+String json = Remain.toJson(components);
+
+// Parse JSON to components
+BaseComponent[] parsed = Remain.toComponent(json);
+```
+
+### Commands
+
+```java
+// Create plugin command
+PluginCommand command = Remain.newCommand("mycommand");
+
+// Register command
+Remain.registerCommand(command);
+
+// Unregister command
+Remain.unregisterCommand("oldcommand");
+
+// Get command map
+SimpleCommandMap commandMap = Remain.getCommandMap();
+```
+
+### Namespaced keys (1.13+)
+
+```java
+// Create namespaced key (safe on old versions)
+if (MinecraftVersion.atLeast(V.v1_13)) {
+    NamespacedKey key = Remain.newNamespaced("my_key");
+    
+    // With random suffix
+    NamespacedKey random = Remain.newNamespaced();
+    // Returns: "myplugin_a1b2c3d4e5f6g7h8"
+}
+```
+
+### Other utilities
+
+```java
+// Get inventory location
+Location loc = Remain.getLocation(inventory);
+
+// Get player locale
+String locale = Remain.getLocale(player); // "en_US"
+
+// Respawn player
+Remain.respawn(player);
+Remain.respawn(player, 5); // After 5 ticks
+
+// Get biome at location (Y-coordinate safe)
+Biome biome = Remain.getBiome(location);
+
+// Open sign editor (1.8+)
+Remain.openSign(player, signBlock);
+```
+
+## Version-specific code patterns
+
+When you need version-specific behavior, use clear conditional blocks:
+
+```java
+public void handleParticles(Location location) {
+    if (MinecraftVersion.atLeast(V.v1_9)) {
+        // Use new particle API
+        location.getWorld().spawnParticle(
+            Particle.FLAME, location, 10);
+    } else {
+        // Use legacy particle spawning
+        location.getWorld().playEffect(
+            location, Effect.MOBSPAWNER_FLAMES, 0);
+    }
+}
+```
+
+### Handling material changes
+
+Use `CompMaterial` for materials that changed in 1.13:
+
+```java
+// Don't do this:
+Material wool = Material.valueOf("WOOL"); // Breaks in 1.13+
+
+// Do this:
+CompMaterial wool = CompMaterial.WHITE_WOOL; // Works everywhere
+Material actualMaterial = wool.getMaterial();
+```
+
+## Setting version requirements
+
+Specify supported versions in your main plugin class:
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    @Override
+    public MinecraftVersion.V getMinimumVersion() {
+        return V.v1_8;
+    }
+    
+    @Override
+    public MinecraftVersion.V getMaximumVersion() {
+        return V.v1_20;
+    }
+    
+    @Override
+    protected void onPluginStart() {
+        // Plugin will auto-disable if version is out of range
+    }
+}
+```
+
+<Warning>
+  Foundation will automatically prevent your plugin from loading if the server version is outside your specified range.
+</Warning>
+
+## Server detection
+
+Foundation can detect special server software:
+
+```java
+// These methods are available in Remain class:
+boolean isPaper = Remain.isPaper();
+boolean isFolia = Remain.isFolia();
+```
+
+## Best practices
+
+<Accordion title="Always use Remain methods for compatibility">
+  When Foundation provides a `Remain` method for something, use it instead of the direct Bukkit API to ensure cross-version compatibility.
+</Accordion>
+
+<Accordion title="Test on multiple versions">
+  Always test your plugin on:
+  - Oldest supported version (usually 1.8.8)
+  - Version where major API changes occurred (1.13, 1.16, 1.17)
+  - Latest version
+</Accordion>
+
+<Accordion title="Use CompMaterial for items and blocks">
+  Never use Material enums directly for items that changed in 1.13. Always use `CompMaterial`.
+</Accordion>
+
+<Accordion title="Set clear version requirements">
+  Always specify `getMinimumVersion()` and optionally `getMaximumVersion()` to prevent issues.
+</Accordion>
+
+<Accordion title="Handle version-specific features gracefully">
+  ```java
+  if (MinecraftVersion.atLeast(V.v1_16)) {
+      // Use hex colors
+  } else {
+      // Fallback to standard colors
+  }
+  ```
+</Accordion>
+
+## Related documentation
+
+- [SimplePlugin](/core/simple-plugin) - Main plugin class lifecycle
+- [Configuration](/core/configuration) - Configuration files work across versions

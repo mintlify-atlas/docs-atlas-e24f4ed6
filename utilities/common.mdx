@@ -1,0 +1,324 @@
+---
+title: Common utilities
+description: Core utility methods for messaging, logging, colors, and general operations
+---
+
+The `Common` class is the heart of Foundation's utility system, providing essential methods for messaging, logging, color handling, and various common operations.
+
+## Messaging players
+
+### Basic messaging
+
+Send messages to players with automatic color code translation:
+
+```java
+// Send a simple message
+Common.tell(player, "&aHello &6{player}&a!");
+
+// Send multiple lines
+Common.tell(player, 
+    "&7--------------------",
+    "&eWelcome to the server!",
+    "&7--------------------"
+);
+
+// Send without prefix
+Common.tellNoPrefix(player, "&cThis message has no prefix");
+```
+
+### Advanced messaging
+
+```java
+// Timed messages (prevent spam)
+Common.tellTimed(5, player, "&cYou cannot do that!");
+
+// Delayed messages
+Common.tellLater(20, player, "&aTask completed!"); // 1 second delay
+
+// Replace variables
+Common.tellReplaced(player, "&eYou have {amount} coins", "amount", 100);
+```
+
+### Special message types
+
+```java
+// Action bar
+Common.tell(player, "<actionbar>&eHealth: 20/20");
+
+// Title and subtitle
+Common.tell(player, "<title>&6Welcome|&eEnjoy your stay");
+
+// Boss bar (10 second duration)
+Common.tell(player, "<bossbar>&cWarning: PvP enabled");
+
+// Toast notification
+Common.tell(player, "<toast>&aAchievement unlocked!");
+
+// Centered text
+Common.tell(player, "<center>&6=== Server Rules ===");
+
+// JSON messages
+Common.tell(player, "[JSON]{\"text\":\"Click me\",\"clickEvent\":{\"action\":\"run_command\",\"value\":\"/help\"}}");
+```
+
+## Broadcasting
+
+```java
+// Broadcast to all players
+Common.broadcast("&aServer restarting in 5 minutes!");
+
+// Broadcast with player variable
+Common.broadcast("{player} joined the game", player);
+
+// Broadcast to players with permission
+Common.broadcastWithPerm("myplugin.staff", "&e[STAFF] Important announcement", true);
+```
+
+## Color handling
+
+### Colorizing text
+
+```java
+// Translate & color codes
+String colored = Common.colorize("&aGreen &cRed &6Gold");
+
+// Colorize list
+List<String> lines = Arrays.asList("&aLine 1", "&bLine 2");
+List<String> colored = Common.colorize(lines);
+
+// Support for hex colors (MC 1.16+)
+String hex = Common.colorize("&#FF5733This is orange!");
+```
+
+### Stripping colors
+
+```java
+// Remove all color codes
+String plain = Common.stripColors("&aGreen &cRed");
+// Result: "Green Red"
+
+// Remove only & colors
+String partial = Common.stripColorsLetter("&aTest");
+
+// Get last color in string
+String lastColor = Common.lastColor("&aGreen &cRed");
+// Result: "&c"
+```
+
+### Color utilities
+
+```java
+// Check if message has colors
+boolean hasColors = Common.hasColors("&aTest");
+
+// Revert coloring (§ -> &)
+String reverted = Common.revertColorizing(colored);
+```
+
+## Logging
+
+### Console logging
+
+```java
+// Simple log
+Common.log("Plugin initialized successfully");
+
+// Log multiple lines
+Common.log(
+    "&7-------------------",
+    "&aPlugin loaded!",
+    "&7Version: 1.0.0",
+    "&7-------------------"
+);
+
+// Log without prefix
+Common.logNoPrefix("No prefix message");
+
+// Formatted logging
+Common.logF("Player %s joined from %s", player.getName(), player.getAddress());
+```
+
+### Timed logging
+
+```java
+// Prevent log spam (only log once per 10 seconds)
+Common.logTimed(10, "This message won't spam!");
+```
+
+### Framed messages
+
+```java
+// Log with frame
+Common.logFramed(
+    "Error occurred!",
+    "Please check configuration"
+);
+
+// Log and disable plugin
+Common.logFramed(true,
+    "Critical error!",
+    "Plugin cannot continue"
+);
+```
+
+### Warnings and errors
+
+```java
+// Warning message
+Common.warning("Configuration file is outdated");
+
+// Error logging
+Common.error(exception,
+    "Failed to load data",
+    "Error: %error"
+);
+
+// Throw error after logging
+Common.throwError(exception, "Critical failure");
+```
+
+## Running tasks
+
+```java
+// Run task later (in ticks)
+Common.runLater(20, () -> {
+    player.sendMessage("1 second passed!");
+});
+
+// Run async task
+Common.runAsync(() -> {
+    // Heavy database operation
+});
+
+// Run timer (repeating task)
+Common.runTimer(20, new SimpleRunnable() {
+    @Override
+    public void run() {
+        // Runs every second
+    }
+});
+```
+
+## Command execution
+
+```java
+// Dispatch command as console
+Common.dispatchCommand(player, "give {player} diamond 1");
+
+// Dispatch as player
+Common.dispatchCommandAsPlayer(player, "warp spawn");
+```
+
+## Regular expressions
+
+```java
+// Compile pattern
+Pattern pattern = Common.compilePattern("test.*");
+
+// Match pattern
+boolean matches = Common.regExMatch("test123", pattern);
+
+// Compile matcher
+Matcher matcher = Common.compileMatcher(pattern, "test456");
+```
+
+## String manipulation
+
+### Joining
+
+```java
+// Join array
+String result = Common.join(new String[]{"a", "b", "c"});
+// Result: "a, b, c"
+
+// Join with custom delimiter
+String result = Common.join(list, "; ");
+
+// Join with range
+String result = Common.joinRange(1, 3, array);
+```
+
+### Formatting
+
+```java
+// Format with variables
+String msg = Common.format("Hello %s from %s", player, world);
+
+// Pluralization
+String text = Common.plural(5, "apple");
+// Result: "5 apples"
+
+String text = Common.pluralEs(2, "class");
+// Result: "2 classes"
+
+// Add article (a/an)
+String text = Common.article("apple");
+// Result: "an apple"
+```
+
+### Text utilities
+
+```java
+// Duplicate text
+String result = Common.duplicate("*", 5);
+// Result: "*****"
+
+// Limit text length
+String limited = Common.limit("Very long text here", 10);
+// Result: "Very long ..."
+```
+
+## Location formatting
+
+```java
+// Short location (for debugging)
+String loc = Common.shortLocation(location);
+// Result: "world, 100, 64, 200"
+
+// Short vector
+String vec = Common.shortLocation(vector);
+// Result: "[10.5, 20.0, 30.5]"
+```
+
+## Aesthetic helpers
+
+```java
+// Console lines
+String line = Common.consoleLine();
+// Result: "!-----------------------------------------------------!"
+
+String smooth = Common.consoleLineSmooth();
+// Result: "______________________________________________________________"
+
+// Chat lines
+String chatLine = Common.chatLine();
+String chatSmooth = Common.chatLineSmooth();
+
+// Config line
+String configLine = Common.configLine();
+
+// Custom scoreboard line
+String scoreLine = Common.scoreboardLine(20);
+```
+
+## Prefix configuration
+
+```java
+// Set tell prefix (for player messages)
+Common.setTellPrefix("&8[&6MyPlugin&8]&7");
+
+// Set log prefix (for console)
+Common.setLogPrefix("&8[&6MyPlugin&8]");
+
+// Get prefixes
+String tellPrefix = Common.getTellPrefix();
+String logPrefix = Common.getLogPrefix();
+```
+
+<Note>
+The `{prefix}` variable in messages is automatically replaced with the tell prefix.
+</Note>
+
+<Tip>
+Use `Common.tell()` for player messages and `Common.log()` for console logging throughout your plugin for consistency.
+</Tip>

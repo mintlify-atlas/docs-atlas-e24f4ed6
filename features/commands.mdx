@@ -1,0 +1,315 @@
+---
+title: Commands
+description: Create powerful commands with built-in permission handling, tab completion, and argument validation
+---
+
+Foundation's `SimpleCommand` class provides a robust framework for creating Bukkit commands with automatic registration, permission checks, cooldowns, and tab completion.
+
+## Creating a basic command
+
+Extend `SimpleCommand` and implement the `onCommand()` method:
+
+```java
+public class KitCommand extends SimpleCommand {
+
+    public KitCommand() {
+        super("kit|kits");
+        
+        setDescription("Give yourself a kit");
+        setUsage("<kitName>");
+        setMinArguments(1);
+    }
+
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        
+        final Player player = getPlayer();
+        final String kitName = args[0];
+        
+        // Your logic here
+        tell("You received the " + kitName + " kit!");
+    }
+}
+```
+
+## Registering commands
+
+Register your command in your plugin's `onPluginStart()` method:
+
+```java
+@Override
+protected void onPluginStart() {
+    registerCommand(new KitCommand());
+}
+```
+
+## Key features
+
+### Permissions
+
+By default, commands use the permission format `{pluginName}.command.{label}`. Customize it:
+
+```java
+public KitCommand() {
+    super("kit");
+    
+    setPermission("myplugin.kit.use");
+    setPermissionMessage("&cYou need {permission} to use this!");
+}
+```
+
+### Cooldowns
+
+Add cooldowns to prevent command spam:
+
+```java
+public KitCommand() {
+    super("kit");
+    
+    setCooldown(30, TimeUnit.SECONDS);
+    setCooldownMessage("&cPlease wait {duration} seconds!");
+    setCooldownBypassPermission("myplugin.kit.bypass");
+}
+```
+
+### Argument validation
+
+<CodeGroup>
+```java Minimum arguments
+setMinArguments(2);
+```
+
+```java Check specific conditions
+checkArgs(args.length >= 2, "&cUsage: /kit <name> <amount>");
+```
+
+```java Boolean check
+checkBoolean(player.getInventory().firstEmpty() != -1, 
+    "&cYour inventory is full!");
+```
+</CodeGroup>
+
+### Finding players
+
+```java
+@Override
+protected void onCommand() {
+    // Find online player
+    final Player target = findPlayer(args[0]);
+    
+    // Find offline player (async)
+    findOfflinePlayer(args[0], offlinePlayer -> {
+        tell("Player: " + offlinePlayer.getName());
+    });
+    
+    // Get player or sender if no args
+    final Player player = findPlayerOrSelf(0);
+}
+```
+
+### Parsing arguments
+
+<Tabs>
+<Tab title="Numbers">
+```java
+// Parse integer
+final int amount = findNumber(0, "&cPlease enter a valid number!");
+
+// With bounds
+final int amount = findNumber(0, 1, 64, 
+    "&cAmount must be between {min} and {max}!");
+
+// Parse double
+final double price = findNumber(Double.class, 0, 
+    "&cPlease enter a valid price!");
+```
+</Tab>
+
+<Tab title="Enums">
+```java
+final GameMode mode = findEnum(GameMode.class, args[0], 
+    "&cInvalid game mode: {enum}! Available: {available}");
+```
+</Tab>
+
+<Tab title="Materials">
+```java
+final CompMaterial material = findMaterial(args[0], 
+    "&cInvalid material: {item}!");
+```
+</Tab>
+
+<Tab title="Worlds">
+```java
+final World world = findWorld(args[0]);
+
+// Use ~ for player's current world
+// /teleport ~ 100 64 100
+```
+</Tab>
+</Tabs>
+
+## Tab completion
+
+Override `tabComplete()` to provide suggestions:
+
+```java
+@Override
+protected List<String> tabComplete() {
+    
+    if (args.length == 1)
+        return completeLastWord("starter", "pvp", "builder");
+    
+    if (args.length == 2)
+        return completeLastWordPlayerNames();
+    
+    return NO_COMPLETE;
+}
+```
+
+### Tab completion helpers
+
+<CodeGroup>
+```java Player names
+completeLastWordPlayerNames()
+```
+
+```java World names
+completeLastWordWorldNames()
+```
+
+```java Custom list
+completeLastWord("option1", "option2", "option3")
+```
+
+```java From collection
+completeLastWord(getKitNames())
+```
+</CodeGroup>
+
+## Convenience methods
+
+### Messaging
+
+```java
+tell("&aKit given!");
+tellSuccess("Operation successful!");
+tellError("Something went wrong!");
+tellWarn("Be careful!");
+tellInfo("Useful information");
+tellQuestion("Are you sure?");
+```
+
+### Returning early
+
+```java
+// Return with message
+returnTell("&cYou don't have permission!");
+
+// Return with invalid args message
+returnInvalidArgs();
+
+// Show usage
+returnUsage();
+```
+
+### Argument helpers
+
+```java
+// Get last argument
+final String last = getLastArg();
+
+// Join args from index
+final String message = joinArgs(1); // "hello world" from "/msg player hello world"
+
+// Get range of args
+final String[] range = rangeArgs(1, 3);
+```
+
+## Subcommands
+
+Create subcommands by extending `SimpleSubCommand`:
+
+```java
+public class ReloadCommand extends SimpleSubCommand {
+
+    public ReloadCommand(SimpleCommandGroup parent) {
+        super(parent, "reload|rl");
+        
+        setDescription("Reload the plugin");
+        setPermission("myplugin.admin.reload");
+    }
+
+    @Override
+    protected void onCommand() {
+        tell("&aReloading...");
+        SimplePlugin.getInstance().reload();
+        tellSuccess("&aPlugin reloaded!");
+    }
+}
+```
+
+Group them together:
+
+```java
+public class AdminCommand extends SimpleCommandGroup {
+
+    @Override
+    protected void registerSubcommands() {
+        registerSubcommand(new ReloadCommand(this));
+        registerSubcommand(new DebugCommand(this));
+    }
+}
+```
+
+## Advanced features
+
+### Multiline usage
+
+```java
+@Override
+protected String[] getMultilineUsageMessage() {
+    return new String[] {
+        "/kit starter - Get the starter kit",
+        "/kit pvp - Get the PVP kit",
+        "/kit builder - Get the builder kit"
+    };
+}
+```
+
+### Custom help handling
+
+```java
+public KitCommand() {
+    super("kit");
+    
+    setAutoHandleHelp(false); // Disable automatic help
+}
+
+@Override
+protected void onCommand() {
+    if (args.length == 1 && args[0].equals("help")) {
+        // Custom help logic
+    }
+}
+```
+
+### Placeholder replacement
+
+```java
+@Override
+protected String replacePlaceholders(String message) {
+    return super.replacePlaceholders(message)
+        .replace("{player}", sender.getName())
+        .replace("{world}", getPlayer().getWorld().getName());
+}
+```
+
+<Note>
+All commands run on the main thread. For async operations, use `Common.runAsync()` or `Common.runLater()`.
+</Note>
+
+<Warning>
+Never store player or sender references in fields! They are updated dynamically when the command executes.
+</Warning>

@@ -1,0 +1,396 @@
+---
+title: Debugging
+description: Use Foundation's powerful debugging utilities including debug mode, error logging, and stack trace analysis
+---
+
+Foundation provides comprehensive debugging tools to help you identify and solve issues during development.
+
+## Debug mode
+
+### Enabling debug mode
+
+Create a `debug.lock` file in your plugin's data folder to enable debug features:
+
+```bash
+touch plugins/YourPlugin/debug.lock
+```
+
+Foundation automatically detects this file on startup:
+
+```java
+// Called automatically by SimplePlugin
+Debugger.detectDebugMode();
+
+if (Debugger.isDebugModeEnabled()) {
+    // Debug features are active
+}
+```
+
+<Note>
+  Debug mode is detected at plugin startup. You'll need to restart the server after creating or removing the `debug.lock` file.
+</Note>
+
+### Debug sections
+
+Configure which parts of your plugin to debug in `settings.yml`:
+
+```yaml
+Debug:
+  - "database"
+  - "events"
+  - "commands"
+  # Use "*" to debug everything
+  # - "*"
+```
+
+Then use `Debugger.debug()` in your code:
+
+```java
+import org.mineacademy.fo.debug.Debugger;
+
+public void processCommand(Player player, String command) {
+    Debugger.debug("commands", "Player " + player.getName() + 
+                   " executed: " + command);
+    
+    // Your command logic
+}
+
+public void saveToDatabase(UUID playerId, PlayerData data) {
+    Debugger.debug("database", "Saving data for player: " + playerId);
+    Debugger.debug("database", "Data: " + data.toString());
+    
+    // Database save logic
+}
+```
+
+Output appears in console with the section tag:
+
+```
+[commands] Player Notch executed: /spawn
+[database] Saving data for player: 069a79f4-44e9-4726-a5be-fca90e38aaf5
+[database] Data: PlayerData{level=50, coins=1000}
+```
+
+## Queued debug messages
+
+### Building multi-line debug output
+
+Use `Debugger.put()` and `Debugger.push()` to build complex debug messages:
+
+```java
+public void processTransaction(Player player, Transaction transaction) {
+    if (!Debugger.isDebugged("transactions")) {
+        return;
+    }
+    
+    Debugger.put("transactions", "=== Transaction Start ===");
+    Debugger.put("transactions", "Player: " + player.getName());
+    Debugger.put("transactions", "Type: " + transaction.getType());
+    Debugger.put("transactions", "Amount: " + transaction.getAmount());
+    Debugger.put("transactions", "Balance Before: " + getBalance(player));
+    
+    processTransactionInternal(transaction);
+    
+    Debugger.push("transactions", "Balance After: " + getBalance(player));
+    // push() prints all queued messages and clears the queue
+}
+```
+
+Output:
+
+```
+[transactions] === Transaction Start ===
+[transactions] Player: Notch
+[transactions] Type: PURCHASE
+[transactions] Amount: 500
+[transactions] Balance Before: 1000
+[transactions] Balance After: 500
+```
+
+<Tip>
+  Check `Debugger.isDebugged()` before building expensive debug messages to avoid performance impact in production.
+</Tip>
+
+## Error logging
+
+### Saving errors to file
+
+`Debugger.saveError()` logs errors to `errors.log` with full context:
+
+```java
+import org.mineacademy.fo.debug.Debugger;
+
+try {
+    riskyOperation();
+} catch (Exception ex) {
+    Debugger.saveError(ex, 
+        "Failed to process player data",
+        "Player: " + player.getName(),
+        "UUID: " + player.getUniqueId(),
+        "Online: " + player.isOnline()
+    );
+}
+```
+
+The error file includes:
+- Timestamp
+- Server information (Minecraft version, Java version)
+- Plugin list
+- Your custom messages
+- Full stack trace
+- Caused by chain
+
+Example `errors.log` entry:
+
+```
+------------------------------------[ 2026-03-03 14:30:45 ]-----------------------------------
+MyPlugin 1.0.0 encountered a NullPointerException
+Running Paper 1.20.4 and Java 17.0.1
+Plugins: Vault, WorldEdit, MyPlugin, CoreProtect
+----------------------------------------------------------------------------------------------
+
+More Information:
+Failed to process player data
+Player: Notch
+UUID: 069a79f4-44e9-4726-a5be-fca90e38aaf5
+Online: true
+NullPointerException: Cannot invoke method getName() on null object
+	at com.example.MyPlugin.getData(MyPlugin.java:123)
+	at com.example.MyPlugin.onJoin(MyPlugin.java:89)
+----------------------------------------------------------------------------------------------
+```
+
+## Stack trace utilities
+
+### Printing clean stack traces
+
+`Debugger.printStackTrace()` prints stack traces without Minecraft/Bukkit internals:
+
+```java
+Debugger.printStackTrace("Checking call stack");
+```
+
+Output:
+
+```
+!----------------------------------------------------------------------------------------------------------!
+Checking call stack
+!----------------------------------------------------------------------------------------------------------!
+	at com.example.MyPlugin.handleCommand(MyPlugin.java:156)
+	at com.example.CommandHandler.execute(CommandHandler.java:45)
+	at com.example.MyPlugin.onCommand(MyPlugin.java:89)
+--------------------------------------------------------------------------------------------------------end-
+```
+
+### Tracing execution route
+
+`Debugger.traceRoute()` shows the call chain:
+
+```java
+List<String> route = Debugger.traceRoute(true); // true = include line numbers
+System.out.println("Call route: " + String.join(" > ", route));
+```
+
+Output:
+
+```
+Call route: MyPlugin#handleReward(167) > RewardManager#giveReward(89) > Database#saveReward(234)
+```
+
+<Note>
+  Stack traces automatically filter out Minecraft server internals, showing only relevant plugin code.
+</Note>
+
+## Printing values
+
+### Debug array contents
+
+```java
+String[] permissions = {"myplugin.admin", "myplugin.mod", "myplugin.user"};
+Debugger.printValues(permissions);
+```
+
+Output:
+
+```
+--------------------------------------------------------------------------------
+Enumeration of 3 strings
+[0] myplugin.admin
+[1] myplugin.mod
+[2] myplugin.user
+```
+
+### Custom debug output
+
+```java
+public void debugPlayerState(Player player) {
+    if (!Debugger.isDebugged("player")) {
+        return;
+    }
+    
+    Debugger.put("player", "=== Player State ===");
+    Debugger.put("player", "Name: " + player.getName());
+    Debugger.put("player", "Health: " + player.getHealth() + "/" + player.getMaxHealth());
+    Debugger.put("player", "Location: " + formatLocation(player.getLocation()));
+    Debugger.put("player", "GameMode: " + player.getGameMode());
+    
+    ItemStack[] items = player.getInventory().getContents();
+    Debugger.put("player", "Inventory: " + items.length + " slots");
+    
+    for (int i = 0; i < items.length; i++) {
+        if (items[i] != null && items[i].getType() != Material.AIR) {
+            Debugger.put("player", "  [" + i + "] " + items[i].getType() + " x" + items[i].getAmount());
+        }
+    }
+    
+    Debugger.push("player", "====================");
+}
+```
+
+## Real-world debugging patterns
+
+### Database debugging
+
+```java
+public class DatabaseManager {
+    
+    private static final String DEBUG_SECTION = "database";
+    
+    public PlayerData loadData(UUID playerId) {
+        Debugger.debug(DEBUG_SECTION, "Loading data for " + playerId);
+        
+        try {
+            PlayerData data = executeQuery(playerId);
+            
+            if (data == null) {
+                Debugger.debug(DEBUG_SECTION, "No data found, creating new");
+                data = createNewData(playerId);
+            } else {
+                Debugger.debug(DEBUG_SECTION, "Loaded: " + data.toString());
+            }
+            
+            return data;
+            
+        } catch (SQLException ex) {
+            Debugger.saveError(ex,
+                "Failed to load player data",
+                "Player ID: " + playerId
+            );
+            return null;
+        }
+    }
+    
+    public void saveData(UUID playerId, PlayerData data) {
+        if (Debugger.isDebugged(DEBUG_SECTION)) {
+            Debugger.put(DEBUG_SECTION, "Saving player data");
+            Debugger.put(DEBUG_SECTION, "Player: " + playerId);
+            Debugger.put(DEBUG_SECTION, "Data: " + data.toJson());
+        }
+        
+        try {
+            executeSave(playerId, data);
+            Debugger.push(DEBUG_SECTION, "Save successful");
+            
+        } catch (SQLException ex) {
+            Debugger.saveError(ex,
+                "Failed to save player data",
+                "Player ID: " + playerId,
+                "Data: " + data.toString()
+            );
+        }
+    }
+}
+```
+
+### Event debugging
+
+```java
+@EventHandler
+public void onPlayerJoin(PlayerJoinEvent event) {
+    Player player = event.getPlayer();
+    
+    Debugger.debug("events", "Player join: " + player.getName());
+    
+    try {
+        loadPlayerData(player);
+        applyPermissions(player);
+        sendWelcomeMessage(player);
+        
+        Debugger.debug("events", "Join processing complete for " + player.getName());
+        
+    } catch (Exception ex) {
+        Debugger.saveError(ex,
+            "Error processing player join",
+            "Player: " + player.getName(),
+            "First join: " + !player.hasPlayedBefore()
+        );
+        
+        player.kickPlayer("An error occurred. Please try again.");
+    }
+}
+```
+
+### Command debugging
+
+```java
+public class RewardCommand extends SimpleCommand {
+    
+    public RewardCommand() {
+        super("reward|r");
+    }
+    
+    @Override
+    protected void onCommand() {
+        if (Debugger.isDebugged("commands")) {
+            List<String> route = Debugger.traceRoute(true);
+            Debugger.debug("commands", "Command route: " + String.join(" > ", route));
+            Debugger.debug("commands", "Sender: " + sender.getName());
+            Debugger.debug("commands", "Args: " + Arrays.toString(args));
+        }
+        
+        checkConsole();
+        
+        Player player = getPlayer();
+        String rewardType = args.length > 0 ? args[0] : "daily";
+        
+        Debugger.debug("commands", "Processing " + rewardType + " reward for " + player.getName());
+        
+        try {
+            giveReward(player, rewardType);
+        } catch (Exception ex) {
+            Debugger.saveError(ex,
+                "Failed to give reward",
+                "Player: " + player.getName(),
+                "Reward type: " + rewardType
+            );
+            
+            tellError("Failed to give reward. Please contact an administrator.");
+        }
+    }
+}
+```
+
+## Performance debugging
+
+Combine debugging with performance monitoring:
+
+```java
+import org.mineacademy.fo.debug.LagCatcher;
+import org.mineacademy.fo.debug.Debugger;
+
+public void processLargeOperation(List<Player> players) {
+    LagCatcher.start("process-players");
+    Debugger.debug("performance", "Processing " + players.size() + " players");
+    
+    for (Player player : players) {
+        processPlayer(player);
+    }
+    
+    LagCatcher.end("process-players");
+    Debugger.debug("performance", "Processing complete");
+}
+```
+
+<Tip>
+  See the [performance guide](/advanced/performance) for more details on `LagCatcher`.
+</Tip>

@@ -1,0 +1,466 @@
+---
+title: NBTFile
+description: Read and write NBT data from files with automatic persistence
+---
+
+The `NBTFile` class provides an NBTCompound implementation backed by a file. It automatically handles reading existing data and saving changes to disk.
+
+<Warning>
+  The `NBTFile` class is deprecated. Use `NBT.getFileHandle(file)`, `NBT.readFile(file)`, or `NBT.writeFile(file, nbt)` instead.
+</Warning>
+
+## Constructor
+
+<ParamField path="NBTFile(File file)" type="constructor">
+  Creates an NBTFile that uses the provided file to store its data. If the file exists, data will be loaded automatically.
+  
+  <Expandable title="parameters">
+    <ParamField path="file" type="File" required>
+      The file to read/write NBT data. Cannot be null.
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="throws">
+    - `IOException` - If the file cannot be read or created
+    - `NullPointerException` - If file is null
+  </Expandable>
+  
+  ```java
+  File file = new File(plugin.getDataFolder(), "data.nbt");
+  NBTFile nbtFile = new NBTFile(file);
+  ```
+</ParamField>
+
+## Core methods
+
+### save
+
+<ParamField path="save()" type="void">
+  Saves the NBT data to the file.
+  
+  <Expandable title="throws">
+    - `IOException` - If the file cannot be written
+  </Expandable>
+  
+  ```java
+  NBTFile nbtFile = new NBTFile(file);
+  nbtFile.setString("player", "Steve");
+  nbtFile.setInteger("score", 1000);
+  
+  nbtFile.save(); // Write to disk
+  ```
+</ParamField>
+
+### getFile
+
+<ParamField path="getFile()" type="File">
+  Returns the File used to store the NBT data.
+  
+  ```java
+  NBTFile nbtFile = new NBTFile(file);
+  File dataFile = nbtFile.getFile();
+  
+  Common.log("Storing data in: " + dataFile.getAbsolutePath());
+  ```
+</ParamField>
+
+### getCompound
+
+<ParamField path="getCompound()" type="Object">
+  Returns the internal NBT compound object.
+  
+  ```java
+  NBTFile nbtFile = new NBTFile(file);
+  Object compound = nbtFile.getCompound();
+  ```
+</ParamField>
+
+### setCompound
+
+<ParamField path="setCompound(Object compound)" type="void">
+  Sets the internal NBT compound object.
+  
+  <Expandable title="parameters">
+    <ParamField path="compound" type="Object" required>
+      The NBT compound to set
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTContainer container = new NBTContainer();
+  container.setString("test", "value");
+  
+  NBTFile nbtFile = new NBTFile(file);
+  nbtFile.setCompound(container.getCompound());
+  nbtFile.save();
+  ```
+</ParamField>
+
+## Static utility methods
+
+### readFrom
+
+<ParamField path="readFrom(File file)" type="NBTCompound">
+  Reads NBT data from the provided file.
+  
+  <Expandable title="parameters">
+    <ParamField path="file" type="File" required>
+      File to read NBT data from
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    Returns NBTCompound with file's data, or empty NBTContainer if file doesn't exist
+  </Expandable>
+  
+  <Expandable title="throws">
+    - `IOException` - If the file cannot be read
+  </Expandable>
+  
+  ```java
+  File file = new File(plugin.getDataFolder(), "player_data.nbt");
+  NBTCompound data = NBTFile.readFrom(file);
+  
+  if (data.hasTag("name")) {
+      String name = data.getString("name");
+      Common.log("Player: " + name);
+  }
+  ```
+</ParamField>
+
+### saveTo
+
+<ParamField path="saveTo(File file, NBTCompound nbt)" type="void">
+  Saves NBT data to the provided file.
+  
+  <Note>
+    This will fully override the file if it already exists.
+  </Note>
+  
+  <Expandable title="parameters">
+    <ParamField path="file" type="File" required>
+      File to write NBT data to
+    </ParamField>
+    <ParamField path="nbt" type="NBTCompound" required>
+      NBT data to save
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="throws">
+    - `IOException` - If the file cannot be written or created
+  </Expandable>
+  
+  ```java
+  NBTContainer container = new NBTContainer();
+  container.setString("world", "survival");
+  container.setInteger("level", 10);
+  
+  File file = new File(plugin.getDataFolder(), "config.nbt");
+  NBTFile.saveTo(file, container);
+  ```
+</ParamField>
+
+## Usage patterns
+
+### Save player data to file
+
+```java
+public void savePlayerData(Player player) throws IOException {
+    File file = new File(plugin.getDataFolder(), "players/" + player.getUniqueId() + ".nbt");
+    NBTFile nbtFile = new NBTFile(file);
+    
+    // Store player data
+    nbtFile.setString("name", player.getName());
+    nbtFile.setString("uuid", player.getUniqueId().toString());
+    nbtFile.setInteger("level", player.getLevel());
+    nbtFile.setFloat("exp", player.getExp());
+    nbtFile.setDouble("health", player.getHealth());
+    nbtFile.setInteger("foodLevel", player.getFoodLevel());
+    
+    // Store location
+    Location loc = player.getLocation();
+    NBTCompound locData = nbtFile.getOrCreateCompound("location");
+    locData.setString("world", loc.getWorld().getName());
+    locData.setDouble("x", loc.getX());
+    locData.setDouble("y", loc.getY());
+    locData.setDouble("z", loc.getZ());
+    locData.setFloat("yaw", loc.getYaw());
+    locData.setFloat("pitch", loc.getPitch());
+    
+    // Save to disk
+    nbtFile.save();
+}
+```
+
+### Load player data from file
+
+```java
+public void loadPlayerData(Player player) throws IOException {
+    File file = new File(plugin.getDataFolder(), "players/" + player.getUniqueId() + ".nbt");
+    
+    if (!file.exists()) {
+        Common.log("No saved data for player: " + player.getName());
+        return;
+    }
+    
+    NBTFile nbtFile = new NBTFile(file);
+    
+    // Load player data
+    if (nbtFile.hasTag("level")) {
+        player.setLevel(nbtFile.getInteger("level"));
+    }
+    
+    if (nbtFile.hasTag("exp")) {
+        player.setExp(nbtFile.getFloat("exp"));
+    }
+    
+    if (nbtFile.hasTag("health")) {
+        player.setHealth(nbtFile.getDouble("health"));
+    }
+    
+    if (nbtFile.hasTag("foodLevel")) {
+        player.setFoodLevel(nbtFile.getInteger("foodLevel"));
+    }
+    
+    // Load location
+    if (nbtFile.hasTag("location")) {
+        NBTCompound locData = nbtFile.getCompound("location");
+        
+        World world = Bukkit.getWorld(locData.getString("world"));
+        if (world != null) {
+            Location loc = new Location(
+                world,
+                locData.getDouble("x"),
+                locData.getDouble("y"),
+                locData.getDouble("z"),
+                locData.getFloat("yaw"),
+                locData.getFloat("pitch")
+            );
+            player.teleport(loc);
+        }
+    }
+}
+```
+
+### Store plugin configuration
+
+```java
+public class ConfigManager {
+    private final File configFile;
+    private NBTFile config;
+    
+    public ConfigManager(JavaPlugin plugin) throws IOException {
+        this.configFile = new File(plugin.getDataFolder(), "nbt-config.nbt");
+        this.config = new NBTFile(configFile);
+        
+        // Set defaults if new file
+        if (config.getKeys().isEmpty()) {
+            setDefaults();
+            config.save();
+        }
+    }
+    
+    private void setDefaults() {
+        config.setBoolean("enabled", true);
+        config.setInteger("maxPlayers", 100);
+        config.setDouble("spawnRadius", 10.0);
+        config.setString("motd", "Welcome to the server!");
+        
+        NBTCompound features = config.getOrCreateCompound("features");
+        features.setBoolean("pvp", true);
+        features.setBoolean("keepInventory", false);
+        features.setBoolean("naturalRegeneration", true);
+    }
+    
+    public void reload() throws IOException {
+        this.config = new NBTFile(configFile);
+    }
+    
+    public void save() throws IOException {
+        config.save();
+    }
+    
+    public boolean isEnabled() {
+        return config.getBoolean("enabled");
+    }
+    
+    public void setEnabled(boolean enabled) throws IOException {
+        config.setBoolean("enabled", enabled);
+        save();
+    }
+}
+```
+
+### Backup and restore data
+
+```java
+public void backupData(File source, File backup) throws IOException {
+    // Read from source
+    NBTCompound data = NBTFile.readFrom(source);
+    
+    // Save to backup
+    NBTFile.saveTo(backup, data);
+    
+    Common.log("Backed up " + source.getName() + " to " + backup.getName());
+}
+
+public void restoreData(File backup, File target) throws IOException {
+    // Read from backup
+    NBTCompound data = NBTFile.readFrom(backup);
+    
+    // Restore to target
+    NBTFile.saveTo(target, data);
+    
+    Common.log("Restored " + backup.getName() + " to " + target.getName());
+}
+```
+
+### Store complex game state
+
+```java
+public void saveGameState() throws IOException {
+    File file = new File(plugin.getDataFolder(), "gamestate.nbt");
+    NBTFile nbtFile = new NBTFile(file);
+    
+    // Save game info
+    nbtFile.setString("gameMode", currentGameMode.name());
+    nbtFile.setLong("startTime", gameStartTime);
+    nbtFile.setBoolean("inProgress", isGameInProgress);
+    nbtFile.setInteger("round", currentRound);
+    
+    // Save teams
+    NBTCompoundList teams = nbtFile.getCompoundList("teams");
+    for (Team team : gameTeams) {
+        NBTListCompound teamData = teams.addCompound();
+        teamData.setString("name", team.getName());
+        teamData.setInteger("score", team.getScore());
+        teamData.setString("color", team.getColor().name());
+        
+        // Save team members
+        String[] members = team.getMembers().stream()
+            .map(UUID::toString)
+            .toArray(String[]::new);
+        teamData.setObject("members", members);
+    }
+    
+    // Save world state
+    NBTCompound worldData = nbtFile.getOrCreateCompound("world");
+    worldData.setString("name", gameWorld.getName());
+    worldData.setLong("seed", gameWorld.getSeed());
+    worldData.setBoolean("pvp", gameWorld.getPVP());
+    
+    nbtFile.save();
+}
+```
+
+### Use static methods for one-time operations
+
+```java
+// Quick save without managing NBTFile instance
+public void quickSave(String key, String value) throws IOException {
+    File file = new File(plugin.getDataFolder(), "quick.nbt");
+    
+    // Read existing data
+    NBTCompound data = NBTFile.readFrom(file);
+    
+    // Modify
+    data.setString(key, value);
+    data.setLong("lastModified", System.currentTimeMillis());
+    
+    // Save
+    NBTFile.saveTo(file, data);
+}
+
+// Quick read
+public String quickRead(String key) throws IOException {
+    File file = new File(plugin.getDataFolder(), "quick.nbt");
+    NBTCompound data = NBTFile.readFrom(file);
+    
+    return data.getString(key);
+}
+```
+
+### Auto-save system
+
+```java
+public class AutoSaveManager {
+    private final NBTFile dataFile;
+    private final BukkitTask saveTask;
+    
+    public AutoSaveManager(JavaPlugin plugin) throws IOException {
+        File file = new File(plugin.getDataFolder(), "autosave.nbt");
+        this.dataFile = new NBTFile(file);
+        
+        // Auto-save every 5 minutes
+        this.saveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(
+            plugin,
+            () -> {
+                try {
+                    dataFile.save();
+                    Common.log("Auto-saved data");
+                } catch (IOException e) {
+                    Common.error(e, "Failed to auto-save data");
+                }
+            },
+            20L * 60 * 5, // 5 minutes
+            20L * 60 * 5
+        );
+    }
+    
+    public NBTFile getData() {
+        return dataFile;
+    }
+    
+    public void shutdown() throws IOException {
+        saveTask.cancel();
+        dataFile.save();
+    }
+}
+```
+
+## Error handling
+
+```java
+public void safeFileSave(Player player) {
+    File file = new File(plugin.getDataFolder(), "players/" + player.getUniqueId() + ".nbt");
+    
+    try {
+        NBTFile nbtFile = new NBTFile(file);
+        nbtFile.setString("name", player.getName());
+        nbtFile.setLong("lastSeen", System.currentTimeMillis());
+        nbtFile.save();
+        
+    } catch (IOException e) {
+        Common.error(e, "Failed to save player data for " + player.getName());
+        player.sendMessage("§cFailed to save your data!");
+    }
+}
+
+public void safeFileLoad(Player player) {
+    File file = new File(plugin.getDataFolder(), "players/" + player.getUniqueId() + ".nbt");
+    
+    try {
+        if (!file.exists()) {
+            Common.log("Creating new data file for " + player.getName());
+            return;
+        }
+        
+        NBTFile nbtFile = new NBTFile(file);
+        String name = nbtFile.getString("name");
+        long lastSeen = nbtFile.getLong("lastSeen");
+        
+        Common.log("Loaded data for " + name + ", last seen: " + lastSeen);
+        
+    } catch (IOException e) {
+        Common.error(e, "Failed to load player data for " + player.getName());
+        player.sendMessage("§cFailed to load your data!");
+    }
+}
+```
+
+## See also
+
+- [NBTCompound](/api/nbt/nbt-compound) - Base class for NBT operations
+- [NBTContainer](/api/nbt/nbt-container) - In-memory NBT storage
+- [NBTItem](/api/nbt/nbt-item) - Work with item NBT data
+- [NBTEntity](/api/nbt/nbt-entity) - Work with entity NBT data

@@ -1,80 +1,442 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Create your first Minecraft plugin with Foundation in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through creating a simple plugin using Foundation, from setup to your first working command.
 
-Get your documentation site running locally and make your first customization.
+## Before you begin
 
-### Step 1: Set up your local environment
+Make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- Completed the [installation guide](/installation)
+- A Java IDE (IntelliJ IDEA, Eclipse, or VS Code)
+- Basic understanding of Java and Minecraft plugins
+
+<Warning>
+  **Important**: Do not skip any steps in this guide. Missing the shading configuration or SimplePlugin setup will cause your plugin to break.
+</Warning>
+
+## Creating your plugin
+
+<Steps>
+  <Step title="Convert to SimplePlugin">
+    Change your main plugin class from extending `JavaPlugin` to extending `SimplePlugin`:
+
+    ```java
+    import org.mineacademy.fo.plugin.SimplePlugin;
+
+    public class MyPlugin extends SimplePlugin {
+        
+        // Your code here
+    }
+    ```
+
+    This gives you access to Foundation's automatic listener registration, configuration management, and enhanced APIs.
+  </Step>
+
+  <Step title="Replace lifecycle methods">
+    Foundation uses different method names for startup and shutdown:
+
+    **Before (JavaPlugin):**
+    ```java
+    @Override
+    public void onEnable() {
+        // Startup logic
+    }
+
+    @Override
+    public void onDisable() {
+        // Shutdown logic
+    }
+    ```
+
+    **After (SimplePlugin):**
+    ```java
+    @Override
+    protected void onPluginStart() {
+        // Startup logic
+        Common.log("MyPlugin has started!");
+    }
+
+    @Override
+    protected void onPluginStop() {
+        // Shutdown logic
+        Common.log("MyPlugin is stopping...");
+    }
+    ```
+
+    <Note>
+      Foundation occupies `onEnable()` and `onDisable()` to perform automatic registration and cleanup, so you must use `onPluginStart()` and `onPluginStop()` instead.
+    </Note>
+  </Step>
+
+  <Step title="Update getInstance() method">
+    If you use a static `getInstance()` method, update it to use Foundation's instance management:
+
+    **Before:**
+    ```java
+    private static MyPlugin instance;
+
+    @Override
+    public void onEnable() {
+        instance = this;
+    }
+
+    public static MyPlugin getInstance() {
+        return instance;
+    }
+    ```
+
+    **After:**
+    ```java
+    // Remove the instance field and initialization
+    // private static MyPlugin instance; ❌ DELETE THIS
+    // instance = this; ❌ DELETE THIS
+
+    public static MyPlugin getInstance() {
+        return (MyPlugin) SimplePlugin.getInstance();
+    }
+    ```
+
+    Foundation automatically manages the plugin instance, so you don't need to store it yourself.
+  </Step>
+
+  <Step title="Verify shading configuration">
+    Before proceeding, double-check your `pom.xml` or `build.gradle` has the proper shading configuration as described in the [installation guide](/installation).
+
+    Your `maven-shade-plugin` should include:
+    ```xml
+    <includes>
+        <include>com.github.kangarko:Foundation*</include>
+    </includes>
+    ```
+
+    And relocate Foundation:
+    ```xml
+    <relocation>
+        <pattern>org.mineacademy.fo</pattern>
+        <shadedPattern>your.plugin.main.package.lib</shadedPattern>
+    </relocation>
+    ```
+  </Step>
+</Steps>
+
+## Creating your first command
+
+Let's create a simple command without using `plugin.yml`:
+
+<Steps>
+  <Step title="Create command class">
+    Create a new class extending `SimpleCommand`:
+
+    ```java
+    import org.mineacademy.fo.command.SimpleCommand;
+    import org.bukkit.entity.Player;
+
+    public class HelloCommand extends SimpleCommand {
+
+        public HelloCommand() {
+            super("hello");
+            
+            setDescription("Say hello to the player");
+            setUsage("/<command> [player]");
+        }
+
+        @Override
+        protected void onCommand() {
+            checkConsole(); // Ensure only players can run this
+            
+            Player player = getPlayer();
+            
+            if (args.length == 0) {
+                tell("Hello, " + player.getName() + "!");
+            } else {
+                Player target = findPlayer(args[0]);
+                tell("You said hello to " + target.getName() + "!");
+            }
+        }
+    }
+    ```
+
+    <Note>
+      Notice there's no `plugin.yml` configuration needed. Foundation automatically registers the command.
+    </Note>
+  </Step>
+
+  <Step title="Register the command">
+    In your main plugin class, register the command in `onPluginStart()`:
+
+    ```java
+    @Override
+    protected void onPluginStart() {
+        registerCommand(new HelloCommand());
+    }
+    ```
+
+    That's it! Your command is now registered and functional.
+  </Step>
+
+  <Step title="Add tab completion (optional)">
+    Override the `tabComplete()` method to add smart tab completion:
+
+    ```java
+    @Override
+    protected List<String> tabComplete() {
+        if (args.length == 1)
+            return completeLastWord(getOnlinePlayers());
+        
+        return NO_COMPLETE;
+    }
+    ```
+  </Step>
+</Steps>
+
+## Creating a simple menu
+
+Foundation makes GUI menus incredibly easy:
+
+```java
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.mineacademy.fo.menu.Menu;
+import org.mineacademy.fo.menu.button.Button;
+import org.mineacademy.fo.menu.model.ItemCreator;
+import org.mineacademy.fo.remain.CompMaterial;
+
+public class WelcomeMenu extends Menu {
+
+    private final Button infoButton;
+
+    public WelcomeMenu() {
+        setTitle("Welcome Menu");
+        setSize(9 * 3); // 3 rows
+        
+        // Create a button
+        this.infoButton = new Button() {
+            @Override
+            public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+                player.sendMessage("You clicked the info button!");
+            }
+
+            @Override
+            public ItemStack getItem() {
+                return ItemCreator.of(
+                    CompMaterial.BOOK,
+                    "Information",
+                    "",
+                    "Click me for info!"
+                ).build().make();
+            }
+        };
+    }
+
+    @Override
+    public ItemStack getItemAt(int slot) {
+        if (slot == 13) // Center of the menu
+            return this.infoButton.getItem();
+        
+        return null;
+    }
+}
+```
+
+Open the menu for a player:
+
+```java
+new WelcomeMenu().displayTo(player);
+```
+
+## Working with configuration
+
+Foundation provides auto-updating configuration with comments:
+
+<Steps>
+  <Step title="Create settings class">
+    ```java
+    import org.mineacademy.fo.settings.YamlStaticConfig;
+
+    public class Settings extends YamlStaticConfig {
+        
+        public static String WELCOME_MESSAGE;
+        public static Integer MAX_PLAYERS;
+        public static Boolean DEBUG_MODE;
+
+        @Override
+        protected void onLoad() {
+            loadConfiguration("settings.yml");
+        }
+
+        private static void load() {
+            setPathPrefix("Settings");
+            
+            WELCOME_MESSAGE = getString("Welcome_Message", "Welcome to the server!");
+            MAX_PLAYERS = getInteger("Max_Players", 100);
+            DEBUG_MODE = getBoolean("Debug_Mode", false);
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Create default config file">
+    Create `src/main/resources/settings.yml`:
+
+    ```yaml
+    # Main plugin settings
+    Settings:
+      # Message shown to players on join
+      Welcome_Message: "Welcome to the server!"
+      
+      # Maximum number of players
+      Max_Players: 100
+      
+      # Enable debug logging
+      Debug_Mode: false
+    ```
+  </Step>
+
+  <Step title="Use settings in your code">
+    ```java
+    @Override
+    protected void onPluginStart() {
+        // Settings are automatically loaded
+        Common.log("Welcome message: " + Settings.WELCOME_MESSAGE);
+        
+        if (Settings.DEBUG_MODE) {
+            Common.log("Debug mode is enabled");
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Testing your plugin
+
+<Steps>
+  <Step title="Build the plugin">
+    ```bash
+    mvn clean package
+    ```
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Or for Gradle:
+    ```bash
+    gradle shadowJar
+    ```
+  </Step>
+
+  <Step title="Copy to server">
+    Copy the jar from `target/` (Maven) or `build/libs/` (Gradle) to your test server's `plugins/` folder.
+  </Step>
+
+  <Step title="Start the server">
+    Start your server and verify the plugin loads:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```
+    [Server thread/INFO]: [MyPlugin] Enabling MyPlugin v1.0.0
+    [Server thread/INFO]: MyPlugin has started!
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Test your command">
+    Join the server and run:
+    ```
+    /hello
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    You should see: `Hello, YourName!`
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Common utilities
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Foundation provides many helpful utilities:
 
-### Step 3: Go live
+### Messaging
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```java
+import org.mineacademy.fo.Common;
+
+// Send colored messages
+Common.tell(player, "&aThis is green text!");
+
+// Broadcast to all players
+Common.broadcast("&6Server announcement!");
+
+// Log to console
+Common.log("This appears in console");
+```
+
+### Scheduling tasks
+
+```java
+import org.mineacademy.fo.Common;
+
+// Run task later (in ticks, 20 ticks = 1 second)
+Common.runLater(20, () -> {
+    player.sendMessage("This runs after 1 second!");
+});
+
+// Run task repeatedly
+Common.runTimer(20, 20, () -> {
+    // Runs every second
+    player.sendMessage("Tick!");
+});
+```
+
+### Player utilities
+
+```java
+import org.mineacademy.fo.PlayerUtil;
+
+// Kick player with a message
+PlayerUtil.kick(player, "You have been kicked!");
+
+// Get player's ping
+int ping = PlayerUtil.getPing(player);
+
+// Check if player has permission
+if (PlayerUtil.hasPerm(player, "myplugin.admin")) {
+    // Do something
+}
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Plugin Template" icon="code" href="https://github.com/kangarko/PluginTemplate">
+    Explore a complete example plugin
+  </Card>
+  
+  <Card title="Project Orion" icon="graduation-cap" href="https://mineacademy.org/project-orion">
+    Complete training course on Foundation
+  </Card>
+  
+  <Card title="Migration guide" icon="arrow-right-arrow-left" href="/migration">
+    Learn more about converting existing plugins
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="https://github.com/kangarko/Foundation">
+    Browse the source code and JavaDocs
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+### Plugin fails to load
+
+Check that you:
+1. Extended `SimplePlugin` instead of `JavaPlugin`
+2. Used `onPluginStart()` and `onPluginStop()` instead of `onEnable()` and `onDisable()`
+3. Configured shading properly in your `pom.xml` or `build.gradle`
+
+### NoClassDefFoundError
+
+You likely didn't shade Foundation properly. Review the [installation guide](/installation) shading configuration.
+
+### Command not working
+
+Ensure you:
+1. Called `registerCommand()` in `onPluginStart()`
+2. Extended `SimpleCommand` properly
+3. Don't have the command defined in `plugin.yml` (Foundation handles this automatically)

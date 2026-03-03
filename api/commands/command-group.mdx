@@ -1,0 +1,596 @@
+---
+title: SimpleCommandGroup
+description: A command group containing a set of different subcommands associated with a main command
+---
+
+## Overview
+
+`SimpleCommandGroup` allows you to organize multiple related subcommands under a single main command. For example, `/arena join`, `/arena leave`, `/arena list` would all be subcommands of the `/arena` command group.
+
+The command group automatically handles help menus, tab completion, and subcommand routing.
+
+## Class hierarchy
+
+```java
+org.mineacademy.fo.command.SimpleCommandGroup
+  └── MainCommand (inner class extends SimpleCommand)
+```
+
+## Creating a command group
+
+### Constructors
+
+<ParamField path="SimpleCommandGroup()" type="constructor">
+  Creates a new command group using `SimpleSettings.MAIN_COMMAND_ALIASES`.
+  
+  Requires a settings class extending SimpleSettings with `Command_Aliases` defined.
+</ParamField>
+
+<ParamField path="SimpleCommandGroup(String labelAndAliases)" type="constructor">
+  Creates a new command group with label and aliases separated by `|` or `/`.
+  
+  **Example:** `"arena|a|ar"` creates `/arena` with `/a` and `/ar` as aliases.
+  
+  <Expandable title="parameters">
+    <ParamField path="labelAndAliases" type="String" required>
+      The main label and aliases separated by `|` or `/`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="SimpleCommandGroup(String label, List<String> aliases)" type="constructor">
+  Creates a new command group with explicit label and aliases.
+  
+  <Expandable title="parameters">
+    <ParamField path="label" type="String" required>
+      The main command label
+    </ParamField>
+    <ParamField path="aliases" type="List<String>" required>
+      List of command aliases
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="SimpleCommandGroup(StrictList<String> labelAndAliases)" type="constructor">
+  Creates a new command group from a list where the first item is the label and the rest are aliases.
+  
+  <Expandable title="parameters">
+    <ParamField path="labelAndAliases" type="StrictList<String>" required>
+      List containing label and aliases
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Basic example
+
+```java
+public class ArenaCommandGroup extends SimpleCommandGroup {
+    
+    public ArenaCommandGroup() {
+        super("arena|a|ar");
+    }
+    
+    @Override
+    protected void registerSubcommands() {
+        registerSubcommand(new ArenaJoinCommand());
+        registerSubcommand(new ArenaLeaveCommand());
+        registerSubcommand(new ArenaListCommand());
+    }
+}
+```
+
+## Registration
+
+### register()
+
+<ParamField path="register()" type="void">
+  Registers this command group into Bukkit and starts using it.
+  
+  Automatically registers all subcommands added in `registerSubcommands()`.
+</ParamField>
+
+### unregister()
+
+<ParamField path="unregister()" type="void">
+  Removes this command group from Bukkit.
+  
+  Takes immediate effect in the game.
+</ParamField>
+
+### isRegistered()
+
+<ParamField path="isRegistered()" type="boolean">
+  Checks if the command group has been registered.
+  
+  <Expandable title="returns">
+    <ParamField path="boolean" type="boolean">
+      True if registered
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+ArenaCommandGroup arenaCmd = new ArenaCommandGroup();
+arenaCmd.register();
+
+// Later...
+if (arenaCmd.isRegistered()) {
+    arenaCmd.unregister();
+}
+```
+
+## Core methods
+
+### registerSubcommands()
+
+<ParamField path="registerSubcommands()" type="abstract void">
+  **Required implementation.** Override this method to register your subcommands.
+  
+  Call `registerSubcommand()` for each subcommand you want to add.
+</ParamField>
+
+```java
+@Override
+protected void registerSubcommands() {
+    registerSubcommand(new CreateSubCommand());
+    registerSubcommand(new DeleteSubCommand());
+    registerSubcommand(new ListSubCommand());
+    
+    // Add help text
+    registerHelpLine(
+        "&6Arena Commands:",
+        "&e  Manage your arena battles"
+    );
+}
+```
+
+## Registering subcommands
+
+### registerSubcommand(SimpleSubCommand command)
+
+<ParamField path="registerSubcommand(SimpleSubCommand command)" type="void">
+  Registers a new subcommand for this group.
+  
+  <Expandable title="parameters">
+    <ParamField path="command" type="SimpleSubCommand" required>
+      The subcommand instance to register
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### registerSubcommand(Class\<? extends SimpleSubCommand\> parentClass)
+
+<ParamField path="registerSubcommand(Class<? extends SimpleSubCommand> parentClass)" type="void">
+  Automatically registers all extending classes for the given parent class.
+  
+  Ignores abstract classes. Child classes must be final.
+  
+  <Expandable title="parameters">
+    <ParamField path="parentClass" type="Class<? extends SimpleSubCommand>" required>
+      The parent subcommand class
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected void registerSubcommands() {
+    // Auto-register all subcommands extending ArenaSubCommand
+    registerSubcommand(ArenaSubCommand.class);
+}
+```
+
+<Note>
+When using auto-registration, ensure all child classes are `final` to avoid accidental registration of intermediate classes.
+</Note>
+
+### registerHelpLine(String... menuHelp)
+
+<ParamField path="registerHelpLine(String... menuHelp)" type="void">
+  Registers simple help messages for this group.
+  
+  Displayed in the help menu along with subcommands.
+  
+  <Expandable title="parameters">
+    <ParamField path="menuHelp" type="String..." required>
+      Help message lines
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+registerHelpLine(
+    "",
+    "&6Plugin Information:",
+    "&7Version: " + getDescription().getVersion(),
+    "&7Author: YourName"
+);
+```
+
+## Customization methods
+
+### getNoParamsHeader()
+
+<ParamField path="getNoParamsHeader()" type="List<SimpleComponent>">
+  Returns the message displayed when no parameters are given.
+  
+  By default, displays plugin credits and author information.
+  
+  <Expandable title="returns">
+    <ParamField path="List<SimpleComponent>" type="List<SimpleComponent>">
+      The header components
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected List<SimpleComponent> getNoParamsHeader() {
+    return Arrays.asList(
+        SimpleComponent.of("&8" + Common.chatLineSmooth()),
+        SimpleComponent.of("&6&lArena Plugin &7v1.0"),
+        SimpleComponent.of("&7Type &f/arena help &7for commands"),
+        SimpleComponent.of("&8" + Common.chatLineSmooth())
+    );
+}
+```
+
+### sendHelpIfNoArgs()
+
+<ParamField path="sendHelpIfNoArgs()" type="boolean">
+  Should we send command help instead of the no-params header when no arguments are provided?
+  
+  Default: `false`
+  
+  <Expandable title="returns">
+    <ParamField path="boolean" type="boolean">
+      True to show help, false to show header
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected boolean sendHelpIfNoArgs() {
+    return true; // Show help menu when just /arena is typed
+}
+```
+
+### getHelpLabel()
+
+<ParamField path="getHelpLabel()" type="List<String>">
+  Returns which subcommands should trigger the automatic help menu.
+  
+  Default: `["help", "?"]`
+  
+  <Expandable title="returns">
+    <ParamField path="List<String>" type="List<String>">
+      The help trigger labels
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected List<String> getHelpLabel() {
+    return Arrays.asList("help", "?", "commands");
+}
+```
+
+### getHelpHeader()
+
+<ParamField path="getHelpHeader()" type="String[]">
+  Returns the header messages for the help menu.
+  
+  Displayed at the top of `/arena help` or `/arena ?`.
+  
+  <Expandable title="returns">
+    <ParamField path="String[]" type="String[]">
+      The help header lines
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected String[] getHelpHeader() {
+    return new String[] {
+        "&8&m------------------------------",
+        "&6&lArena Commands",
+        " ",
+        "&2  [] &f= Optional",
+        "&6  <> &f= Required",
+        " "
+    };
+}
+```
+
+### getSubcommandDescription()
+
+<ParamField path="getSubcommandDescription()" type="String">
+  Returns the format for subcommand descriptions in the help menu.
+  
+  Available placeholders: `{label}`, `{sublabel}`, `{usage}`, `{description}`, `{dash}`
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The description format
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### getCredits()
+
+<ParamField path="getCredits()" type="String">
+  Returns credits text shown in the no-params header.
+  
+  Typically shows your website or support information.
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The credits text
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected String getCredits() {
+    return "&7Visit &fwww.example.com &7for support";
+}
+```
+
+### getHeaderPrefix()
+
+<ParamField path="getHeaderPrefix()" type="String">
+  Returns the default color/style prefix used in headers.
+  
+  Default: GOLD + BOLD
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The header prefix (color codes)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### getTheme()
+
+<ParamField path="getTheme()" type="ChatColor">
+  Returns the theme color used in various places of the help menu.
+  
+  Default: `ChatColor.GOLD`
+  
+  <Expandable title="returns">
+    <ParamField path="ChatColor" type="org.bukkit.ChatColor">
+      The theme color
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected ChatColor getTheme() {
+    return ChatColor.AQUA;
+}
+```
+
+### getCommandsPerPage()
+
+<ParamField path="getCommandsPerPage()" type="int">
+  Returns how many commands to display per page in the help menu.
+  
+  Default: `12`
+  
+  <Expandable title="returns">
+    <ParamField path="int" type="int">
+      Commands per page
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected int getCommandsPerPage() {
+    return 8; // Show fewer commands per page
+}
+```
+
+## Setters
+
+### setLabel(String label)
+
+<ParamField path="setLabel(String label)" type="void">
+  Updates the command label.
+  
+  Only works if the command is not registered yet.
+  
+  <Expandable title="parameters">
+    <ParamField path="label" type="String" required>
+      The new label
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### setAliases(List\<String\> aliases)
+
+<ParamField path="setAliases(List<String> aliases)" type="void">
+  Updates the command aliases.
+  
+  Only works if the command is not registered yet.
+  
+  <Expandable title="parameters">
+    <ParamField path="aliases" type="List<String>" required>
+      The new aliases
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<Warning>
+Both `setLabel()` and `setAliases()` can only be used before registration. Attempting to use them on a registered command group will throw an error.
+</Warning>
+
+## Getters
+
+### getLabel()
+
+<ParamField path="getLabel()" type="String">
+  Gets the main command label.
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The command label
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### getAliases()
+
+<ParamField path="getAliases()" type="List<String>">
+  Gets the command aliases.
+  
+  <Expandable title="returns">
+    <ParamField path="List<String>" type="List<String>">
+      The aliases list
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### getSender()
+
+<ParamField path="getSender()" type="CommandSender">
+  Gets the temporary sender currently viewing the command group.
+  
+  Mainly used in customization methods like `getNoParamsHeader()`.
+  
+  <Expandable title="returns">
+    <ParamField path="CommandSender" type="org.bukkit.command.CommandSender">
+      The current sender, or null
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Complete example
+
+```java
+public class ArenaCommandGroup extends SimpleCommandGroup {
+    
+    public ArenaCommandGroup() {
+        super("arena|a");
+    }
+    
+    @Override
+    protected void registerSubcommands() {
+        // Register individual subcommands
+        registerSubcommand(new ArenaJoinCommand());
+        registerSubcommand(new ArenaLeaveCommand());
+        registerSubcommand(new ArenaListCommand());
+        registerSubcommand(new ArenaCreateCommand());
+        registerSubcommand(new ArenaDeleteCommand());
+        
+        // Add custom help text
+        registerHelpLine(
+            "",
+            "&6Arena System:",
+            "&7  Create and manage PvP arenas",
+            "&7  Players can join, leave, and battle"
+        );
+    }
+    
+    @Override
+    protected boolean sendHelpIfNoArgs() {
+        return true; // Show help when /arena is typed
+    }
+    
+    @Override
+    protected ChatColor getTheme() {
+        return ChatColor.RED; // Use red theme for arena commands
+    }
+    
+    @Override
+    protected String getCredits() {
+        return "&7Arena plugin by &fYourName";
+    }
+    
+    @Override
+    protected String[] getHelpHeader() {
+        return new String[] {
+            "&8&m------------------------------",
+            "&c&lArena Commands &7v1.0",
+            " ",
+            "&2  [] &f= Optional parameter",
+            "&c  <> &f= Required parameter",
+            " "
+        };
+    }
+}
+```
+
+## Automatic features
+
+The command group automatically provides:
+
+<Tabs>
+  <Tab title="Help menu">
+    Players can type `/arena help` or `/arena ?` to see all subcommands they have permission for.
+    
+    The help menu includes:
+    - Command usage syntax
+    - Description (on hover in 1.7+)
+    - Required permission (on hover)
+    - Click to suggest command
+    - Automatic pagination
+  </Tab>
+  
+  <Tab title="Tab completion">
+    Automatically completes:
+    - Subcommand names when typing `/arena <tab>`
+    - Delegates to subcommand tab completion for further arguments
+    - Only shows subcommands the player has permission for
+  </Tab>
+  
+  <Tab title="Permission handling">
+    - Subcommands inherit the main command label
+    - Default permission format: `plugin.command.{label}.{sublabel}`
+    - Players only see subcommands they can use
+  </Tab>
+  
+  <Tab title="Error handling">
+    - Invalid subcommands show an error
+    - No permissions show appropriate message
+    - Automatic usage display on invalid arguments
+  </Tab>
+</Tabs>
+
+## Registration patterns
+
+### In your main plugin class
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    @Override
+    protected void onPluginStart() {
+        ArenaCommandGroup arenaCmd = new ArenaCommandGroup();
+        arenaCmd.register();
+    }
+}
+```
+
+### Using auto-register annotation
+
+```java
+@AutoRegister
+public class ArenaCommandGroup extends SimpleCommandGroup {
+    // Constructor and methods...
+}
+```
+
+<Note>
+The `@AutoRegister` annotation automatically registers your command group when the plugin starts, as long as it has a no-args constructor.
+</Note>
+
+## See also
+
+- [SimpleCommand](/api/commands/simple-command) - Base command class
+- [SimpleSubCommand](/api/commands/sub-command) - For creating subcommands

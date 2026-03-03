@@ -1,0 +1,480 @@
+---
+title: SimpleSubCommand
+description: A subcommand belonging to a SimpleCommandGroup
+---
+
+## Overview
+
+`SimpleSubCommand` represents a subcommand within a [SimpleCommandGroup](/api/commands/command-group). For example, in `/arena join`, "join" would be a SimpleSubCommand belonging to the "arena" command group.
+
+SimpleSubCommand extends [SimpleCommand](/api/commands/simple-command), so it inherits all the convenience methods, checks, and messaging utilities.
+
+## Class hierarchy
+
+```java
+org.bukkit.command.Command
+  └── org.mineacademy.fo.command.SimpleCommand
+        └── org.mineacademy.fo.command.SimpleSubCommand
+```
+
+## Creating a subcommand
+
+### Constructors
+
+<ParamField path="SimpleSubCommand(String sublabel)" type="constructor">
+  Creates a new subcommand for the main plugin command group.
+  
+  The main command group must be defined in your plugin's main class.
+  
+  Separate sublabels with `|` or `/` to add aliases.
+  
+  **Example:** `"join|j"` creates `/arena join` that can also be called with `/arena j`.
+  
+  <Expandable title="parameters">
+    <ParamField path="sublabel" type="String" required>
+      The sublabel, optionally with aliases separated by `|` or `/`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="SimpleSubCommand(SimpleCommandGroup parent, String sublabel)" type="constructor">
+  Creates a new subcommand for a specific command group.
+  
+  <Expandable title="parameters">
+    <ParamField path="parent" type="SimpleCommandGroup" required>
+      The parent command group
+    </ParamField>
+    <ParamField path="sublabel" type="String" required>
+      The sublabel, optionally with aliases separated by `|` or `/`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Basic example
+
+```java
+public class ArenaJoinCommand extends SimpleSubCommand {
+    
+    public ArenaJoinCommand() {
+        super("join|j"); // Can use /arena join or /arena j
+        
+        setDescription("Join an arena");
+        setUsage("<arena_name>");
+        setMinArguments(1);
+    }
+    
+    @Override
+    protected void onCommand() {
+        checkConsole(); // Players only
+        
+        Player player = getPlayer();
+        String arenaName = args[0];
+        
+        // Join arena logic...
+        tellSuccess("Joined arena: " + arenaName);
+    }
+}
+```
+
+## Core methods
+
+### onCommand()
+
+<ParamField path="onCommand()" type="abstract void">
+  **Required implementation.** Executed when the subcommand is run.
+  
+  Access `sender` and `args` fields directly. Args do not include the sublabel.
+</ParamField>
+
+```java
+@Override
+protected void onCommand() {
+    // For /arena create MyArena
+    // args[0] = "MyArena"
+    // The "create" sublabel is not in args
+    
+    checkConsole();
+    String arenaName = args[0];
+    
+    // Create arena...
+    tellSuccess("Created arena: " + arenaName);
+}
+```
+
+### showInHelp()
+
+<ParamField path="showInHelp()" type="boolean">
+  Determines if this subcommand should appear in the help menu.
+  
+  Default: `true`
+  
+  <Expandable title="returns">
+    <ParamField path="boolean" type="boolean">
+      True to show in help menu
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected boolean showInHelp() {
+    // Hide admin commands from normal help menu
+    return sender.hasPermission("arena.admin");
+}
+```
+
+## Permissions
+
+Subcommand permissions are automatically enhanced based on the parent command:
+
+### Default permission format
+
+<Tabs>
+  <Tab title="Main command group">
+    If this subcommand belongs to your plugin's main command group:
+    
+    ```
+    {plugin}.command.{sublabel}
+    ```
+    
+    Example: For `/chatcontrol mute` → `chatcontrol.command.mute`
+  </Tab>
+  
+  <Tab title="Secondary command group">
+    If this subcommand belongs to a different command group:
+    
+    ```
+    {plugin}.command.{label}.{sublabel}
+    ```
+    
+    Example: For `/arena join` → `myplugin.command.arena.join`
+  </Tab>
+</Tabs>
+
+### Custom permissions
+
+```java
+public ArenaAdminCommand() {
+    super("admin");
+    
+    // Override default permission
+    setPermission("arena.admin.manage");
+}
+```
+
+## Sublabels and aliases
+
+### getSublabels()
+
+<ParamField path="getSublabels()" type="String[]">
+  Gets all registered sublabels (including aliases).
+  
+  <Expandable title="returns">
+    <ParamField path="String[]" type="String[]">
+      Array of all sublabels
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### getSublabel()
+
+<ParamField path="getSublabel()" type="String">
+  Gets the current sublabel used when the command was executed.
+  
+  This is updated dynamically to reflect which alias was used.
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The current sublabel
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+public class TeleportCommand extends SimpleSubCommand {
+    
+    public TeleportCommand() {
+        super("teleport|tp|warp");
+    }
+    
+    @Override
+    protected void onCommand() {
+        // getSublabel() returns "teleport", "tp", or "warp"
+        // depending on what the player typed
+        tell("You used: /arena " + getSublabel());
+    }
+}
+```
+
+## Placeholder replacement
+
+SimpleSubCommand adds the `{sublabel}` placeholder to all messages:
+
+### replacePlaceholders(String message)
+
+<ParamField path="replacePlaceholders(String message)" type="String">
+  Replaces placeholders in messages.
+  
+  Available placeholders:
+  - `{sublabel}` - The current sublabel
+  - All placeholders from [SimpleCommand](/api/commands/simple-command#placeholder-replacement)
+  
+  <Expandable title="parameters">
+    <ParamField path="message" type="String" required>
+      The message with placeholders
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    <ParamField path="String" type="String">
+      The message with placeholders replaced
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```java
+@Override
+protected void onCommand() {
+    tell("Usage: /{label} {sublabel} <player>");
+    // Output: "Usage: /arena join <player>"
+}
+```
+
+## Inherited features
+
+SimpleSubCommand inherits all features from [SimpleCommand](/api/commands/simple-command):
+
+<Tabs>
+  <Tab title="Convenience checks">
+    - `checkConsole()` - Require player sender
+    - `checkPerm(String)` - Check permissions
+    - `checkArgs(int, String)` - Validate argument count
+    - `checkBoolean(boolean, String)` - Assert conditions
+    - `checkNotNull(Object, String)` - Null checks
+  </Tab>
+  
+  <Tab title="Finding entities">
+    - `findPlayer(String)` - Find online player
+    - `findPlayerOrSelf(int)` - Player or command sender
+    - `findOfflinePlayer(String, Consumer)` - Async offline player lookup
+    - `findWorld(String)` - Find world by name
+    - `findMaterial(String, String)` - Find material
+    - `findEnum(Class, String, String)` - Find enum value
+  </Tab>
+  
+  <Tab title="Parsing values">
+    - `findNumber(int, String)` - Parse integer
+    - `findNumber(int, int, int, String)` - Parse bounded integer
+    - `findBoolean(int, String)` - Parse boolean
+    - `findTime(String)` - Parse time duration
+  </Tab>
+  
+  <Tab title="Messaging">
+    - `tell(String...)` - Send messages
+    - `tellSuccess(String)` - Success message
+    - `tellError(String)` - Error message
+    - `tellWarn(String)` - Warning message
+    - `tellInfo(String)` - Info message
+    - `returnTell(String...)` - Send and stop execution
+  </Tab>
+  
+  <Tab title="Configuration">
+    - `setMinArguments(int)` - Minimum args required
+    - `setCooldown(int, TimeUnit)` - Command cooldown
+    - `setPermission(String)` - Override permission
+    - `setDescription(String)` - Set description
+    - `setUsage(String)` - Set usage format
+  </Tab>
+  
+  <Tab title="Tab completion">
+    - `tabComplete()` - Override for custom completion
+    - `completeLastWord(T...)` - Complete with suggestions
+    - `completeLastWordPlayerNames()` - Complete player names
+    - `completeLastWordWorldNames()` - Complete world names
+  </Tab>
+</Tabs>
+
+## Complete example
+
+```java
+public class ArenaJoinCommand extends SimpleSubCommand {
+    
+    public ArenaJoinCommand() {
+        super("join|j|enter");
+        
+        setDescription("Join an arena to start battling");
+        setUsage("<arena_name> [team]");
+        setMinArguments(1);
+        setCooldown(3, TimeUnit.SECONDS);
+    }
+    
+    @Override
+    protected void onCommand() {
+        checkConsole(); // Players only
+        
+        Player player = getPlayer();
+        String arenaName = args[0];
+        
+        // Find arena
+        Arena arena = ArenaManager.findArena(arenaName);
+        checkNotNull(arena, "Arena '{0}' not found!".replace("{0}", arenaName));
+        
+        // Check if arena is full
+        checkBoolean(!arena.isFull(), "Arena is full!");
+        
+        // Optional team parameter
+        String team = args.length > 1 ? args[1] : null;
+        
+        if (team != null) {
+            ArenaTeam arenaTeam = findEnum(ArenaTeam.class, team, 
+                "Invalid team {enum}! Available: {available}");
+            arena.addPlayer(player, arenaTeam);
+        } else {
+            arena.addPlayer(player);
+        }
+        
+        tellSuccess("Joined arena: " + arena.getName());
+        
+        if (team != null)
+            tellInfo("Team: " + team);
+    }
+    
+    @Override
+    protected List<String> tabComplete() {
+        // Complete arena names
+        if (args.length == 1)
+            return completeLastWord(ArenaManager.getArenaNames());
+        
+        // Complete team names
+        if (args.length == 2)
+            return completeLastWord(ArenaTeam.values());
+        
+        return NO_COMPLETE;
+    }
+    
+    @Override
+    protected String[] getMultilineUsageMessage() {
+        return new String[] {
+            "&6Join an arena:",
+            "&e  /{label} {sublabel} <arena> &7- Join any team",
+            "&e  /{label} {sublabel} <arena> <team> &7- Join specific team",
+            "",
+            "&7Examples:",
+            "&f  /{label} {sublabel} PvPArena",
+            "&f  /{label} {sublabel} PvPArena red"
+        };
+    }
+}
+```
+
+## Advanced example with multiple aliases
+
+```java
+public class ArenaTeleportCommand extends SimpleSubCommand {
+    
+    public ArenaTeleportCommand() {
+        super("teleport|tp|warp|goto");
+        
+        setDescription("Teleport to an arena lobby");
+        setUsage("<arena_name>");
+        setPermission("arena.teleport");
+        setMinArguments(1);
+    }
+    
+    @Override
+    protected void onCommand() {
+        checkConsole();
+        
+        Player player = getPlayer();
+        String arenaName = args[0];
+        
+        Arena arena = ArenaManager.findArena(arenaName);
+        checkNotNull(arena, "Arena not found!");
+        
+        Location lobby = arena.getLobbyLocation();
+        checkNotNull(lobby, "Arena has no lobby set!");
+        
+        player.teleport(lobby);
+        
+        // Use {sublabel} to show which alias they used
+        tellSuccess("Teleported via /{label} {sublabel}");
+    }
+    
+    @Override
+    protected List<String> tabComplete() {
+        if (args.length == 1)
+            return completeLastWord(ArenaManager.getArenaNames());
+        
+        return NO_COMPLETE;
+    }
+    
+    @Override
+    protected boolean showInHelp() {
+        // Only show to players with permission
+        return hasPerm("arena.teleport");
+    }
+}
+```
+
+## Registration
+
+Subcommands are registered through their parent [SimpleCommandGroup](/api/commands/command-group):
+
+```java
+public class ArenaCommandGroup extends SimpleCommandGroup {
+    
+    public ArenaCommandGroup() {
+        super("arena");
+    }
+    
+    @Override
+    protected void registerSubcommands() {
+        // Register each subcommand
+        registerSubcommand(new ArenaJoinCommand());
+        registerSubcommand(new ArenaLeaveCommand());
+        registerSubcommand(new ArenaListCommand());
+    }
+}
+```
+
+<Note>
+Subcommands cannot be registered directly - they must be registered through a SimpleCommandGroup.
+</Note>
+
+## Best practices
+
+<Tabs>
+  <Tab title="Organization">
+    - One subcommand per class
+    - Group related subcommands in the same package
+    - Use descriptive class names: `ArenaJoinCommand`, not `JoinCmd`
+    - Make classes `final` when using auto-registration
+  </Tab>
+  
+  <Tab title="User experience">
+    - Provide clear, helpful usage messages
+    - Use multiline usage for complex commands
+    - Implement tab completion for all arguments
+    - Give descriptive error messages
+    - Use `{sublabel}` placeholder in messages
+  </Tab>
+  
+  <Tab title="Permissions">
+    - Follow a consistent permission scheme
+    - Use descriptive permission nodes
+    - Document required permissions
+    - Check permissions before expensive operations
+  </Tab>
+  
+  <Tab title="Validation">
+    - Validate all user input
+    - Use convenience checks (`checkConsole`, `checkArgs`, etc.)
+    - Provide helpful error messages
+    - Fail fast with `returnTell` when appropriate
+  </Tab>
+</Tabs>
+
+## See also
+
+- [SimpleCommand](/api/commands/simple-command) - Parent class with all base functionality
+- [SimpleCommandGroup](/api/commands/command-group) - For organizing subcommands

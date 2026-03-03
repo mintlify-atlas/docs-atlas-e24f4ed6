@@ -1,0 +1,422 @@
+---
+title: Configuration
+description: Create auto-updating configuration files with SimpleSettings and YamlStaticConfig
+---
+
+Foundation provides powerful configuration management with automatic updates, type safety, and static access patterns. Configuration files automatically update when you add new keys while preserving user values.
+
+## SimpleSettings class
+
+The `SimpleSettings` class is designed for your main `settings.yml` configuration file. It provides static access to configuration values and automatic file updates.
+
+### Creating your settings class
+
+Create a settings class that extends `SimpleSettings`:
+
+```java
+public class Settings extends SimpleSettings {
+    
+    @Override
+    protected int getConfigVersion() {
+        return 1; // Increment when you make changes
+    }
+}
+```
+
+Then load it in your main plugin class:
+
+```java
+public class MyPlugin extends SimplePlugin {
+    
+    @Override
+    protected void onPluginStart() {
+        // Load settings
+        Settings.load(Settings.class);
+    }
+}
+```
+
+### Adding configuration values
+
+Define configuration values as static fields and load them in private `init()` methods:
+
+```java
+public class Settings extends SimpleSettings {
+    
+    public static String SERVER_NAME;
+    public static Integer MAX_PLAYERS;
+    public static Boolean ENABLE_FEATURE;
+    public static List<String> BLOCKED_WORLDS;
+    
+    private static void init() {
+        SERVER_NAME = getString("Server_Name", "My Server");
+        MAX_PLAYERS = getInteger("Max_Players", 100);
+        ENABLE_FEATURE = getBoolean("Enable_Feature", true);
+        BLOCKED_WORLDS = getStringList("Blocked_Worlds");
+    }
+    
+    @Override
+    protected int getConfigVersion() {
+        return 1;
+    }
+}
+```
+
+### Default file location
+
+Place your default `settings.yml` in `src/main/resources/settings.yml`:
+
+```yaml
+# Your plugin settings
+Server_Name: My Server
+Max_Players: 100
+Enable_Feature: true
+Blocked_Worlds:
+  - world_nether
+  - world_the_end
+```
+
+### Accessing settings
+
+Access settings statically from anywhere:
+
+```java
+String serverName = Settings.SERVER_NAME;
+int maxPlayers = Settings.MAX_PLAYERS;
+
+if (Settings.ENABLE_FEATURE) {
+    // Feature is enabled
+}
+
+if (Settings.BLOCKED_WORLDS.contains(worldName)) {
+    // World is blocked
+}
+```
+
+## Built-in settings
+
+`SimpleSettings` provides common settings used by most plugins:
+
+```java
+// Plugin prefix for messages
+SimpleSettings.PLUGIN_PREFIX // Default: "&7PluginName //"
+
+// Debug sections to enable
+SimpleSettings.DEBUG_SECTIONS // Default: []
+
+// Update checker
+SimpleSettings.NOTIFY_UPDATES // Default: true
+
+// Locale for localization
+SimpleSettings.LOCALE_PREFIX // Default: "en"
+
+// Main command aliases
+SimpleSettings.MAIN_COMMAND_ALIASES // Default: []
+
+// Performance monitoring
+SimpleSettings.LAG_THRESHOLD_MILLIS // Default: 100
+SimpleSettings.REGEX_TIMEOUT // Default: 100
+
+// Date formats
+SimpleSettings.DATE_FORMAT // Default: "dd.MM.yyyy HH:mm:ss"
+SimpleSettings.DATE_FORMAT_SHORT // Default: "dd.MM.yyyy HH:mm"
+SimpleSettings.LOCATION_FORMAT // Default: "{world} [{x}, {y}, {z}]"
+```
+
+These are automatically loaded if the keys exist in your `settings.yml`.
+
+## Auto-updating configurations
+
+Foundation automatically updates configuration files when you add new keys:
+
+<Steps>
+  <Step title="User has old config">
+    User runs version 1.0 with this `settings.yml`:
+    
+    ```yaml
+    Version: 1
+    Server_Name: My Server
+    ```
+  </Step>
+  
+  <Step title="You add new features">
+    You release version 2.0 with new config keys:
+    
+    ```java
+    public static Boolean NEW_FEATURE;
+    public static Integer NEW_SETTING;
+    
+    private static void init() {
+        SERVER_NAME = getString("Server_Name");
+        NEW_FEATURE = getBoolean("New_Feature");
+        NEW_SETTING = getInteger("New_Setting");
+    }
+    
+    @Override
+    protected int getConfigVersion() {
+        return 2; // Increment version
+    }
+    ```
+    
+    And update your default file:
+    
+    ```yaml
+    Version: 2
+    Server_Name: My Server
+    New_Feature: true
+    New_Setting: 50
+    ```
+  </Step>
+  
+  <Step title="Auto-update on load">
+    When user loads your plugin, Foundation:
+    1. Detects version difference (1 vs 2)
+    2. Copies new keys from default file
+    3. Preserves user's existing values
+    4. Logs what was updated
+    5. Updates version to 2
+    
+    Result:
+    ```yaml
+    Version: 2
+    Server_Name: My Server  # User's value preserved
+    New_Feature: true       # Added from default
+    New_Setting: 50         # Added from default
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Foundation automatically preserves all user values while adding new keys from your default configuration file.
+</Note>
+
+## YamlStaticConfig for custom files
+
+For custom configuration files, extend `YamlStaticConfig`:
+
+```java
+public class Rewards extends YamlStaticConfig {
+    
+    public static Integer DAILY_REWARD;
+    public static ItemStack WELCOME_ITEM;
+    public static List<String> REWARD_COMMANDS;
+    
+    @Override
+    protected void onLoad() {
+        // Specify the file path
+        loadConfiguration("rewards.yml");
+    }
+    
+    private static void init() {
+        DAILY_REWARD = getInteger("Daily_Reward");
+        WELCOME_ITEM = getItem("Welcome_Item");
+        REWARD_COMMANDS = getStringList("Reward_Commands");
+    }
+}
+```
+
+Then load it:
+
+```java
+Rewards.load(Rewards.class);
+```
+
+## Organized configuration with sections
+
+Use nested classes for organized configuration:
+
+```java
+public class Settings extends SimpleSettings {
+    
+    public static class Database {
+        public static String HOST;
+        public static Integer PORT;
+        public static String NAME;
+        
+        private static void init() {
+            setPathPrefix("Database");
+            
+            HOST = getString("Host");
+            PORT = getInteger("Port");
+            NAME = getString("Name");
+        }
+    }
+    
+    public static class Messages {
+        public static String WELCOME;
+        public static String GOODBYE;
+        
+        private static void init() {
+            setPathPrefix("Messages");
+            
+            WELCOME = getString("Welcome");
+            GOODBYE = getString("Goodbye");
+        }
+    }
+    
+    @Override
+    protected int getConfigVersion() {
+        return 1;
+    }
+}
+```
+
+With this structure in `settings.yml`:
+
+```yaml
+Database:
+  Host: localhost
+  Port: 3306
+  Name: mydb
+
+Messages:
+  Welcome: '&aWelcome to the server!'
+  Goodbye: '&cSee you later!'
+```
+
+Access nested settings:
+
+```java
+String host = Settings.Database.HOST;
+String welcome = Settings.Messages.WELCOME;
+```
+
+## Available getter methods
+
+Foundation provides type-safe getters for common data types:
+
+```java
+// Primitives and strings
+String value = getString("key");
+Integer number = getInteger("key");
+Long longNum = getLong("key");
+Double decimal = getDouble("key");
+Boolean flag = getBoolean("key");
+
+// Lists
+List<String> strings = getStringList("key");
+StrictList<String> strict = getCommandList("key"); // Removes empty entries
+
+// Complex types
+ItemStack item = getItem("key");
+Location location = getLocation("key");
+CompMaterial material = getMaterial("key");
+SimpleSound sound = getSound("key");
+SimpleTime time = getTime("key");
+
+// Enums
+GameMode mode = get("key", GameMode.class);
+
+// Custom serializable objects
+MyObject obj = get("key", MyObject.class);
+
+// Maps
+LinkedHashMap<String, Object> map = getMap("key");
+```
+
+## Configuration with defaults
+
+Provide default values for keys that might not exist:
+
+```java
+private static void init() {
+    // Returns default if key doesn't exist
+    SERVER_NAME = getString("Server_Name", "Default Server");
+    MAX_PLAYERS = getInteger("Max_Players", 100);
+    ENABLE_PVP = getBoolean("Enable_PVP", false);
+}
+```
+
+## Migrating old configuration keys
+
+Move keys to new locations while preserving user values:
+
+```java
+private static void init() {
+    // Move old key to new location
+    if (isSet("Old_Key_Name")) {
+        move("Old_Key_Name", "New.Path.Key_Name");
+    }
+    
+    setPathPrefix("New.Path");
+    KEY_NAME = getString("Key_Name");
+}
+```
+
+## Saving configurations
+
+Configurations are saved automatically when needed. You can also save manually:
+
+```java
+// Save a value
+set("Some.Key", "New Value");
+save(); // Optional, auto-saves on changes
+```
+
+<Warning>
+  Don't modify static configuration values at runtime. They're loaded once at startup/reload. To save new values, use `set()` and `save()`.
+</Warning>
+
+## Comments and formatting
+
+Foundation automatically preserves comments from your default configuration file:
+
+```yaml
+# This is the server name shown to players
+Server_Name: My Server
+
+# Maximum number of players allowed
+# Set to -1 for unlimited
+Max_Players: 100
+```
+
+Comments are maintained when the file is updated.
+
+## Best practices
+
+<Accordion title="Use descriptive key names">
+  Use clear, understandable key names:
+  - ✅ `Enable_Death_Messages`
+  - ❌ `EDM`
+</Accordion>
+
+<Accordion title="Group related settings">
+  Use nested classes and path prefixes to organize related settings:
+  
+  ```java
+  public static class Combat {
+      public static Boolean ENABLE_PVP;
+      public static Integer COMBAT_TAG_DURATION;
+  }
+  ```
+</Accordion>
+
+<Accordion title="Provide sensible defaults">
+  Always provide default values for optional settings:
+  
+  ```java
+  RESPAWN_DELAY = getInteger("Respawn_Delay", 5);
+  ```
+</Accordion>
+
+<Accordion title="Increment config version on changes">
+  Always increment `getConfigVersion()` when adding or removing keys.
+</Accordion>
+
+<Accordion title="Never use primitive types">
+  Use wrapper classes (Integer, Boolean) instead of primitives (int, boolean) to allow null checking:
+  
+  ```java
+  public static Integer MAX_PLAYERS; // ✅ Good
+  public static int MAX_PLAYERS;     // ❌ Bad
+  ```
+</Accordion>
+
+<Accordion title="Document your default config">
+  Add helpful comments in your default YAML file to guide users.
+</Accordion>
+
+## Related documentation
+
+- [SimplePlugin](/core/simple-plugin) - Load configurations in the plugin lifecycle
+- [Localization](/core/localization) - Multi-language message files

@@ -1,0 +1,576 @@
+---
+title: SimpleLocalization
+description: A static localization class for managing multi-language support in your plugin
+---
+
+## Overview
+
+`SimpleLocalization` is a static implementation for managing localization files. It automatically creates and updates `localization/messages_<LOCALE>.yml` files based on templates in your plugin JAR.
+
+**Package:** `org.mineacademy.fo.settings`
+
+**Extends:** `YamlStaticConfig`
+
+<Note>
+SimpleLocalization works together with SimpleSettings.LOCALE_PREFIX to determine which language file to load.
+</Note>
+
+## How it works
+
+1. Include a `localization/messages_en.yml` (or other locales) in your plugin JAR
+2. Set the locale in your settings.yml: `Locale: en`
+3. Foundation extracts and loads the appropriate locale file
+4. Access localized messages from the static fields
+
+## Built-in message groups
+
+Foundation provides several pre-configured message categories with sensible defaults.
+
+### Commands
+
+Messages related to command usage and errors.
+
+#### NO_CONSOLE
+
+```java
+public static String NO_CONSOLE
+```
+
+Shown when console tries to execute a player-only command.
+
+**Default:** `"&cYou may only use this command as a player"`
+
+#### CONSOLE_MISSING_PLAYER_NAME
+
+```java
+public static String CONSOLE_MISSING_PLAYER_NAME
+```
+
+Shown when console runs a command without specifying the player name.
+
+**Default:** `"When running from console, specify player name."`
+
+#### COOLDOWN_WAIT
+
+```java
+public static String COOLDOWN_WAIT
+```
+
+Shown when a player must wait before using a command again.
+
+**Default:** `"&cWait {duration} second(s) before using this command again."`
+
+**Placeholders:** `{duration}` - seconds remaining
+
+#### Invalid argument messages
+
+```java
+public static String INVALID_ARGUMENT
+public static String INVALID_SUB_ARGUMENT
+public static String INVALID_ARGUMENT_MULTILINE
+public static String INVALID_TIME
+public static String INVALID_NUMBER
+public static String INVALID_STRING
+public static String INVALID_WORLD
+```
+
+Shown when players provide invalid input to commands.
+
+**Example YAML:**
+
+```yaml
+Commands:
+  Invalid_Argument: "&cInvalid argument. Run &6/{label} ? &cfor help."
+  Invalid_Time: "Expected time such as '3 hours' or '15 minutes'. Got: '{input}'"
+  Invalid_Number: "The number must be a whole or a decimal number. Got: '{input}'"
+  Invalid_World: "Invalid world '{world}'. Available: {available}"
+```
+
+#### Help labels
+
+```java
+public static String LABEL_AUTHORS
+public static String LABEL_DESCRIPTION
+public static String LABEL_OPTIONAL_ARGS
+public static String LABEL_REQUIRED_ARGS
+public static String LABEL_USAGE
+public static String LABEL_HELP_FOR
+public static String LABEL_SUBCOMMAND_DESCRIPTION
+```
+
+Labels used in command help displays.
+
+#### Reload messages
+
+```java
+public static String RELOAD_DESCRIPTION
+public static String RELOAD_STARTED
+public static String RELOAD_SUCCESS
+public static String RELOAD_FILE_LOAD_ERROR
+public static String RELOAD_FAIL
+```
+
+Messages for the built-in reload command.
+
+**Example usage:**
+
+```yaml
+Commands:
+  Reload_Description: "Reload the configuration."
+  Reload_Started: "Reloading plugin's data, please wait.."
+  Reload_Success: "&6{plugin_name} {plugin_version} has been reloaded."
+  Reload_Fail: "&4Oups, &creloading failed! See the console for more information. Error: {error}"
+```
+
+#### Header customization
+
+```java
+public static ChatColor HEADER_COLOR
+public static ChatColor HEADER_SECONDARY_COLOR
+public static String HEADER_FORMAT
+public static String HEADER_CENTER_LETTER
+public static Integer HEADER_CENTER_PADDING
+```
+
+Customize the appearance of command help headers.
+
+**Example YAML:**
+
+```yaml
+Commands:
+  Header_Color: GOLD
+  Header_Secondary_Color: RED
+  Header_Format: "&r\n{theme_color}&m<center>&r{theme_color} {title} &m\n&r"
+  Header_Center_Letter: "-"
+  Header_Center_Padding: 130
+```
+
+### Conversation
+
+Messages for the conversation API (player chat input).
+
+```java
+public static String CONVERSATION_NOT_CONVERSING
+public static String CONVERSATION_REQUIRES_PLAYER
+public static String CONVERSATION_ERROR
+public static String CONVERSATION_CANCELLED
+public static String CONVERSATION_CANCELLED_INACTIVE
+```
+
+**Example YAML:**
+
+```yaml
+Conversation:
+  Not_Conversing: "&cYou must be conversing with the server!"
+  Requires_Player: "Only players may enter this conversation."
+  Error: "&cOups! There was a problem in this conversation!"
+  Conversation_Cancelled: "Your pending chat answer has been canceled."
+  Conversation_Cancelled_Inactive: "Your pending chat answer has been canceled because you were inactive."
+```
+
+### Player
+
+Messages related to player lookups.
+
+```java
+public static String NOT_ONLINE
+public static String NOT_PLAYED_BEFORE
+public static String INVALID_UUID
+```
+
+**Example YAML:**
+
+```yaml
+Player:
+  Not_Online: "&cPlayer {player} &cis not online on this server."
+  Not_Played_Before: "&cPlayer {player} &chas not played before."
+  Invalid_UUID: "&cCould not find a player from UUID {uuid}."
+```
+
+### Pages
+
+Messages for the ChatPaginator system.
+
+```java
+public static String NO_PAGE_NUMBER
+public static String NO_PAGES
+public static String NO_PAGE
+public static String INVALID_PAGE
+public static String GO_TO_PAGE
+public static String GO_TO_FIRST_PAGE
+public static String GO_TO_LAST_PAGE
+public static String[] TOOLTIP
+```
+
+**Example YAML:**
+
+```yaml
+Pages:
+  No_Page_Number: "&cPlease specify the page number for this command."
+  No_Pages: "There are no results to list."
+  Invalid_Page: "&cYour input '{input}' is not a valid number."
+  Go_To_Page: "&7Go to page {page}"
+  Tooltip:
+    - "&7You can also navigate using the"
+    - "&7hidden /#flp <page> command."
+```
+
+### Menu
+
+Messages for the GUI menu system.
+
+```java
+public static String ITEM_DELETED
+public static String CANNOT_OPEN_DURING_CONVERSATION
+public static String ERROR
+public static String PAGE_PREVIOUS
+public static String PAGE_NEXT
+public static String PAGE_FIRST
+public static String PAGE_LAST
+public static String TITLE_TOOLS
+public static String TOOLTIP_INFO
+public static String BUTTON_RETURN_TITLE
+public static String[] BUTTON_RETURN_LORE
+```
+
+**Example YAML:**
+
+```yaml
+Menu:
+  Item_Deleted: "&2The {item} has been deleted."
+  Cannot_Open_During_Conversation: "&cType 'exit' to quit your conversation before opening menu."
+  Error: "&cOups! There was a problem with this menu!"
+  Page_Previous: "&8<< &fPage {page}"
+  Page_Next: "Page {page} &8>>"
+  Title_Tools: "Tools Menu"
+  Button_Return_Title: "&4&lReturn"
+  Button_Return_Lore:
+    - ""
+    - "Return back."
+```
+
+### Tool
+
+Messages for the tool system.
+
+```java
+public static String ERROR
+```
+
+**Example YAML:**
+
+```yaml
+Tool:
+  Error: "&cOups! There was a problem with this tool!"
+```
+
+### Cases
+
+Time unit names for duration formatting.
+
+```java
+public static AccusativeHelper SECOND
+public static AccusativeHelper MINUTE
+public static AccusativeHelper HOUR
+public static AccusativeHelper DAY
+public static AccusativeHelper WEEK
+public static AccusativeHelper MONTH
+public static AccusativeHelper YEAR
+```
+
+**Example YAML:**
+
+```yaml
+Cases:
+  Second: "second, seconds"
+  Minute: "minute, minutes"
+  Hour: "hour, hours"
+  Day: "day, days"
+  Week: "week, weeks"
+  Month: "month, months"
+  Year: "year, years"
+```
+
+**Usage:**
+
+```java
+String formatted = TimeUtil.formatTime(120); // "2 minutes"
+```
+
+### Update
+
+Messages for the automatic update checker.
+
+```java
+public static String AVAILABLE
+public static String DOWNLOADED
+```
+
+**Example YAML:**
+
+```yaml
+Update:
+  Available: |
+    &2A new version of &3{plugin_name}&2 is available.
+    &2Current version: &f{current}&2; New version: &f{new}
+    &2URL: &7https://spigotmc.org/resources/{resource_id}/.
+  Downloaded: |
+    &3{plugin_name}&2 has been upgraded from {current} to {new}.
+    &2Please restart the server to load the new version.
+```
+
+## Global messages
+
+### NO_PERMISSION
+
+```java
+public static String NO_PERMISSION
+```
+
+Shown when a player lacks permission to execute a command.
+
+**Default:** `"&cInsufficient permission ({permission})."`
+
+**Placeholder:** `{permission}` - the required permission
+
+### SERVER_PREFIX
+
+```java
+public static String SERVER_PREFIX
+```
+
+The server prefix for messages from console to players.
+
+**Default:** `"[Server]"`
+
+### CONSOLE_NAME
+
+```java
+public static String CONSOLE_NAME
+```
+
+Localized name for the console.
+
+**Default:** `"Console"`
+
+### DATA_MISSING
+
+```java
+public static String DATA_MISSING
+```
+
+Shown when a data file section is missing.
+
+**Default:** `"&c{name} lacks database information! Please only create {type} in-game! Skipping.."`
+
+### NONE
+
+```java
+public static String NONE
+```
+
+The "none" message.
+
+**Default:** `"None"`
+
+## Core methods
+
+### getConfigVersion
+
+```java
+protected int getConfigVersion()
+```
+
+Return the latest localization file version.
+
+**Returns:** `1` by default
+
+**Example:**
+
+```java
+@Override
+protected int getConfigVersion() {
+    return 2;
+}
+```
+
+### isLocalizationCalled
+
+```java
+public static final Boolean isLocalizationCalled()
+```
+
+Checks if the localization class has been loaded.
+
+**Returns:** `true` if loaded, `false` otherwise
+
+### resetLocalizationCall
+
+```java
+public static final void resetLocalizationCall()
+```
+
+Resets the loaded flag. Used internally during reloading.
+
+## Creating custom localization
+
+Extend SimpleLocalization to add your own messages:
+
+```java
+package com.example.myplugin.settings;
+
+import org.mineacademy.fo.settings.SimpleLocalization;
+
+public class Localization extends SimpleLocalization {
+
+    /**
+     * Custom messages
+     */
+    public static class Arena {
+        public static String JOINED;
+        public static String LEFT;
+        public static String GAME_STARTING;
+        public static String WINNER_ANNOUNCEMENT;
+
+        private static void init() {
+            setPathPrefix("Arena");
+
+            if (isSetDefault("Joined"))
+                JOINED = getString("Joined");
+
+            if (isSetDefault("Left"))
+                LEFT = getString("Left");
+
+            if (isSetDefault("Game_Starting"))
+                GAME_STARTING = getString("Game_Starting");
+
+            if (isSetDefault("Winner_Announcement"))
+                WINNER_ANNOUNCEMENT = getString("Winner_Announcement");
+        }
+    }
+
+    @Override
+    protected int getConfigVersion() {
+        return 2;
+    }
+}
+```
+
+**Create localization/messages_en.yml in your resources:**
+
+```yaml
+# DO NOT EDIT
+Version: 2
+
+# Permission denial message
+No_Permission: "&cInsufficient permission ({permission})."
+
+# Arena messages
+Arena:
+  Joined: "&aYou joined arena {arena}!"
+  Left: "&cYou left arena {arena}!"
+  Game_Starting: "&eGame starting in {seconds} seconds..."
+  Winner_Announcement: "&6&l{player} &ewon the game!"
+
+# Include all Foundation defaults or they won't be available
+Commands:
+  No_Console: "&cYou may only use this command as a player"
+  # ... other command messages
+```
+
+## Using localization in code
+
+```java
+import com.example.myplugin.settings.Localization;
+import org.mineacademy.fo.Common;
+
+public class ArenaManager {
+
+    public void playerJoin(Player player, String arenaName) {
+        // Use custom message with placeholder
+        Common.tell(player, Localization.Arena.JOINED
+            .replace("{arena}", arenaName));
+    }
+
+    public void announceWinner(Player winner) {
+        // Broadcast to all players
+        Common.broadcast(Localization.Arena.WINNER_ANNOUNCEMENT
+            .replace("{player}", winner.getName()));
+    }
+
+    public void denyPermission(Player player, String permission) {
+        // Use built-in message
+        Common.tell(player, Localization.NO_PERMISSION
+            .replace("{permission}", permission));
+    }
+}
+```
+
+## Multi-language support
+
+Create multiple locale files in your plugin JAR:
+
+```
+src/main/resources/
+  localization/
+    messages_en.yml  (English)
+    messages_es.yml  (Spanish)
+    messages_de.yml  (German)
+    messages_fr.yml  (French)
+```
+
+**messages_es.yml example:**
+
+```yaml
+Version: 2
+
+No_Permission: "&cPermiso insuficiente ({permission})."
+
+Arena:
+  Joined: "&a¡Te uniste a la arena {arena}!"
+  Left: "&c¡Saliste de la arena {arena}!"
+  Game_Starting: "&eEl juego comienza en {seconds} segundos..."
+  Winner_Announcement: "&6&l{player} &e¡ganó el juego!"
+```
+
+Players change the language in settings.yml:
+
+```yaml
+Locale: es  # Loads messages_es.yml
+```
+
+## Best practices
+
+<Note>
+- Always include all Foundation default messages in your locale files
+- Use descriptive placeholder names like `{player}` instead of `{0}`
+- Group related messages into nested classes (like `Commands`, `Arena`, etc.)
+- The `init()` method in each nested class must be `private static void init()`
+- Foundation calls `init()` methods automatically via reflection
+</Note>
+
+<Warning>
+- Never access localization values in static initializers
+- Always use `isSetDefault()` before loading a value
+- Include a Version key in all locale files
+- Locale files must exist in your plugin JAR at `localization/messages_<locale>.yml`
+</Warning>
+
+## Validation
+
+Foundation validates that locale files exist:
+
+```java
+@Override
+protected final void onLoad() throws Exception {
+    final String localePath = "localization/messages_" + SimpleSettings.LOCALE_PREFIX + ".yml";
+    final Object content = FileUtil.getInternalFileContent(localePath);
+
+    Valid.checkNotNull(content, SimplePlugin.getNamed() + " does not support the localization: messages_" 
+        + SimpleSettings.LOCALE_PREFIX + ".yml");
+
+    this.loadConfiguration(localePath);
+}
+```
+
+If the locale file doesn't exist, Foundation will show an error and suggest using English instead.

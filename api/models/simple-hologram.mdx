@@ -1,0 +1,312 @@
+---
+title: SimpleHologram
+description: Create and manage floating holograms with text and particle effects
+---
+
+## Overview
+
+SimpleHologram is an abstract class for creating floating holograms in your Minecraft world. It supports multiple lines of text (lore), particle effects, and automatic animation through a ticking system.
+
+## Creating a hologram
+
+Extend the `SimpleHologram` class and implement the `createEntity()` method:
+
+```java
+public class MyHologram extends SimpleHologram {
+    
+    public MyHologram(Location location) {
+        super(location);
+    }
+    
+    @Override
+    protected Entity createEntity() {
+        // Create and return your entity
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(false);
+        stand.setGravity(false);
+        stand.setSmall(true);
+        
+        return stand;
+    }
+}
+```
+
+## Methods
+
+### spawn
+
+Spawns the hologram entity at its location.
+
+<ParamField path="spawn" type="SimpleHologram">
+  Returns the hologram instance for chaining.
+</ParamField>
+
+```java
+MyHologram hologram = new MyHologram(location);
+hologram.setLore("&6Welcome!", "&7To our server")
+    .spawn();
+```
+
+<Warning>
+  Make sure the hologram is not already spawned before calling this method, or an exception will be thrown.
+</Warning>
+
+### setLore
+
+Sets the text lines displayed above the hologram.
+
+<ParamField path="lore" type="String...">
+  Varargs of text lines to display. Supports color codes.
+</ParamField>
+
+```java
+hologram.setLore(
+    "&6Server Stats",
+    "&7Players: {player_count}",
+    "&7TPS: {server_tps}"
+);
+```
+
+### addParticleEffect
+
+Adds a particle effect that spawns at the hologram location every tick.
+
+<ParamField path="particle" type="CompParticle">
+  The particle type to spawn.
+</ParamField>
+
+<ParamField path="data" type="CompMaterial" optional>
+  Optional material data for block/item particles.
+</ParamField>
+
+```java
+// Simple particle
+hologram.addParticleEffect(CompParticle.FLAME);
+
+// Particle with material data
+hologram.addParticleEffect(CompParticle.BLOCK_CRACK, CompMaterial.DIAMOND_BLOCK);
+```
+
+### teleport
+
+Teleports the hologram and its lore entities to a new location.
+
+<ParamField path="location" type="Location">
+  The new location for the hologram.
+</ParamField>
+
+```java
+Location newLocation = player.getLocation().add(0, 3, 0);
+hologram.teleport(newLocation);
+```
+
+### remove
+
+Removes the hologram entity and all lore entities from the world.
+
+```java
+hologram.remove();
+```
+
+### getLocation
+
+Returns the current location of the hologram entity.
+
+<ParamField path="getLocation" type="Location">
+  The current hologram location.
+</ParamField>
+
+```java
+Location current = hologram.getLocation();
+```
+
+### getLastTeleportLocation
+
+Returns the last known teleport location (spawn location if never teleported).
+
+<ParamField path="getLastTeleportLocation" type="Location">
+  A clone of the last teleport location.
+</ParamField>
+
+```java
+Location lastLocation = hologram.getLastTeleportLocation();
+```
+
+### isSpawned
+
+Checks if the hologram is currently spawned in the world.
+
+<ParamField path="isSpawned" type="boolean">
+  True if spawned, false otherwise.
+</ParamField>
+
+```java
+if (!hologram.isSpawned()) {
+    hologram.spawn();
+}
+```
+
+### removeLore
+
+Removes all lore entities without removing the main hologram entity.
+
+```java
+hologram.removeLore();
+```
+
+## Protected methods
+
+### onTick
+
+Called automatically every tick for animations. Override this method to add custom behavior.
+
+```java
+private int rotation = 0;
+
+@Override
+protected void onTick() {
+    if (isSpawned()) {
+        ArmorStand stand = (ArmorStand) getEntity();
+        Location loc = stand.getLocation();
+        
+        // Rotate the hologram
+        loc.setYaw(rotation++);
+        stand.teleport(loc);
+        
+        if (rotation >= 360) {
+            rotation = 0;
+        }
+    }
+}
+```
+
+### createEntity
+
+Abstract method that must be implemented to create the hologram entity.
+
+<ParamField path="createEntity" type="Entity">
+  The entity to use as the hologram base.
+</ParamField>
+
+```java
+@Override
+protected Entity createEntity() {
+    return getLastTeleportLocation()
+        .getWorld()
+        .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+}
+```
+
+## Static methods
+
+### deleteAll
+
+Deletes all registered holograms from the server.
+
+```java
+SimpleHologram.deleteAll();
+```
+
+### setLoreLineHeight
+
+Sets the distance between lore lines for all holograms.
+
+<ParamField path="height" type="double">
+  The height in blocks between each line (default: 0.26).
+</ParamField>
+
+```java
+SimpleHologram.setLoreLineHeight(0.30);
+```
+
+### getLoreLineHeight
+
+Gets the current lore line height.
+
+<ParamField path="getLoreLineHeight" type="double">
+  The current line height.
+</ParamField>
+
+```java
+double height = SimpleHologram.getLoreLineHeight();
+```
+
+### getRegisteredItems
+
+Gets all currently registered holograms.
+
+<ParamField path="getRegisteredItems" type="Set<SimpleHologram>">
+  Set of all registered holograms.
+</ParamField>
+
+```java
+Set<SimpleHologram> holograms = SimpleHologram.getRegisteredItems();
+```
+
+## Complete example
+
+```java
+public class ServerStatsHologram extends SimpleHologram {
+    
+    public ServerStatsHologram(Location location) {
+        super(location);
+        
+        // Set initial lore
+        setLore(
+            "&6&lSERVER STATS",
+            "&7Players: &f0",
+            "&7TPS: &a20.0"
+        );
+        
+        // Add particle effects
+        addParticleEffect(CompParticle.VILLAGER_HAPPY);
+        addParticleEffect(CompParticle.FLAME);
+    }
+    
+    @Override
+    protected Entity createEntity() {
+        ArmorStand stand = (ArmorStand) getLastTeleportLocation()
+            .getWorld()
+            .spawnEntity(getLastTeleportLocation(), EntityType.ARMOR_STAND);
+        
+        stand.setVisible(false);
+        stand.setGravity(false);
+        stand.setSmall(true);
+        stand.setMarker(true);
+        
+        return stand;
+    }
+    
+    @Override
+    protected void onTick() {
+        // Update stats every second (20 ticks)
+        if (getEntity().getTicksLived() % 20 == 0) {
+            int playerCount = Bukkit.getOnlinePlayers().size();
+            double tps = SimplePlugin.getInstance().getTPS();
+            
+            getLoreEntities().get(1).setCustomName(
+                "&7Players: &f" + playerCount
+            );
+            getLoreEntities().get(2).setCustomName(
+                "&7TPS: " + (tps > 19 ? "&a" : "&c") + tps
+            );
+        }
+    }
+}
+
+// Usage
+ServerStatsHologram hologram = new ServerStatsHologram(location);
+hologram.spawn();
+```
+
+## Notes
+
+<Note>
+  - All registered holograms are automatically ticked every game tick
+  - Holograms are automatically removed if their entity becomes invalid
+  - Use `removeLore()` to clear lore without destroying the hologram
+  - The ticking task is automatically restarted on plugin reload
+</Note>

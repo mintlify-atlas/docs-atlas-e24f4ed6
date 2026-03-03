@@ -1,0 +1,394 @@
+---
+title: NBT
+description: Read and modify NBT data on items, entities, blocks, and files across all Minecraft versions
+---
+
+Foundation includes a complete NBT API for reading and modifying NBT (Named Binary Tag) data on items, entities, blocks, and files. The API works across all Minecraft versions.
+
+## Working with items
+
+### Read NBT data
+
+```java
+ItemStack item = player.getInventory().getItemInMainHand();
+
+// Read-only access
+String value = NBT.get(item, nbt -> {
+    return nbt.getString("CustomKey");
+});
+
+// Check if key exists
+boolean hasKey = NBT.get(item, nbt -> nbt.hasTag("CustomKey"));
+```
+
+### Modify NBT data
+
+```java
+ItemStack item = new ItemStack(Material.DIAMOND_SWORD);
+
+NBT.modify(item, nbt -> {
+    nbt.setString("Owner", player.getName());
+    nbt.setInteger("Level", 5);
+    nbt.setBoolean("Legendary", true);
+});
+
+player.getInventory().addItem(item);
+```
+
+### Compound tags
+
+```java
+NBT.modify(item, nbt -> {
+    NBTCompound stats = nbt.getCompound("Stats");
+    if (stats == null)
+        stats = nbt.addCompound("Stats");
+    
+    stats.setInteger("Kills", 10);
+    stats.setDouble("Damage", 25.5);
+    stats.setString("Type", "SWORD");
+});
+```
+
+### Lists
+
+<Tabs>
+<Tab title="String list">
+```java
+NBT.modify(item, nbt -> {
+    NBTList<String> lore = nbt.getStringList("Lore");
+    lore.add("Line 1");
+    lore.add("Line 2");
+    lore.add("Line 3");
+});
+```
+</Tab>
+
+<Tab title="Compound list">
+```java
+NBT.modify(item, nbt -> {
+    NBTCompoundList enchants = nbt.getCompoundList("Enchantments");
+    
+    NBTListCompound ench1 = enchants.addCompound();
+    ench1.setString("id", "minecraft:sharpness");
+    ench1.setInteger("lvl", 5);
+    
+    NBTListCompound ench2 = enchants.addCompound();
+    ench2.setString("id", "minecraft:fire_aspect");
+    ench2.setInteger("lvl", 2);
+});
+```
+</Tab>
+
+<Tab title="Integer list">
+```java
+NBTList<Integer> numbers = nbt.getIntegerList("Numbers");
+numbers.add(1);
+numbers.add(2);
+numbers.add(3);
+```
+</Tab>
+</Tabs>
+
+## Working with entities
+
+### Read entity NBT
+
+```java
+Entity entity = ...; // Your entity
+
+String customName = NBT.get(entity, nbt -> {
+    return nbt.getString("CustomName");
+});
+
+boolean isAngry = NBT.get(entity, nbt -> {
+    return nbt.getBoolean("Angry");
+});
+```
+
+### Modify entity NBT
+
+```java
+NBT.modify(entity, nbt -> {
+    nbt.setBoolean("NoAI", true);
+    nbt.setBoolean("Silent", true);
+    nbt.setInteger("Age", -24000); // Baby
+});
+```
+
+### Persistent data container
+
+For custom plugin data (1.14+):
+
+```java
+NBT.modifyPersistentData(entity, nbt -> {
+    nbt.setString("PluginData", "value");
+    nbt.setInteger("Level", 5);
+});
+
+int level = NBT.getPersistentData(entity, nbt -> {
+    return nbt.getInteger("Level");
+});
+```
+
+## Working with blocks
+
+### Tile entities
+
+```java
+Block block = player.getTargetBlock(null, 5);
+BlockState state = block.getState();
+
+NBT.modify(state, nbt -> {
+    nbt.setString("CustomName", "My Chest");
+    
+    // For containers
+    NBTCompoundList items = nbt.getCompoundList("Items");
+    // Modify items...
+});
+
+state.update();
+```
+
+## Available data types
+
+<CodeGroup>
+```java String
+nbt.setString("key", "value");
+String value = nbt.getString("key");
+```
+
+```java Integer
+nbt.setInteger("key", 42);
+int value = nbt.getInteger("key");
+```
+
+```java Double
+nbt.setDouble("key", 3.14);
+double value = nbt.getDouble("key");
+```
+
+```java Boolean
+nbt.setBoolean("key", true);
+boolean value = nbt.getBoolean("key");
+```
+
+```java Long
+nbt.setLong("key", 123456789L);
+long value = nbt.getLong("key");
+```
+
+```java Float
+nbt.setFloat("key", 1.5f);
+float value = nbt.getFloat("key");
+```
+
+```java UUID
+nbt.setUUID("key", uuid);
+UUID value = nbt.getUUID("key");
+```
+
+```java Enum
+nbt.setEnum("key", GameMode.CREATIVE);
+GameMode value = nbt.getEnum("key", GameMode.class);
+```
+</CodeGroup>
+
+## Key operations
+
+### Check if key exists
+
+```java
+boolean has = NBT.get(item, nbt -> nbt.hasTag("CustomKey"));
+```
+
+### Get all keys
+
+```java
+Set<String> keys = NBT.get(item, nbt -> nbt.getKeys());
+for (String key : keys) {
+    System.out.println(key);
+}
+```
+
+### Remove key
+
+```java
+NBT.modify(item, nbt -> {
+    nbt.removeKey("OldKey");
+});
+```
+
+### Get tag type
+
+```java
+NBTType type = NBT.get(item, nbt -> nbt.getType("key"));
+if (type == NBTType.NBTTagString) {
+    // It's a string
+}
+```
+
+## Advanced usage
+
+### Merging compounds
+
+```java
+NBT.modify(item, nbt -> {
+    NBTContainer source = new NBTContainer();
+    source.setString("Key1", "Value1");
+    source.setInteger("Key2", 42);
+    
+    nbt.mergeCompound(source);
+});
+```
+
+### Item meta access
+
+```java
+NBT.modify(item, nbt -> {
+    nbt.modifyMeta((readableNBT, meta) -> {
+        if (meta instanceof SkullMeta) {
+            SkullMeta skull = (SkullMeta) meta;
+            skull.setOwningPlayer(player);
+        }
+    });
+});
+```
+
+### Cloning NBT
+
+```java
+ItemStack source = ...
+ItemStack target = new ItemStack(Material.DIAMOND);
+
+NBT.get(source, sourceNbt -> {
+    NBT.modify(target, targetNbt -> {
+        targetNbt.mergeCompound(sourceNbt);
+    });
+});
+```
+
+## Working with files
+
+### Read from file
+
+```java
+File file = new File("data.nbt");
+NBTFile nbtFile = new NBTFile(file);
+
+String value = nbtFile.getString("key");
+int number = nbtFile.getInteger("number");
+
+nbtFile.save();
+```
+
+### Write to file
+
+```java
+NBTFile nbtFile = new NBTFile(new File("data.nbt"));
+
+nbtFile.setString("playerName", player.getName());
+nbtFile.setInteger("level", 10);
+nbtFile.setUUID("uuid", player.getUniqueId());
+
+nbtFile.save();
+```
+
+## Containers
+
+Create standalone NBT containers:
+
+```java
+NBTContainer container = new NBTContainer();
+container.setString("Name", "Example");
+container.setInteger("Value", 42);
+
+// Convert to JSON
+String json = container.toString();
+
+// Load from JSON
+NBTContainer loaded = new NBTContainer(json);
+```
+
+## Practical examples
+
+### Custom item with data
+
+```java
+public ItemStack createCustomSword(Player player, int level) {
+    ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+    
+    NBT.modify(sword, nbt -> {
+        // Store owner
+        nbt.setUUID("Owner", player.getUniqueId());
+        
+        // Store level
+        nbt.setInteger("Level", level);
+        
+        // Store creation time
+        nbt.setLong("Created", System.currentTimeMillis());
+        
+        // Store custom stats
+        NBTCompound stats = nbt.addCompound("Stats");
+        stats.setDouble("Damage", 10.0 + (level * 2.5));
+        stats.setDouble("Speed", 1.6);
+        stats.setInteger("Durability", 1561 + (level * 100));
+        
+        // Store custom abilities
+        NBTList<String> abilities = nbt.getStringList("Abilities");
+        abilities.add("FIRE_ASPECT");
+        abilities.add("SWEEPING_EDGE");
+    });
+    
+    return sword;
+}
+```
+
+### Reading custom item
+
+```java
+public void checkCustomSword(ItemStack item) {
+    if (item == null || item.getType() != Material.DIAMOND_SWORD)
+        return;
+    
+    NBT.get(item, nbt -> {
+        if (!nbt.hasTag("Owner"))
+            return; // Not a custom sword
+        
+        UUID owner = nbt.getUUID("Owner");
+        int level = nbt.getInteger("Level");
+        long created = nbt.getLong("Created");
+        
+        NBTCompound stats = nbt.getCompound("Stats");
+        double damage = stats.getDouble("Damage");
+        
+        System.out.println("Level " + level + " sword");
+        System.out.println("Damage: " + damage);
+    });
+}
+```
+
+### Persistent entity data
+
+```java
+public void markEntity(Entity entity, String faction) {
+    NBT.modifyPersistentData(entity, nbt -> {
+        nbt.setString("Faction", faction);
+        nbt.setLong("SpawnTime", System.currentTimeMillis());
+        nbt.setInteger("Level", 5);
+    });
+}
+
+public String getEntityFaction(Entity entity) {
+    return NBT.getPersistentData(entity, nbt -> {
+        return nbt.getString("Faction");
+    });
+}
+```
+
+<Note>
+NBT operations on items create a copy of the item. Always use the returned item from `NBT.modify()`.
+</Note>
+
+<Warning>
+Modifying NBT can make items incompatible with vanilla clients or cause unexpected behavior. Always test thoroughly!
+</Warning>

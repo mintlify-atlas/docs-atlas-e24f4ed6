@@ -1,0 +1,348 @@
+---
+title: Math utilities
+description: Utility methods for mathematical operations, formatting, and calculations
+---
+
+The `MathUtil` class provides utilities for mathematical operations, number formatting, vector rotation, and expression evaluation.
+
+## Number formatting
+
+### Decimal formatting
+
+```java
+// Format to 1 decimal place
+String formatted = MathUtil.formatOneDigit(3.14159);
+// Result: "3.1"
+
+// Format to 2 decimal places
+String formatted = MathUtil.formatTwoDigits(3.14159);
+// Result: "3.14"
+
+// Format to 3 decimal places
+String formatted = MathUtil.formatThreeDigits(3.14159);
+// Result: "3.142"
+
+// Format to 5 decimal places
+String formatted = MathUtil.formatFiveDigits(3.14159265);
+// Result: "3.14159"
+```
+
+### Return as double
+
+```java
+// Format and return as double
+double value = MathUtil.formatOneDigitD(3.14159);
+// Result: 3.1
+
+double value = MathUtil.formatTwoDigitsD(3.14159);
+// Result: 3.14
+```
+
+## Roman numerals
+
+```java
+// Convert to Roman numerals
+String roman = MathUtil.toRoman(5);
+// Result: "V"
+
+String roman = MathUtil.toRoman(49);
+// Result: "XLIX"
+
+String roman = MathUtil.toRoman(2024);
+// Result: "MMXXIV"
+
+// Use in enchantment levels
+for (int i = 1; i <= 5; i++) {
+    Common.log("Level " + MathUtil.toRoman(i));
+}
+// Output: Level I, Level II, Level III, Level IV, Level V
+```
+
+## Range and limits
+
+### Constrain values
+
+```java
+// Keep value within range
+int value = MathUtil.range(150, 0, 100);
+// Result: 100 (clamped to max)
+
+int value = MathUtil.range(-10, 0, 100);
+// Result: 0 (clamped to min)
+
+double value = MathUtil.range(5.5, 0.0, 10.0);
+// Result: 5.5 (within range)
+```
+
+### Minimum values
+
+```java
+// Return value or minimum
+int value = MathUtil.atLeast(5, 10);
+// Result: 10 (minimum)
+
+int value = MathUtil.atLeast(15, 10);
+// Result: 15 (above minimum)
+```
+
+### Maximum value
+
+```java
+// Get highest from array
+int max = MathUtil.max(5, 10, 3, 8, 12, 1);
+// Result: 12
+```
+
+### Floor and ceiling
+
+```java
+// Floor operation
+long floored = MathUtil.floor(3.7);
+// Result: 3
+
+// Ceiling operation
+long ceiling = MathUtil.ceiling(3.2);
+// Result: 3
+```
+
+## Percentage operations
+
+### Increase by percentage
+
+```java
+// Increase by 20%
+int increased = MathUtil.increase(100, 20);
+// Result: 120
+
+double increased = MathUtil.increase(50.0, 15.0);
+// Result: 57.5
+```
+
+### Calculate percentage
+
+```java
+// Get percentage completion
+int percent = MathUtil.percent(50, 200);
+// Result: 25 (50 is 25% of 200)
+
+int percent = MathUtil.percent(75, 100);
+// Result: 75
+```
+
+## Averages
+
+```java
+// Calculate average
+double avg = MathUtil.average(10.0, 20.0, 30.0);
+// Result: 20.0
+
+// From collection
+List<Double> values = Arrays.asList(5.0, 10.0, 15.0);
+double avg = MathUtil.average(values);
+// Result: 10.0
+```
+
+## Vector rotation
+
+### Rotate around axes
+
+```java
+import org.bukkit.util.Vector;
+
+// Rotate around X axis (pitch)
+Vector rotated = MathUtil.rotateAroundAxisX(vector, 45);
+
+// Rotate around Y axis (yaw)
+Vector rotated = MathUtil.rotateAroundAxisY(vector, 90);
+
+// Rotate around Z axis (roll)
+Vector rotated = MathUtil.rotateAroundAxisZ(vector, 180);
+```
+
+## Expression evaluation
+
+### Calculate expressions
+
+```java
+// Evaluate mathematical expression
+double result = MathUtil.calculate("5 * (4 - 2)");
+// Result: 10.0
+
+double result = MathUtil.calculate("2 + 3 * 4");
+// Result: 14.0
+
+double result = MathUtil.calculate("2^3");
+// Result: 8.0 (exponentiation)
+
+double result = MathUtil.calculate("(10 + 5) / 3");
+// Result: 5.0
+```
+
+<Note>
+Supported operations: `+`, `-`, `*`, `/`, `^` (power), and parentheses `()`.
+</Note>
+
+## Examples
+
+### Experience bar calculator
+
+```java
+public void updateExpBar(Player player, int current, int max) {
+    // Calculate percentage
+    int percent = MathUtil.percent(current, max);
+    
+    // Set experience bar
+    player.setLevel(current);
+    player.setExp(MathUtil.formatOneDigitD(percent / 100.0));
+    
+    Common.tell(player, "&eProgress: " + percent + "%");
+}
+```
+
+### Damage calculator
+
+```java
+public double calculateDamage(double baseDamage, double multiplier) {
+    // Increase damage by percentage
+    double increased = MathUtil.increase(baseDamage, multiplier * 100);
+    
+    // Constrain to reasonable range
+    double final = MathUtil.range(increased, 1.0, 100.0);
+    
+    // Format to 2 decimals
+    return MathUtil.formatTwoDigitsD(finalDamage);
+}
+```
+
+### Leaderboard display
+
+```java
+public void showLeaderboard(Player player, Map<String, Integer> scores) {
+    Common.tell(player, "&6&l=== Top Players ===");
+    
+    int rank = 1;
+    for (Map.Entry<String, Integer> entry : scores.entrySet()) {
+        // Convert rank to Roman numeral
+        String rankStr = MathUtil.toRoman(rank);
+        
+        Common.tell(player, 
+            "&e" + rankStr + ". &f" + entry.getKey() + 
+            " &7- &a" + entry.getValue() + " points"
+        );
+        
+        rank++;
+        if (rank > 10) break;
+    }
+}
+```
+
+### Particle circle effect
+
+```java
+public void drawParticleCircle(Location center, double radius) {
+    int points = 50;
+    double angleStep = 360.0 / points;
+    
+    for (int i = 0; i < points; i++) {
+        double angle = i * angleStep;
+        
+        // Create vector pointing outward
+        Vector direction = new Vector(1, 0, 0);
+        
+        // Rotate around Y axis
+        direction = MathUtil.rotateAroundAxisY(direction, angle);
+        direction.multiply(radius);
+        
+        Location particleLoc = center.clone().add(direction);
+        
+        center.getWorld().spawnParticle(
+            Particle.FLAME,
+            particleLoc,
+            1
+        );
+    }
+}
+```
+
+### Stat display formatter
+
+```java
+public String formatStat(String name, double value) {
+    String formatted;
+    
+    if (value >= 1000) {
+        // Show as K (thousands)
+        formatted = MathUtil.formatOneDigit(value / 1000.0) + "K";
+    } else if (value >= 1000000) {
+        // Show as M (millions)
+        formatted = MathUtil.formatOneDigit(value / 1000000.0) + "M";
+    } else {
+        formatted = MathUtil.formatOneDigit(value);
+    }
+    
+    return "&e" + name + ": &f" + formatted;
+}
+```
+
+### Cooldown calculator
+
+```java
+public class CooldownManager {
+    
+    private final Map<UUID, Long> cooldowns = new HashMap<>();
+    
+    public void setCooldown(Player player, int seconds) {
+        long expireTime = System.currentTimeMillis() + (seconds * 1000);
+        cooldowns.put(player.getUniqueId(), expireTime);
+    }
+    
+    public int getRemainingCooldown(Player player) {
+        Long expireTime = cooldowns.get(player.getUniqueId());
+        
+        if (expireTime == null) {
+            return 0;
+        }
+        
+        long remaining = expireTime - System.currentTimeMillis();
+        return MathUtil.atLeast((int) (remaining / 1000), 0);
+    }
+    
+    public String getCooldownDisplay(Player player) {
+        int seconds = getRemainingCooldown(player);
+        
+        if (seconds <= 0) {
+            return "&aReady!";
+        }
+        
+        return "&c" + seconds + "s";
+    }
+}
+```
+
+### Custom formula evaluator
+
+```java
+public double evaluateDamageFormula(Player player, String formula) {
+    // Replace variables
+    formula = formula
+        .replace("{level}", String.valueOf(player.getLevel()))
+        .replace("{health}", String.valueOf(player.getHealth()));
+    
+    // Calculate
+    try {
+        double result = MathUtil.calculate(formula);
+        return MathUtil.formatTwoDigitsD(result);
+    } catch (Exception ex) {
+        Common.error(ex, "Invalid formula: " + formula);
+        return 0.0;
+    }
+}
+
+// Usage:
+// Formula: "{level} * 2 + {health} / 2"
+// With level=10, health=20: (10 * 2 + 20 / 2) = 30.0
+```
+
+<Tip>
+Use `MathUtil.toRoman()` for enchantment levels and ranking displays to give a more polished look.
+</Tip>

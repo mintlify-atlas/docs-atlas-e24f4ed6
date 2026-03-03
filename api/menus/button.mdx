@@ -1,0 +1,386 @@
+---
+title: Button
+description: Create clickable buttons for menus with various interaction patterns and built-in prompt support
+---
+
+The `Button` class represents a clickable item in a menu. Foundation provides several ways to create buttons, from simple static buttons to complex interactive prompts.
+
+## Creating buttons
+
+### Basic button
+
+Extend the `Button` class and implement the required methods:
+
+```java
+Button myButton = new Button() {
+    @Override
+    public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+        player.sendMessage("Button clicked!");
+    }
+    
+    @Override
+    public ItemStack getItem() {
+        return ItemCreator.of(CompMaterial.DIAMOND)
+            .name("&bClick Me")
+            .make();
+    }
+};
+```
+
+### Button with slot
+
+```java
+Button slottedButton = new Button(13) {
+    @Override
+    public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+        player.sendMessage("Center button clicked!");
+    }
+    
+    @Override
+    public ItemStack getItem() {
+        return ItemCreator.of(CompMaterial.NETHER_STAR).make();
+    }
+};
+```
+
+## Core methods
+
+<ParamField path="onClickedInMenu(Player player, Menu menu, ClickType click)" type="void" required>
+  Called automatically when the button is clicked.
+  
+  <Expandable title="parameters">
+    - `player` - The player who clicked
+    - `menu` - The menu containing this button
+    - `click` - The type of click (LEFT, RIGHT, SHIFT_LEFT, etc.)
+  </Expandable>
+  
+  ```java
+  @Override
+  public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+      if (click == ClickType.RIGHT) {
+          player.sendMessage("Right clicked!");
+      } else if (click == ClickType.SHIFT_LEFT) {
+          player.sendMessage("Shift left clicked!");
+      }
+  }
+  ```
+</ParamField>
+
+<ParamField path="getItem()" type="ItemStack" required>
+  Returns the ItemStack representing this button.
+  
+  ```java
+  @Override
+  public ItemStack getItem() {
+      return ItemCreator.of(CompMaterial.EMERALD)
+          .name("&aAccept")
+          .lore("&7Click to confirm")
+          .glow(true)
+          .make();
+  }
+  ```
+</ParamField>
+
+<ParamField path="getSlot()" type="int">
+  Returns the slot position of this button, or -1 if not set.
+</ParamField>
+
+## Static factory methods
+
+### Dummy buttons
+
+<ParamField path="makeEmpty()" type="DummyButton" static>
+  Creates an empty (air) button that does nothing when clicked.
+  
+  ```java
+  Button emptyButton = Button.makeEmpty();
+  ```
+</ParamField>
+
+<ParamField path="makeInfo(String... description)" type="DummyButton" static>
+  Creates an info button (Nether Star) with descriptive text.
+  
+  ```java
+  Button info = Button.makeInfo(
+      "&7This menu allows you to",
+      "&7manage your settings.",
+      "&7Click items to configure."
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeDummy(CompMaterial material, String title, String... lore)" type="DummyButton" static>
+  Creates a dummy button with the specified material, title, and lore.
+  
+  ```java
+  Button dummy = Button.makeDummy(
+      CompMaterial.STONE,
+      "&7Decorative Item",
+      "This does nothing"
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeDummy(ItemCreator creator)" type="DummyButton" static>
+  Creates a dummy button from an ItemCreator.
+  
+  ```java
+  Button dummy = Button.makeDummy(
+      ItemCreator.of(CompMaterial.GOLD_BLOCK)
+          .name("&6Decoration")
+          .glow(true)
+  );
+  ```
+</ParamField>
+
+### Interactive buttons
+
+<ParamField path="makeSimple(CompMaterial icon, String title, String label, Consumer<Player> onClickFunction)" type="Button" static>
+  Creates a simple button with an icon, title, label, and click handler.
+  
+  <Warning>
+    The icon won't update when calling `Menu.restartMenu()`. For dynamic icons, create an anonymous Button class.
+  </Warning>
+  
+  ```java
+  Button simple = Button.makeSimple(
+      CompMaterial.DIAMOND_SWORD,
+      "&6Weapon Shop",
+      "&7Click to browse weapons",
+      player -> {
+          new WeaponShop().displayTo(player);
+      }
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeSimple(ItemCreator builder, Consumer<Player> onClickFunction)" type="Button" static>
+  Creates a simple button from an ItemCreator with a click handler.
+  
+  ```java
+  Button simple = Button.makeSimple(
+      ItemCreator.of(CompMaterial.EMERALD)
+          .name("&aAccept")
+          .lore("&7Click to confirm"),
+      player -> {
+          player.sendMessage("Accepted!");
+      }
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeSimple(CompMaterial icon, String title, String label, BiConsumer<Player, ClickType> onClickFunction)" type="Button" static>
+  Creates a simple button that passes both player and click type to the handler.
+  
+  ```java
+  Button simple = Button.makeSimple(
+      CompMaterial.CHEST,
+      "&6Storage",
+      "&7Left: Open | Right: Info",
+      (player, click) -> {
+          if (click.isLeftClick()) {
+              openStorage(player);
+          } else if (click.isRightClick()) {
+              showStorageInfo(player);
+          }
+      }
+  );
+  ```
+</ParamField>
+
+### Boolean toggle buttons
+
+<ParamField path="makeBoolean(ItemCreator creator, Supplier<Boolean> getter, Consumer<Boolean> setter)" type="Button" static>
+  Creates a toggle button for boolean settings. The item will glow when enabled.
+  
+  ```java
+  Button toggle = Button.makeBoolean(
+      ItemCreator.of(CompMaterial.REDSTONE_TORCH)
+          .name("&6PvP Enabled")
+          .lore("&7Status: {status}")
+          .lore("&7Click to toggle"),
+      () -> arena.isPvpEnabled(),
+      enabled -> arena.setPvpEnabled(enabled)
+  );
+  ```
+  
+  <Note>
+    Use `{status}` in lore - it will be replaced with "&aEnabled" or "&cDisabled".
+  </Note>
+</ParamField>
+
+### Prompt buttons
+
+<ParamField path="makeStringPrompt(ItemCreator creator, String question, Consumer<String> onPromptFinish)" type="Button" static>
+  Creates a button that prompts the player for text input.
+  
+  ```java
+  Button stringPrompt = Button.makeStringPrompt(
+      ItemCreator.of(CompMaterial.NAME_TAG)
+          .name("&6Set Name")
+          .lore("&7Click to rename"),
+      "&6Enter a new name:",
+      input -> {
+          item.setName(input);
+          player.sendMessage("Name set to: " + input);
+      }
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeStringPrompt(ItemCreator creator, String question, String menuTitle, Consumer<String> onPromptFinish)" type="Button" static>
+  Creates a string prompt with a custom animated menu title on completion.
+  
+  ```java
+  Button stringPrompt = Button.makeStringPrompt(
+      ItemCreator.of(CompMaterial.NAME_TAG)
+          .name("&6Set Arena Name"),
+      "&6Enter arena name:",
+      "&aName Updated",
+      input -> arena.setName(input)
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeIntegerPrompt(ItemCreator item, String question, RangedValue minMaxRange, Supplier<Object> getter, Consumer<Integer> setter)" type="Button" static>
+  Creates a button that prompts for an integer within a range.
+  
+  ```java
+  Button intPrompt = Button.makeIntegerPrompt(
+      ItemCreator.of(CompMaterial.CLOCK)
+          .name("&6Set Duration")
+          .lore("&7Current: {current} seconds"),
+      "&6Enter duration in seconds (current: {current}):",
+      new RangedValue(10, 300),
+      () -> arena.getDuration(),
+      duration -> arena.setDuration(duration)
+  );
+  ```
+</ParamField>
+
+<ParamField path="makeDecimalPrompt(ItemCreator item, String question, RangedValue minMaxRange, Supplier<Object> getter, Consumer<Double> setter)" type="Button" static>
+  Creates a button that prompts for a decimal number within a range.
+  
+  ```java
+  Button decimalPrompt = Button.makeDecimalPrompt(
+      ItemCreator.of(CompMaterial.GOLD_NUGGET)
+          .name("&6Set Multiplier")
+          .lore("&7Current: {current}x"),
+      "&6Enter multiplier (current: {current}):",
+      new RangedValue(0.1, 10.0),
+      () -> arena.getMultiplier(),
+      multiplier -> arena.setMultiplier(multiplier)
+  );
+  ```
+</ParamField>
+
+## Button positioning
+
+Use the `@Position` annotation to automatically place buttons:
+
+```java
+public class MyMenu extends Menu {
+    
+    @Position(4)
+    private final Button centerButton = new Button() {
+        @Override
+        public void onClickedInMenu(Player player, Menu menu, ClickType click) {
+            player.sendMessage("Center!");
+        }
+        
+        @Override
+        public ItemStack getItem() {
+            return ItemCreator.of(CompMaterial.NETHER_STAR).make();
+        }
+    };
+}
+```
+
+You can also use `StartPosition` for relative positioning:
+
+```java
+@Position(value = 0, start = StartPosition.CENTER)
+private final Button centerButton = ...;
+
+@Position(value = 0, start = StartPosition.BOTTOM_LEFT)
+private final Button bottomLeftButton = ...;
+```
+
+## DummyButton
+
+The `DummyButton` class is a special button type that does nothing when clicked. It's useful for decorative items or spacers.
+
+```java
+DummyButton spacer = Button.makeDummy(
+    ItemCreator.of(CompMaterial.GRAY_STAINED_GLASS_PANE)
+        .name(" ")
+);
+```
+
+## Complete example
+
+```java
+public class SettingsMenu extends Menu {
+    
+    @Position(10)
+    private final Button pvpToggle;
+    
+    @Position(12)
+    private final Button maxPlayersButton;
+    
+    @Position(14)
+    private final Button nameButton;
+    
+    private final Arena arena;
+    
+    public SettingsMenu(Arena arena) {
+        this.arena = arena;
+        
+        setTitle("&6Arena Settings");
+        setSize(9 * 3);
+        
+        // Toggle button for PvP
+        pvpToggle = Button.makeBoolean(
+            ItemCreator.of(CompMaterial.DIAMOND_SWORD)
+                .name("&6PvP Enabled")
+                .lore("&7Status: {status}")
+                .lore("", "&7Click to toggle"),
+            () -> arena.isPvpEnabled(),
+            enabled -> {
+                arena.setPvpEnabled(enabled);
+                arena.save();
+            }
+        );
+        
+        // Integer prompt for max players
+        maxPlayersButton = Button.makeIntegerPrompt(
+            ItemCreator.of(CompMaterial.PLAYER_HEAD)
+                .name("&6Max Players")
+                .lore("&7Current: {current}")
+                .lore("", "&7Click to change"),
+            "&6Enter max players (current: {current}):",
+            "Max players",
+            new RangedValue(2, 100),
+            () -> arena.getMaxPlayers(),
+            max -> {
+                arena.setMaxPlayers(max);
+                arena.save();
+            }
+        );
+        
+        // String prompt for arena name
+        nameButton = Button.makeStringPrompt(
+            ItemCreator.of(CompMaterial.NAME_TAG)
+                .name("&6Arena Name")
+                .lore("&7Current: " + arena.getName())
+                .lore("", "&7Click to rename"),
+            "&6Enter new arena name:",
+            "&aArena renamed",
+            name -> {
+                arena.setName(name);
+                arena.save();
+            }
+        );
+    }
+}
+```

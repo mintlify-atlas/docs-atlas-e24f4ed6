@@ -1,0 +1,333 @@
+---
+title: Citizens integration
+description: Detect and interact with Citizens NPCs
+---
+
+Citizens is the most popular NPC plugin for Minecraft. Foundation's integration allows you to detect NPCs and retrieve their targeting information.
+
+## Check if loaded
+
+```java
+if (HookManager.isCitizensLoaded()) {
+    // Citizens is available
+}
+```
+
+## Detect NPCs
+
+Check if an entity is a Citizens NPC:
+
+```java
+@EventHandler
+public void onEntityDamage(EntityDamageByEntityEvent event) {
+    Entity damaged = event.getEntity();
+    
+    if (HookManager.isNPC(damaged)) {
+        // This is an NPC, handle differently
+        event.setCancelled(true);
+        return;
+    }
+    
+    // Normal entity logic
+}
+```
+
+## Get NPC target
+
+Retrieve what entity an NPC is targeting:
+
+```java
+public void checkNPCTarget(Entity npc) {
+    if (!HookManager.isNPC(npc))
+        return;
+        
+    Entity target = HookManager.getNPCTarget(npc);
+    
+    if (target instanceof Player) {
+        Player targetPlayer = (Player) target;
+        Common.log("NPC is targeting: " + targetPlayer.getName());
+    }
+}
+```
+
+## Practical examples
+
+### Filter NPCs from player events
+
+```java
+@EventHandler
+public void onPlayerInteract(PlayerInteractEntityEvent event) {
+    Player player = event.getPlayer();
+    Entity entity = event.getRightClicked();
+    
+    // Ignore NPC interactions
+    if (HookManager.isNPC(entity))
+        return;
+    
+    // Handle normal entity interactions
+    handleEntityInteraction(player, entity);
+}
+```
+
+### Exclude NPCs from player counts
+
+```java
+public int getRealPlayerCount() {
+    int count = 0;
+    
+    for (Player player : Bukkit.getOnlinePlayers()) {
+        // Skip NPCs that appear as players
+        if (HookManager.isNPC(player))
+            continue;
+            
+        count++;
+    }
+    
+    return count;
+}
+```
+
+### Prevent NPC damage
+
+```java
+@EventHandler
+public void onEntityDamage(EntityDamageEvent event) {
+    Entity entity = event.getEntity();
+    
+    // Protect all NPCs from damage
+    if (HookManager.isNPC(entity)) {
+        event.setCancelled(true);
+        return;
+    }
+}
+```
+
+### NPC interaction logging
+
+```java
+@EventHandler
+public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
+    Entity entity = event.getRightClicked();
+    
+    if (!HookManager.isNPC(entity))
+        return;
+    
+    Player player = event.getPlayer();
+    
+    // Log NPC interactions
+    Common.log(player.getName() + " interacted with NPC: " + 
+        entity.getName());
+}
+```
+
+### Safe nickname handling
+
+Avoid calling nickname methods on NPCs:
+
+```java
+public String getDisplayName(CommandSender sender) {
+    if (!(sender instanceof Player))
+        return sender.getName();
+    
+    Player player = (Player) sender;
+    
+    // Don't get nicknames for NPCs
+    if (HookManager.isNPC(player)) {
+        return player.getName();
+    }
+    
+    // Get nickname from EssentialsX or CMI
+    return HookManager.getNickColored(player);
+}
+```
+
+### Chat filter
+
+```java
+@EventHandler
+public void onPlayerChat(AsyncPlayerChatEvent event) {
+    Player player = event.getPlayer();
+    
+    // Prevent NPCs from chatting
+    if (HookManager.isNPC(player)) {
+        event.setCancelled(true);
+        return;
+    }
+    
+    // Process normal chat
+}
+```
+
+## Implementation details
+
+Foundation's Citizens integration is simple but effective:
+
+```java CitizensHook.java
+boolean isNPC(final Entity entity) {
+    try {
+        final NPCRegistry reg = CitizensAPI.getNPCRegistry();
+        
+        return reg != null ? reg.isNPC(entity) : false;
+    } catch (final NoClassDefFoundError err) {
+        Common.logTimed(60 * 30, 
+            "Unable to check if " + entity + " is Citizens NPC, got " + err + 
+            ". This error only shows once per 30min.");
+        
+        return false;
+    }
+}
+
+Entity getNPCTarget(Entity entity) {
+    final NPC npc = CitizensAPI.getNPCRegistry().getNPC(entity);
+    
+    if (npc != null) {
+        final EntityTarget target = npc.getNavigator().getEntityTarget();
+        
+        if (target != null)
+            return target.getTarget();
+    }
+    
+    return null;
+}
+```
+
+<Note>
+Foundation includes error handling for class loading issues and rate-limits error messages to prevent log spam.
+</Note>
+
+## Safe defaults
+
+When Citizens isn't loaded:
+
+```java HookManager.java
+public static boolean isNPC(final Entity entity) {
+    return isCitizensLoaded() ? citizensHook.isNPC(entity) : false;
+}
+
+public static Entity getNPCTarget(final Entity entity) {
+    return isCitizensLoaded() ? citizensHook.getNPCTarget(entity) : null;
+}
+```
+
+## Common use cases
+
+### Exclude from commands
+
+```java
+public class TeleportCommand extends SimpleCommand {
+
+    public TeleportCommand() {
+        super("tp");
+    }
+
+    @Override
+    protected void onCommand() {
+        Player player = findPlayer(args[0]);
+        
+        checkNotNull(player, "Player not found!");
+        checkBoolean(!HookManager.isNPC(player), 
+            "Cannot teleport to NPCs!");
+        
+        getPlayer().teleport(player);
+        tellSuccess("Teleported to " + player.getName());
+    }
+}
+```
+
+### Economy protection
+
+```java
+public void giveReward(Player player, double amount) {
+    // Don't give money to NPCs
+    if (HookManager.isNPC(player))
+        return;
+    
+    if (HookManager.isVaultLoaded()) {
+        HookManager.deposit(player, amount);
+        Common.tell(player, "Received $" + amount);
+    }
+}
+```
+
+### Stats tracking
+
+```java
+@EventHandler
+public void onPlayerKill(EntityDeathEvent event) {
+    if (!(event.getEntity() instanceof Player))
+        return;
+        
+    Player killed = (Player) event.getEntity();
+    Player killer = killed.getKiller();
+    
+    // Don't count NPC kills
+    if (HookManager.isNPC(killed) || HookManager.isNPC(killer))
+        return;
+    
+    // Record kill stats
+    statsManager.addKill(killer);
+    statsManager.addDeath(killed);
+}
+```
+
+## Best practices
+
+**Always check before player operations** - NPCs can appear as players:
+
+```java
+if (sender instanceof Player) {
+    Player player = (Player) sender;
+    
+    if (HookManager.isNPC(player))
+        return; // Skip NPCs
+        
+    // Safe to use player methods
+}
+```
+
+**Check early in event handlers** - Return early for NPCs:
+
+```java
+@EventHandler
+public void onPlayerJoin(PlayerJoinEvent event) {
+    if (HookManager.isNPC(event.getPlayer()))
+        return;
+        
+    // Normal join logic
+}
+```
+
+**Use null checks with getNPCTarget()** - Target may be null:
+
+```java
+Entity target = HookManager.getNPCTarget(npc);
+
+if (target != null) {
+    // Use target
+}
+```
+
+## Why check for NPCs?
+
+Citizens NPCs can:
+- Trigger player join/quit events
+- Appear in player lists
+- Receive chat messages
+- Have inventories opened
+- Trigger interaction events
+
+Always filter them out to prevent:
+- Economy exploits
+- Stats corruption  
+- Chat spam
+- Data corruption
+- Unwanted side effects
+
+<Warning>
+NPCs can sometimes masquerade as real players. Always use `HookManager.isNPC()` before performing player-specific operations like economy transactions, stats tracking, or permission checks.
+</Warning>
+
+## Related
+
+- [Plugin integrations overview](/integrations/overview)
+- [Player utilities](/utilities/player) - Other player helper methods

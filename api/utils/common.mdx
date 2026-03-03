@@ -1,0 +1,527 @@
+---
+title: Common
+description: Main utility class hosting a large variety of convenience functions for messaging, logging, collections, and server management
+---
+
+## Overview
+
+The `Common` class is Foundation's primary utility class, providing essential methods for:
+
+- Messaging players and console
+- Broadcasting messages
+- Colorizing text
+- Logging and error handling
+- String manipulation
+- Collection operations
+- Command execution
+- Plugin management
+
+## Messaging methods
+
+### tell
+
+Sends colorized messages to a command sender.
+
+<ParamField path="sender" type="CommandSender" required>
+  The player or console to send the message to
+</ParamField>
+
+<ParamField path="messages" type="String..." required>
+  One or more messages to send (supports & color codes)
+</ParamField>
+
+```java
+Common.tell(player, "&aWelcome to the server!");
+Common.tell(player, "&eLine 1", "&bLine 2");
+```
+
+### tellNoPrefix
+
+Sends messages without the tell prefix.
+
+<ParamField path="sender" type="CommandSender" required>
+  The command sender
+</ParamField>
+
+<ParamField path="messages" type="String..." required>
+  Messages to send
+</ParamField>
+
+```java
+Common.tellNoPrefix(player, "&cError message");
+```
+
+### tellTimed
+
+Sends a message with cooldown to prevent spam.
+
+<ParamField path="delaySeconds" type="int" required>
+  Minimum seconds between identical messages
+</ParamField>
+
+<ParamField path="sender" type="CommandSender" required>
+  The command sender
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  The message to send
+</ParamField>
+
+```java
+// Will only send once per 5 seconds
+Common.tellTimed(5, player, "&cYou cannot do that here!");
+```
+
+## Broadcasting methods
+
+### broadcast
+
+Broadcasts a message to all online players and console.
+
+<ParamField path="messages" type="String..." required>
+  Messages to broadcast
+</ParamField>
+
+```java
+Common.broadcast("&6Server restarting in 5 minutes!");
+```
+
+### broadcastWithPerm
+
+Broadcasts to players with a specific permission.
+
+<ParamField path="permission" type="String" required>
+  The permission required to see the message
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  The message to broadcast
+</ParamField>
+
+<ParamField path="log" type="boolean" required>
+  Whether to also log to console
+</ParamField>
+
+```java
+Common.broadcastWithPerm("myplugin.admin", "&c[Admin] Player banned", true);
+```
+
+## Color methods
+
+### colorize
+
+Translates & color codes to Minecraft color codes. Supports HEX colors on 1.16+.
+
+<ParamField path="message" type="String" required>
+  The message to colorize
+</ParamField>
+
+<ParamField path="returns" type="String">
+  The colorized message
+</ParamField>
+
+```java
+String colored = Common.colorize("&aGreen &b&#FF5733Orange");
+String hex = Common.colorize("&#CCCCCC{#AABBCC}&#FFAABBGray text");
+```
+
+<Note>
+  HEX colors are supported in formats: `&#RRGGBB`, `{#RRGGBB}`, or `#RRGGBB`
+</Note>
+
+### stripColors
+
+Removes all color codes from a message.
+
+<ParamField path="message" type="String" required>
+  The message to strip
+</ParamField>
+
+<ParamField path="returns" type="String">
+  The message without color codes
+</ParamField>
+
+```java
+String plain = Common.stripColors("&aColored text");
+// Returns: "Colored text"
+```
+
+## Logging methods
+
+### log
+
+Logs messages to console with color support.
+
+<ParamField path="messages" type="String..." required>
+  Messages to log
+</ParamField>
+
+```java
+Common.log("&aPlugin loaded successfully!");
+Common.log("&7Line 1", "&7Line 2");
+```
+
+### logTimed
+
+Logs a message with cooldown to prevent console spam.
+
+<ParamField path="delaySeconds" type="int" required>
+  Minimum seconds between identical messages
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  The message to log
+</ParamField>
+
+```java
+Common.logTimed(10, "Database connection lost");
+```
+
+### warning
+
+Logs a warning message.
+
+<ParamField path="message" type="String" required>
+  The warning message
+</ParamField>
+
+```java
+Common.warning("Configuration file is missing!");
+```
+
+### error
+
+Logs an error with stack trace.
+
+<ParamField path="throwable" type="Throwable" required>
+  The exception
+</ParamField>
+
+<ParamField path="messages" type="String...">
+  Additional context messages (can use %error variable)
+</ParamField>
+
+```java
+try {
+    // risky operation
+} catch (Exception ex) {
+    Common.error(ex, "Failed to load config", "Error: %error");
+}
+```
+
+## String formatting
+
+### format
+
+Formats a string with smart object conversion (players, locations, etc.).
+
+<ParamField path="format" type="String" required>
+  The format string (uses %s placeholders)
+</ParamField>
+
+<ParamField path="args" type="Object..." required>
+  Arguments to format
+</ParamField>
+
+```java
+String msg = Common.format("Player %s at %s", player, location);
+// Returns: "Player Steve at world 100, 64, 200"
+```
+
+### plural
+
+Creates plural forms of words based on count.
+
+<ParamField path="count" type="long" required>
+  The count
+</ParamField>
+
+<ParamField path="ofWhat" type="String" required>
+  The singular word
+</ParamField>
+
+```java
+String msg = Common.plural(5, "apple");
+// Returns: "5 apples"
+
+String single = Common.plural(1, "boss");
+// Returns: "1 boss"
+```
+
+### limit
+
+Limits string length and appends "..." if cut.
+
+<ParamField path="text" type="String" required>
+  The text to limit
+</ParamField>
+
+<ParamField path="maxLength" type="int" required>
+  Maximum length
+</ParamField>
+
+```java
+String limited = Common.limit("Very long text here", 10);
+// Returns: "Very long ..."
+```
+
+## Collection methods
+
+### toArray
+
+Converts a collection to an array.
+
+<ParamField path="collection" type="Collection<T>" required>
+  The collection to convert
+</ParamField>
+
+```java
+List<String> list = Arrays.asList("a", "b", "c");
+String[] array = Common.toArray(list);
+```
+
+### join
+
+Joins collection elements into a string.
+
+<ParamField path="collection" type="Iterable<T>" required>
+  Elements to join
+</ParamField>
+
+<ParamField path="delimiter" type="String">
+  Separator (default: ", ")
+</ParamField>
+
+```java
+List<String> items = Arrays.asList("apple", "banana", "cherry");
+String result = Common.join(items);
+// Returns: "apple, banana, cherry"
+
+String custom = Common.join(items, " | ");
+// Returns: "apple | banana | cherry"
+```
+
+## Command execution
+
+### dispatchCommand
+
+Executes a command as console with placeholder support.
+
+<ParamField path="playerReplacement" type="CommandSender">
+  Player to replace {player} placeholder (can be null)
+</ParamField>
+
+<ParamField path="command" type="String" required>
+  The command to execute (without /)
+</ParamField>
+
+```java
+Common.dispatchCommand(player, "give {player} diamond 1");
+Common.dispatchCommand(null, "save-all");
+```
+
+<Note>
+  You can prefix commands with `@announce`, `@warn`, `@error`, `@info`, `@question`, or `@success` to send formatted messages instead
+</Note>
+
+### dispatchCommandAsPlayer
+
+Executes a command as if the player typed it.
+
+<ParamField path="player" type="Player" required>
+  The player to execute the command
+</ParamField>
+
+<ParamField path="command" type="String" required>
+  The command to execute
+</ParamField>
+
+```java
+Common.dispatchCommandAsPlayer(player, "spawn");
+```
+
+## Visual elements
+
+### chatLine
+
+Returns a decorative chat line.
+
+```java
+Common.tell(player, Common.chatLine());
+Common.tell(player, "&6Title");
+Common.tell(player, Common.chatLine());
+// Outputs:
+// *---------------------------------------------------*
+// Title  
+// *---------------------------------------------------*
+```
+
+### consoleLine
+
+Returns a decorative console line.
+
+```java
+Common.log(Common.consoleLine());
+Common.log("Important message");
+Common.log(Common.consoleLine());
+```
+
+## Regex methods
+
+### regExMatch
+
+Tests if a regex pattern matches a message.
+
+<ParamField path="regex" type="String" required>
+  The regular expression
+</ParamField>
+
+<ParamField path="message" type="String" required>
+  The message to test
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if the pattern matches
+</ParamField>
+
+```java
+boolean matches = Common.regExMatch(".*test.*", "this is a test");
+// Returns: true
+```
+
+### compilePattern
+
+Compiles a regex pattern with automatic configuration.
+
+<ParamField path="regex" type="String" required>
+  The regular expression
+</ParamField>
+
+<ParamField path="returns" type="Pattern">
+  The compiled pattern
+</ParamField>
+
+```java
+Pattern pattern = Common.compilePattern("hello.*world");
+```
+
+## Plugin management
+
+### doesPluginExist
+
+Checks if a plugin is installed and enabled.
+
+<ParamField path="pluginName" type="String" required>
+  The exact plugin name
+</ParamField>
+
+<ParamField path="returns" type="boolean">
+  True if the plugin exists and is enabled
+</ParamField>
+
+```java
+if (Common.doesPluginExist("Vault")) {
+    // Setup Vault integration
+}
+```
+
+## Constants
+
+<ParamField path="GSON" type="Gson">
+  The default Gson instance for JSON operations
+</ParamField>
+
+```java
+String json = Common.GSON.toJson(object);
+MyObject obj = Common.GSON.fromJson(json, MyObject.class);
+```
+
+## Configuration
+
+### setTellPrefix
+
+Sets the prefix for tell() messages.
+
+<ParamField path="prefix" type="String" required>
+  The prefix (supports & colors)
+</ParamField>
+
+```java
+Common.setTellPrefix("&8[&bMyPlugin&8]");
+```
+
+### setLogPrefix  
+
+Sets the prefix for log() messages.
+
+<ParamField path="prefix" type="String" required>
+  The prefix (supports & colors)
+</ParamField>
+
+```java
+Common.setLogPrefix("&7[MyPlugin]");
+```
+
+## Examples
+
+### Complete messaging example
+
+```java
+public class WelcomeManager {
+    
+    public void welcomePlayer(Player player) {
+        Common.tell(player, 
+            Common.chatLine(),
+            "&6&lWelcome to our server!",
+            "&7You are player #" + Bukkit.getOnlinePlayers().size(),
+            Common.chatLine()
+        );
+    }
+    
+    public void announceJoin(Player player) {
+        Common.broadcast(
+            "&a" + player.getName() + " &7has joined the server"
+        );
+        
+        Common.broadcastWithPerm(
+            "staff.notify",
+            "&e[Staff] New player joined from " + player.getAddress(),
+            false
+        );
+    }
+}
+```
+
+### Smart error handling
+
+```java
+public void loadData(Player player) {
+    try {
+        PlayerData data = database.load(player.getUniqueId());
+        Common.tell(player, "&aData loaded successfully!");
+        
+    } catch (Exception ex) {
+        Common.error(ex, 
+            "Failed to load data for player: " + player.getName(),
+            "Database error: %error"
+        );
+        Common.tell(player, "&cFailed to load your data. Please contact an admin.");
+    }
+}
+```
+
+### Timed messages
+
+```java
+@EventHandler
+public void onBlockBreak(BlockBreakEvent event) {
+    if (protectedRegion.contains(event.getBlock())) {
+        event.setCancelled(true);
+        
+        // Only shows once per 3 seconds per player
+        Common.tellTimed(3, event.getPlayer(), 
+            "&cYou cannot break blocks here!"
+        );
+    }
+}
+```

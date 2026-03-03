@@ -1,0 +1,453 @@
+---
+title: Migration guide
+description: Upgrade your existing plugins to Foundation or migrate between Foundation versions
+---
+
+This guide covers migrating from vanilla JavaPlugin to Foundation, as well as upgrading between Foundation versions.
+
+## Migrating from JavaPlugin
+
+Converting an existing Bukkit/Spigot plugin to use Foundation is straightforward but requires careful attention to a few critical changes.
+
+### Core plugin class changes
+
+<Steps>
+  <Step title="Change base class">
+    Update your main plugin class to extend `SimplePlugin`:
+
+    **Before:**
+    ```java
+    import org.bukkit.plugin.java.JavaPlugin;
+
+    public class MyPlugin extends JavaPlugin {
+        // ...
+    }
+    ```
+
+    **After:**
+    ```java
+    import org.mineacademy.fo.plugin.SimplePlugin;
+
+    public class MyPlugin extends SimplePlugin {
+        // ...
+    }
+    ```
+  </Step>
+
+  <Step title="Update lifecycle methods">
+    Foundation uses different method names to perform its own initialization:
+
+    **Before:**
+    ```java
+    @Override
+    public void onEnable() {
+        getLogger().info("Plugin enabled!");
+        loadConfig();
+        registerCommands();
+        registerListeners();
+    }
+
+    @Override
+    public void onDisable() {
+        getLogger().info("Plugin disabled!");
+        saveData();
+    }
+    ```
+
+    **After:**
+    ```java
+    import org.mineacademy.fo.Common;
+
+    @Override
+    protected void onPluginStart() {
+        Common.log("Plugin enabled!");
+        loadConfig();
+        registerCommands();
+        // Listeners are auto-registered with @AutoRegister
+    }
+
+    @Override
+    protected void onPluginStop() {
+        Common.log("Plugin disabled!");
+        saveData();
+    }
+    ```
+
+    <Warning>
+      Do not use `onEnable()` and `onDisable()` - Foundation needs these methods for internal setup. Always use `onPluginStart()` and `onPluginStop()`.
+    </Warning>
+  </Step>
+
+  <Step title="Update plugin instance">
+    Remove manual instance management:
+
+    **Before:**
+    ```java
+    public class MyPlugin extends JavaPlugin {
+        private static MyPlugin instance;
+
+        @Override
+        public void onEnable() {
+            instance = this;
+        }
+
+        public static MyPlugin getInstance() {
+            return instance;
+        }
+    }
+    ```
+
+    **After:**
+    ```java
+    public class MyPlugin extends SimplePlugin {
+        // Remove instance field completely
+        
+        public static MyPlugin getInstance() {
+            return (MyPlugin) SimplePlugin.getInstance();
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Add shading configuration">
+    Add Foundation shading to your `pom.xml` as described in the [installation guide](/installation).
+
+    This is **critical** - without proper shading, your plugin will include unnecessary dependencies.
+
+    ```xml
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <configuration>
+            <artifactSet>
+                <includes>
+                    <include>com.github.kangarko:Foundation*</include>
+                </includes>
+            </artifactSet>
+            <relocations>
+                <relocation>
+                    <pattern>org.mineacademy.fo</pattern>
+                    <shadedPattern>your.plugin.package.lib</shadedPattern>
+                </relocation>
+            </relocations>
+        </configuration>
+    </plugin>
+    ```
+  </Step>
+</Steps>
+
+### Migrating listeners
+
+Foundation provides automatic listener registration:
+
+**Before:**
+```java
+public class PlayerJoinListener implements Listener {
+    
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        event.setJoinMessage("Welcome!");
+    }
+}
+
+// In main class:
+@Override
+public void onEnable() {
+    getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
+}
+```
+
+**After:**
+```java
+import org.mineacademy.fo.annotation.AutoRegister;
+import org.mineacademy.fo.event.SimpleListener;
+
+@AutoRegister
+public class PlayerJoinListener implements SimpleListener {
+    
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        event.setJoinMessage("Welcome!");
+    }
+}
+
+// No manual registration needed!
+```
+
+<Note>
+  Add `@AutoRegister` annotation and implement `SimpleListener` (or just `Listener`) for automatic registration. You can also manually register using `registerEvents(new PlayerJoinListener())`.
+</Note>
+
+### Migrating commands
+
+Replace plugin.yml commands with Foundation's command system:
+
+**Before (plugin.yml):**
+```yaml
+commands:
+  hello:
+    description: Say hello
+    usage: /<command> [player]
+    permission: myplugin.hello
+```
+
+**Before (Java):**
+```java
+public class HelloCommand implements CommandExecutor {
+    
+    @Override
+    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("Only players can use this!");
+            return true;
+        }
+        
+        Player player = (Player) sender;
+        player.sendMessage("Hello!");
+        return true;
+    }
+}
+
+// In main class:
+getCommand("hello").setExecutor(new HelloCommand());
+```
+
+**After:**
+```java
+import org.mineacademy.fo.command.SimpleCommand;
+
+public class HelloCommand extends SimpleCommand {
+    
+    public HelloCommand() {
+        super("hello");
+        
+        setDescription("Say hello");
+        setUsage("/<command> [player]");
+        setPermission("myplugin.hello");
+    }
+    
+    @Override
+    protected void onCommand() {
+        checkConsole(); // Automatically handles console check
+        
+        tell("Hello!"); // Automatically sends to sender
+    }
+}
+
+// In main class:
+@Override
+protected void onPluginStart() {
+    registerCommand(new HelloCommand());
+}
+```
+
+Benefits:
+- No `plugin.yml` needed
+- Automatic permission checking
+- Built-in player/console validation
+- Easy tab completion
+- Cleaner code
+
+### Migrating configuration
+
+**Before:**
+```java
+FileConfiguration config = getConfig();
+String message = config.getString("message", "Default");
+int value = config.getInt("value", 10);
+
+saveConfig();
+```
+
+**After:**
+```java
+import org.mineacademy.fo.settings.YamlStaticConfig;
+
+public class Settings extends YamlStaticConfig {
+    
+    public static String MESSAGE;
+    public static Integer VALUE;
+    
+    @Override
+    protected void onLoad() {
+        loadConfiguration("settings.yml");
+    }
+    
+    private static void load() {
+        MESSAGE = getString("Message", "Default");
+        VALUE = getInteger("Value", 10);
+    }
+}
+
+// Access anywhere:
+String msg = Settings.MESSAGE;
+```
+
+Benefits:
+- Type-safe static access
+- Auto-updating (adds new keys from defaults)
+- Comment preservation
+- Validation and error handling
+
+### Common API replacements
+
+| Old Code | Foundation Equivalent |
+|----------|----------------------|
+| `getLogger().info(msg)` | `Common.log(msg)` |
+| `player.sendMessage(msg)` | `Common.tell(player, msg)` |
+| `Bukkit.broadcastMessage(msg)` | `Common.broadcast(msg)` |
+| `Bukkit.getScheduler().runTaskLater(...)` | `Common.runLater(ticks, runnable)` |
+| `Bukkit.getScheduler().runTaskTimer(...)` | `Common.runTimer(delay, period, runnable)` |
+| `new ItemStack(Material.STONE)` | `CompMaterial.STONE.toItem()` |
+| `player.kickPlayer(reason)` | `PlayerUtil.kick(player, reason)` |
+
+## Upgrading between Foundation versions
+
+### Check the version
+
+First, check which version you're currently using in your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>com.github.kangarko</groupId>
+    <artifactId>Foundation</artifactId>
+    <version><!-- Current version --></version>
+</dependency>
+```
+
+### Update dependency
+
+<Steps>
+  <Step title="Update version number">
+    Change the version to the latest from [GitHub releases](https://github.com/kangarko/Foundation/releases):
+
+    ```xml
+    <dependency>
+        <groupId>com.github.kangarko</groupId>
+        <artifactId>Foundation</artifactId>
+        <version>6.9.23</version> <!-- Use latest version -->
+    </dependency>
+    ```
+  </Step>
+
+  <Step title="Refresh dependencies">
+    ```bash
+    mvn clean install
+    ```
+
+    Or for Gradle:
+    ```bash
+    gradle clean build --refresh-dependencies
+    ```
+  </Step>
+
+  <Step title="Check for deprecations">
+    Review your IDE warnings for deprecated methods and update them according to the JavaDoc suggestions.
+  </Step>
+
+  <Step title="Test thoroughly">
+    Test all plugin functionality on a test server before deploying to production.
+  </Step>
+</Steps>
+
+### Breaking changes by version
+
+Foundation maintains backward compatibility in most cases, but some major versions include breaking changes:
+
+<Note>
+  Always check the [GitHub releases page](https://github.com/kangarko/Foundation/releases) for detailed changelogs and migration notes for specific versions.
+</Note>
+
+### Version 6.x changes
+
+- **Minecraft 1.20+ support**: Added support for new features in recent Minecraft versions
+- **Folia support**: Foundation now supports Folia server software
+- **API refinements**: Some legacy methods were deprecated in favor of cleaner alternatives
+
+### Version 5.x to 6.x migration
+
+Most plugins should upgrade seamlessly. Key changes:
+
+1. **Updated dependencies**: Paper API version updated to latest
+2. **NBT API improvements**: Enhanced NBT manipulation methods
+3. **Menu system**: Minor improvements to menu APIs
+
+No major breaking changes - update version and rebuild.
+
+## Migration checklist
+
+Use this checklist when migrating to Foundation:
+
+- [ ] Updated main class to extend `SimplePlugin`
+- [ ] Changed `onEnable()` to `onPluginStart()`
+- [ ] Changed `onDisable()` to `onPluginStop()`
+- [ ] Updated `getInstance()` method to use `SimplePlugin.getInstance()`
+- [ ] Removed manual instance field storage
+- [ ] Added proper shading configuration to `pom.xml` or `build.gradle`
+- [ ] Migrated commands from `plugin.yml` to `SimpleCommand`
+- [ ] Added `@AutoRegister` to listeners (optional but recommended)
+- [ ] Updated configuration to use `YamlStaticConfig` (optional)
+- [ ] Replaced common Bukkit API calls with Foundation equivalents
+- [ ] Tested plugin on a development server
+- [ ] Verified jar file size is reasonable (not bloated)
+- [ ] Checked console for any warnings or errors
+
+## Getting help
+
+If you encounter issues during migration:
+
+<CardGroup cols={2}>
+  <Card title="Example Plugin" icon="code" href="https://github.com/kangarko/PluginTemplate">
+    See a complete Foundation plugin example
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github" href="https://github.com/kangarko/Foundation/issues">
+    Report bugs or ask questions
+  </Card>
+  
+  <Card title="Video Tutorial" icon="video" href="https://www.youtube.com/watch?v=gXbZnKYE7ww">
+    Watch the installation and setup guide
+  </Card>
+  
+  <Card title="DeepWiki" icon="robot" href="https://deepwiki.com/kangarko/Foundation">
+    Ask AI assistant about Foundation
+  </Card>
+</CardGroup>
+
+## Common migration issues
+
+### Plugin won't load after migration
+
+**Cause**: Not extending `SimplePlugin` or using `onEnable()`/`onDisable()`
+
+**Solution**: Ensure you extend `SimplePlugin` and use `onPluginStart()`/`onPluginStop()`
+
+### Jar file size increased dramatically
+
+**Cause**: Improper shading configuration including all of Foundation's optional dependencies
+
+**Solution**: Review your shade plugin configuration to only include Foundation:
+```xml
+<includes>
+    <include>com.github.kangarko:Foundation*</include>
+</includes>
+```
+
+### NoClassDefFoundError for Foundation classes
+
+**Cause**: Foundation not properly shaded into your jar
+
+**Solution**: Verify your shade plugin is configured correctly and running during the package phase
+
+### Commands not working
+
+**Cause**: Still defined in `plugin.yml` or not registered properly
+
+**Solution**: Remove from `plugin.yml` and register using `registerCommand()` in `onPluginStart()`
+
+### Listeners not firing
+
+**Cause**: Not implementing `SimpleListener` or missing `@AutoRegister`
+
+**Solution**: Add `@AutoRegister` annotation or manually register using `registerEvents()`

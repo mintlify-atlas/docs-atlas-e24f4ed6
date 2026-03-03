@@ -1,0 +1,571 @@
+---
+title: SimpleDatabase
+description: MySQL/MariaDB/SQLite database wrapper for Foundation plugins
+---
+
+Represents a simple database wrapper for MySQL, MariaDB, and SQLite connections.
+
+Before running queries make sure to call `connect()` methods. You can also override `onConnected()` to run your code after the connection has been established.
+
+<Note>
+To use this class you must know the MySQL command syntax.
+</Note>
+
+## Connection methods
+
+### connect()
+
+Establishes a new database connection.
+
+<ParamField path="host" type="String" required>
+  The database host address
+</ParamField>
+
+<ParamField path="port" type="int" required>
+  The database port number
+</ParamField>
+
+<ParamField path="database" type="String" required>
+  The database name
+</ParamField>
+
+<ParamField path="user" type="String" required>
+  The database username
+</ParamField>
+
+<ParamField path="password" type="String" required>
+  The database password
+</ParamField>
+
+<ParamField path="table" type="String">
+  Optional table name (accessible as `{table}` variable in queries)
+</ParamField>
+
+<ParamField path="autoReconnect" type="boolean" default="true">
+  Whether to automatically reconnect on connection loss
+</ParamField>
+
+```java
+// MySQL connection
+database.connect("localhost", 3306, "mydb", "user", "pass");
+
+// With table variable
+database.connect("localhost", 3306, "mydb", "user", "pass", "players");
+
+// SQLite connection
+database.connect("jdbc:sqlite://database.db");
+```
+
+### connect(String url)
+
+Connects to a database using a JDBC URL.
+
+<ParamField path="url" type="String" required>
+  The JDBC connection URL (e.g., `jdbc:mysql://host:port/database` or `jdbc:sqlite://database.db`)
+</ParamField>
+
+<ParamField path="user" type="String">
+  The database username (not required for SQLite)
+</ParamField>
+
+<ParamField path="password" type="String">
+  The database password (not required for SQLite)
+</ParamField>
+
+<ParamField path="table" type="String">
+  Optional table name for `{table}` variable replacement
+</ParamField>
+
+```java
+// MySQL with custom URL
+database.connect("jdbc:mysql://localhost:3306/mydb", "user", "pass", "players");
+
+// MariaDB
+database.connect("jdbc:mariadb://localhost:3306/mydb", "user", "pass");
+```
+
+### onConnected()
+
+Called automatically after the first connection has been established. Override this method to run initialization code.
+
+```java
+@Override
+protected void onConnected() {
+    // Create tables, run migrations, etc.
+    createTable(TableCreator.of("players")
+        .addAutoIncrement("id", "bigint")
+        .addNotNull("uuid", "varchar(36)")
+        .addNotNull("name", "varchar(16)")
+        .add("data", "longtext")
+        .setPrimaryColumn("id"));
+}
+```
+
+### close()
+
+Closes the database connection.
+
+```java
+database.close();
+```
+
+### close(ResultSet resultSet)
+
+Closes a result set safely.
+
+<ParamField path="resultSet" type="ResultSet" required>
+  The result set to close
+</ParamField>
+
+```java
+ResultSet rs = database.query("SELECT * FROM players");
+try {
+    // Process results
+} finally {
+    database.close(rs);
+}
+```
+
+## Table creation
+
+### createTable(TableCreator creator)
+
+Creates a database table using the builder pattern.
+
+<ParamField path="creator" type="TableCreator" required>
+  The table creator with column definitions
+</ParamField>
+
+```java
+createTable(TableCreator.of("players")
+    .addAutoIncrement("id", "bigint")
+    .addNotNull("uuid", "varchar(36)")
+    .add("name", "varchar(16)")
+    .addDefault("balance", "double", "0.0")
+    .add("data", "longtext")
+    .setPrimaryColumn("id"));
+```
+
+### TableCreator methods
+
+<Tabs>
+  <Tab title="add()">
+    Adds a new column.
+    
+    ```java
+    .add("column_name", "data_type")
+    ```
+  </Tab>
+  <Tab title="addNotNull()">
+    Adds a NOT NULL column.
+    
+    ```java
+    .addNotNull("uuid", "varchar(36)")
+    ```
+  </Tab>
+  <Tab title="addAutoIncrement()">
+    Adds an auto-incrementing column.
+    
+    ```java
+    .addAutoIncrement("id", "bigint")
+    ```
+  </Tab>
+  <Tab title="addDefault()">
+    Adds a column with a default value.
+    
+    ```java
+    .addDefault("status", "varchar(20)", "ACTIVE")
+    ```
+  </Tab>
+  <Tab title="setPrimaryColumn()">
+    Sets the primary key column.
+    
+    ```java
+    .setPrimaryColumn("id")
+    ```
+  </Tab>
+</Tabs>
+
+## Query methods
+
+### update(String sql)
+
+Executes an UPDATE, INSERT, or DELETE query.
+
+<ParamField path="sql" type="String" required>
+  The SQL query to execute
+</ParamField>
+
+<Warning>
+This method must be called asynchronously to prevent blocking the server.
+</Warning>
+
+```java
+Common.runAsync(() -> {
+    database.update("UPDATE {table} SET balance = 100 WHERE uuid = '" + uuid + "'");
+});
+```
+
+### query(String sql)
+
+Executes a SELECT query and returns a ResultSet.
+
+<ParamField path="sql" type="String" required>
+  The SQL query to execute
+</ParamField>
+
+<ParamField return="ResultSet">
+  The query results
+</ParamField>
+
+<Warning>
+This method must be called asynchronously.
+</Warning>
+
+```java
+Common.runAsync(() -> {
+    ResultSet rs = database.query("SELECT * FROM {table} WHERE uuid = '" + uuid + "'");
+    try {
+        if (rs.next()) {
+            String name = rs.getString("name");
+            // Process data
+        }
+    } finally {
+        database.close(rs);
+    }
+});
+```
+
+### select(String table, String where, ResultReader consumer)
+
+Selects rows from a table with a WHERE clause.
+
+<ParamField path="table" type="String" required>
+  The table name (can use `{table}` variable)
+</ParamField>
+
+<ParamField path="where" type="String">
+  The WHERE clause (null for all rows)
+</ParamField>
+
+<ParamField path="consumer" type="ResultReader" required>
+  Callback to process each row
+</ParamField>
+
+```java
+Common.runAsync(() -> {
+    database.select("{table}", "uuid = '" + uuid + "'", resultSet -> {
+        String name = resultSet.getString("name");
+        int balance = resultSet.getInt("balance");
+        // Process data
+    });
+});
+```
+
+### select(String table, Map where, ResultReader consumer)
+
+Selects rows using a map of conditions.
+
+<ParamField path="table" type="String" required>
+  The table name
+</ParamField>
+
+<ParamField path="where" type="Map">
+  Map of column names to values for WHERE clause
+</ParamField>
+
+<ParamField path="consumer" type="ResultReader" required>
+  Callback to process each row
+</ParamField>
+
+```java
+Map<String, Object> conditions = new HashMap<>();
+conditions.put("name", "Steve");
+conditions.put("age", 30);
+
+Common.runAsync(() -> {
+    database.select("{table}", conditions, resultSet -> {
+        // Process matching rows
+    });
+});
+```
+
+### selectAll(String table, ResultReader consumer)
+
+Selects all rows from a table.
+
+<ParamField path="table" type="String" required>
+  The table name
+</ParamField>
+
+<ParamField path="consumer" type="ResultReader" required>
+  Callback to process each row
+</ParamField>
+
+```java
+Common.runAsync(() -> {
+    database.selectAll("{table}", resultSet -> {
+        // Process each row
+    });
+});
+```
+
+## Insert methods
+
+### insert(SerializedMap columnsAndValues)
+
+Inserts data into the `{table}` table.
+
+<ParamField path="columnsAndValues" type="SerializedMap" required>
+  Map of column names to values
+</ParamField>
+
+```java
+Common.runAsync(() -> {
+    SerializedMap data = SerializedMap.of(
+        "uuid", player.getUniqueId().toString(),
+        "name", player.getName(),
+        "balance", 100.0
+    );
+    
+    database.insert(data);
+});
+```
+
+### insert(String table, SerializedMap columnsAndValues)
+
+Inserts data into a specific table.
+
+<ParamField path="table" type="String" required>
+  The table name
+</ParamField>
+
+<ParamField path="columnsAndValues" type="SerializedMap" required>
+  Map of column names to values
+</ParamField>
+
+<Note>
+On MySQL/MariaDB, this uses `INSERT ... ON DUPLICATE KEY UPDATE` to update existing rows.
+</Note>
+
+```java
+database.insert("players", SerializedMap.of(
+    "uuid", uuid.toString(),
+    "name", name
+));
+```
+
+### insertBatch(List maps)
+
+Inserts multiple rows in a single batch operation.
+
+<ParamField path="maps" type="List" required>
+  List of column-value maps to insert
+</ParamField>
+
+```java
+List<SerializedMap> batch = new ArrayList<>();
+
+for (Player player : Bukkit.getOnlinePlayers()) {
+    batch.add(SerializedMap.of(
+        "uuid", player.getUniqueId().toString(),
+        "name", player.getName()
+    ));
+}
+
+Common.runAsync(() -> database.insertBatch(batch));
+```
+
+## Utility methods
+
+### count(String table, Object... conditions)
+
+Counts rows matching the given conditions.
+
+<ParamField path="table" type="String" required>
+  The table name
+</ParamField>
+
+<ParamField path="conditions" type="Object..." required>
+  Key-value pairs for WHERE conditions
+</ParamField>
+
+<ParamField return="int">
+  The number of matching rows
+</ParamField>
+
+```java
+Common.runAsync(() -> {
+    int count = database.count("{table}", "status", "ACTIVE");
+    Common.log("Active players: " + count);
+});
+```
+
+### addVariable(String name, String value)
+
+Adds a variable that can be used in queries with `{name}` syntax.
+
+<ParamField path="name" type="String" required>
+  The variable name (without braces)
+</ParamField>
+
+<ParamField path="value" type="String" required>
+  The value to replace the variable with
+</ParamField>
+
+```java
+public MyDatabase() {
+    addVariable("table", "my_custom_table");
+    addVariable("prefix", "myprefix_");
+}
+
+// In queries:
+update("INSERT INTO {prefix}{table} ...");
+```
+
+### prepareStatement(String sql)
+
+Creates a prepared statement for parameterized queries.
+
+<ParamField path="sql" type="String" required>
+  The SQL query with `?` placeholders
+</ParamField>
+
+<ParamField return="PreparedStatement">
+  The prepared statement
+</ParamField>
+
+```java
+Common.runAsync(() -> {
+    try (PreparedStatement ps = database.prepareStatement(
+            "SELECT * FROM {table} WHERE uuid = ?")) {
+        ps.setString(1, uuid.toString());
+        ResultSet rs = ps.executeQuery();
+        // Process results
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+});
+```
+
+### isConnected()
+
+Checks if the connection is established and valid.
+
+<ParamField return="boolean">
+  True if connected, false otherwise
+</ParamField>
+
+```java
+if (database.isConnected()) {
+    // Execute queries
+}
+```
+
+### isLoaded()
+
+Checks if the `connect()` method was called.
+
+<ParamField return="boolean">
+  True if connect was called, false otherwise
+</ParamField>
+
+```java
+if (!database.isLoaded()) {
+    database.connect(...);
+}
+```
+
+### isSQLite()
+
+Checks if the connection is to a SQLite database.
+
+<ParamField return="boolean">
+  True if SQLite, false if MySQL/MariaDB
+</ParamField>
+
+```java
+if (database.isSQLite()) {
+    // SQLite-specific logic
+} else {
+    // MySQL/MariaDB logic
+}
+```
+
+## Configuration
+
+### setConnectUsingHikari(boolean value)
+
+Enables or disables HikariCP connection pooling (default: enabled).
+
+<ParamField path="value" type="boolean" required>
+  True to use HikariCP, false for standard connections
+</ParamField>
+
+```java
+SimpleDatabase.setConnectUsingHikari(true);
+```
+
+<Note>
+HikariCP requires Minecraft 1.16+ and the `com.zaxxer:HikariCP` library in your plugin.yml.
+</Note>
+
+## Complete example
+
+```java
+public class PlayerDatabase extends SimpleDatabase {
+    
+    public PlayerDatabase() {
+        addVariable("table", "players");
+    }
+    
+    public void connect(DatabaseSettings settings) {
+        connect(
+            settings.getHost(),
+            settings.getPort(),
+            settings.getDatabase(),
+            settings.getUser(),
+            settings.getPassword(),
+            "players"
+        );
+    }
+    
+    @Override
+    protected void onConnected() {
+        createTable(TableCreator.of("{table}")
+            .addAutoIncrement("id", "bigint")
+            .addNotNull("uuid", "varchar(36)")
+            .addNotNull("name", "varchar(16)")
+            .add("balance", "double")
+            .add("last_login", "bigint")
+            .setPrimaryColumn("id"));
+    }
+    
+    public void savePlayer(Player player, double balance) {
+        Common.runAsync(() -> {
+            SerializedMap data = SerializedMap.of(
+                "uuid", player.getUniqueId().toString(),
+                "name", player.getName(),
+                "balance", balance,
+                "last_login", System.currentTimeMillis()
+            );
+            
+            insert("{table}", data);
+        });
+    }
+    
+    public void loadPlayer(UUID uuid, Consumer<PlayerData> callback) {
+        Common.runAsync(() -> {
+            select("{table}", "uuid = '" + uuid + "'", resultSet -> {
+                String name = resultSet.getString("name");
+                double balance = resultSet.getDouble("balance");
+                long lastLogin = resultSet.getLong("last_login");
+                
+                PlayerData data = new PlayerData(name, balance, lastLogin);
+                
+                Common.runLater(() -> callback.accept(data));
+            });
+        });
+    }
+}
+```

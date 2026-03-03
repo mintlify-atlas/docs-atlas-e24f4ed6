@@ -1,0 +1,341 @@
+---
+title: Custom events
+description: Learn how to create and use custom Bukkit events with Foundation's SimpleEvent and SimpleCancellableEvent classes
+---
+
+Foundation provides powerful base classes for creating custom Bukkit events that work seamlessly across both sync and async contexts.
+
+## Event base classes
+
+### SimpleEvent
+
+`SimpleEvent` automatically handles sync/async event registration, eliminating common errors when firing events from different threads.
+
+```java
+import org.mineacademy.fo.event.SimpleEvent;
+import org.bukkit.event.HandlerList;
+import lombok.Getter;
+
+public final class PlayerLevelUpEvent extends SimpleEvent {
+    
+    private static final HandlerList handlers = new HandlerList();
+    
+    @Getter
+    private final Player player;
+    
+    @Getter
+    private final int newLevel;
+    
+    public PlayerLevelUpEvent(Player player, int newLevel) {
+        this.player = player;
+        this.newLevel = newLevel;
+    }
+    
+    @Override
+    public HandlerList getHandlers() {
+        return handlers;
+    }
+    
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+}
+```
+
+<Note>
+  The `SimpleEvent` constructor automatically detects whether the event is being fired from the primary thread using `Bukkit.isPrimaryThread()` and sets the async flag accordingly. This prevents "asynchronous event" errors that would normally occur in Spigot 1.14+.
+</Note>
+
+### SimpleCancellableEvent
+
+`SimpleCancellableEvent` extends `SimpleEvent` and adds cancellation support with built-in getters and setters.
+
+```java
+import org.mineacademy.fo.event.SimpleCancellableEvent;
+import org.bukkit.event.HandlerList;
+import lombok.Getter;
+import lombok.Setter;
+
+public final class CustomTeleportEvent extends SimpleCancellableEvent {
+    
+    private static final HandlerList handlers = new HandlerList();
+    
+    @Getter
+    private final Player player;
+    
+    @Getter
+    @Setter
+    private Location destination;
+    
+    public CustomTeleportEvent(Player player, Location destination) {
+        this.player = player;
+        this.destination = destination;
+    }
+    
+    @Override
+    public HandlerList getHandlers() {
+        return handlers;
+    }
+    
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+}
+```
+
+## Firing custom events
+
+<Steps>
+  <Step title="Create the event instance">
+    Instantiate your custom event with the required data.
+    
+    ```java
+    PlayerLevelUpEvent event = new PlayerLevelUpEvent(player, 50);
+    ```
+  </Step>
+  
+  <Step title="Call the event">
+    Use `Bukkit.getPluginManager().callEvent()` to fire it.
+    
+    ```java
+    Bukkit.getPluginManager().callEvent(event);
+    ```
+  </Step>
+  
+  <Step title="Handle cancellation (if applicable)">
+    Check if the event was cancelled and act accordingly.
+    
+    ```java
+    CustomTeleportEvent event = new CustomTeleportEvent(player, destination);
+    Bukkit.getPluginManager().callEvent(event);
+    
+    if (event.isCancelled()) {
+        return; // Don't teleport
+    }
+    
+    // Use the potentially modified destination
+    player.teleport(event.getDestination());
+    ```
+  </Step>
+</Steps>
+
+## Listening to custom events
+
+Create a listener class extending `SimpleListener` to handle your custom events:
+
+```java
+import org.mineacademy.fo.event.SimpleListener;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+
+public final class LevelUpListener extends SimpleListener {
+    
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onLevelUp(PlayerLevelUpEvent event) {
+        Player player = event.getPlayer();
+        int level = event.getNewLevel();
+        
+        player.sendMessage("Congratulations! You reached level " + level);
+        
+        // Give rewards for milestone levels
+        if (level % 10 == 0) {
+            player.getInventory().addItem(new ItemStack(Material.DIAMOND, level / 10));
+        }
+    }
+}
+```
+
+<Note>
+  `SimpleListener` is automatically registered by Foundation when annotated with `@AutoRegister`. See the [listeners guide](/core-concepts/listeners) for more details.
+</Note>
+
+## Event handling exceptions
+
+### EventHandledException
+
+Use `EventHandledException` to gracefully handle errors in event listeners without spamming the console:
+
+```java
+import org.mineacademy.fo.exception.EventHandledException;
+
+@EventHandler
+public void onCustomTeleport(CustomTeleportEvent event) {
+    Player player = event.getPlayer();
+    Location destination = event.getDestination();
+    
+    // Validate the teleport
+    if (!player.hasPermission("myplugin.teleport")) {
+        // This cancels the event and messages the player
+        throw new EventHandledException(true, "&cYou don't have permission to teleport!");
+    }
+    
+    if (destination.getWorld() == null) {
+        // Cancel and notify
+        throw new EventHandledException(true, "&cInvalid world!");
+    }
+}
+```
+
+<Tip>
+  `EventHandledException` only sends messages to the player involved in the event. It won't create error logs, making it perfect for validation failures.
+</Tip>
+
+## Advanced patterns
+
+### Modifiable event data
+
+Allow other plugins to modify event data:
+
+```java
+@Getter
+@Setter
+public final class RewardCalculateEvent extends SimpleEvent {
+    
+    private static final HandlerList handlers = new HandlerList();
+    
+    private final Player player;
+    private final String rewardType;
+    
+    // Modifiable by listeners
+    private double amount;
+    private double multiplier;
+    
+    public RewardCalculateEvent(Player player, String rewardType, double amount) {
+        this.player = player;
+        this.rewardType = rewardType;
+        this.amount = amount;
+        this.multiplier = 1.0;
+    }
+    
+    public double getFinalAmount() {
+        return amount * multiplier;
+    }
+    
+    @Override
+    public HandlerList getHandlers() {
+        return handlers;
+    }
+    
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+}
+```
+
+Other plugins can then modify the reward:
+
+```java
+@EventHandler
+public void onRewardCalculate(RewardCalculateEvent event) {
+    // VIP players get 2x rewards
+    if (event.getPlayer().hasPermission("myplugin.vip")) {
+        event.setMultiplier(2.0);
+    }
+    
+    // Bonus for certain reward types
+    if (event.getRewardType().equals("DAILY")) {
+        event.setAmount(event.getAmount() + 100);
+    }
+}
+```
+
+### Async event creation
+
+To explicitly create an async event:
+
+```java
+public final class AsyncDataLoadEvent extends SimpleEvent {
+    
+    private static final HandlerList handlers = new HandlerList();
+    
+    @Getter
+    private final UUID playerId;
+    
+    @Getter
+    private final Map<String, Object> data;
+    
+    public AsyncDataLoadEvent(UUID playerId, Map<String, Object> data) {
+        super(true); // Explicitly mark as async
+        this.playerId = playerId;
+        this.data = data;
+    }
+    
+    @Override
+    public HandlerList getHandlers() {
+        return handlers;
+    }
+    
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+}
+```
+
+<Warning>
+  When handling async events, avoid modifying Bukkit API objects directly. Schedule sync tasks using `Common.runLater()` for any Bukkit API calls.
+</Warning>
+
+## Real-world example
+
+Here's a complete example from Foundation's source code - the `RocketExplosionEvent`:
+
+```java
+import org.bukkit.entity.Projectile;
+import org.bukkit.event.Cancellable;
+import org.bukkit.event.HandlerList;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+public final class RocketExplosionEvent extends SimpleEvent implements Cancellable {
+    
+    private static final HandlerList handlers = new HandlerList();
+    
+    private final Rocket rocket;
+    private final Projectile projectile;
+    
+    @Setter
+    private float power;
+    
+    @Setter
+    private boolean breakBlocks;
+    
+    @Setter
+    private boolean cancelled;
+    
+    public RocketExplosionEvent(Rocket rocket, Projectile projectile, 
+                                float power, boolean breakBlocks) {
+        this.rocket = rocket;
+        this.projectile = projectile;
+        this.power = power;
+        this.breakBlocks = breakBlocks;
+    }
+    
+    @Override
+    public HandlerList getHandlers() {
+        return handlers;
+    }
+    
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
+}
+```
+
+Other plugins can then modify the explosion behavior:
+
+```java
+@EventHandler
+public void onRocketExplode(RocketExplosionEvent event) {
+    // Reduce explosion power in safe zones
+    if (isInSafeZone(event.getProjectile().getLocation())) {
+        event.setPower(0.5f);
+        event.setBreakBlocks(false);
+    }
+    
+    // Cancel explosions in spawn
+    if (isSpawn(event.getProjectile().getLocation())) {
+        event.setCancelled(true);
+    }
+}
+```

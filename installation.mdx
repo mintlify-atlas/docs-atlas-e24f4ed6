@@ -1,0 +1,237 @@
+---
+title: Installation
+description: Set up Foundation in your Minecraft plugin project with Maven or Gradle
+---
+
+Foundation is distributed through JitPack, which automatically compiles and hosts the latest release for you.
+
+## Prerequisites
+
+- Java 8 or higher
+- Maven or Gradle build system
+- Basic knowledge of Minecraft plugin development
+
+## Maven setup
+
+<Steps>
+  <Step title="Add JitPack repository">
+    Open your `pom.xml` and add the JitPack repository to the `<repositories>` section:
+
+    ```xml
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+    ```
+  </Step>
+
+  <Step title="Add Foundation dependency">
+    Add Foundation to your `<dependencies>` section. Replace `REPLACE_WITH_LATEST_VERSION` with the latest version from [GitHub releases](https://github.com/kangarko/Foundation/releases):
+
+    ```xml
+    <dependencies>
+        <dependency>
+            <groupId>com.github.kangarko</groupId>
+            <artifactId>Foundation</artifactId>
+            <version>REPLACE_WITH_LATEST_VERSION</version>
+        </dependency>
+    </dependencies>
+    ```
+
+    <Note>
+      Check [github.com/kangarko/Foundation/releases](https://github.com/kangarko/Foundation/releases) for the latest version number.
+    </Note>
+  </Step>
+
+  <Step title="Configure maven-shade-plugin">
+    **This step is critical!** Foundation comes with optional dependencies (WorldEdit, ProtocolLib, etc.) that will be included in your jar if you don't configure shading properly.
+
+    Add this to your `<plugins>` section. **Replace `your.plugin.main.package` with your actual package name**:
+
+    ```xml
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+            <execution>
+                <phase>package</phase>
+                <goals>
+                    <goal>shade</goal>
+                </goals>
+            </execution>
+        </executions>
+        <configuration>
+            <createDependencyReducedPom>false</createDependencyReducedPom>
+            <artifactSet>
+                <includes>
+                    <!-- Important: This ensures only Foundation is shaded to your jar -->
+                    <include>com.github.kangarko:Foundation*</include>
+                    
+                    <!-- Add additional dependencies here if needed -->
+                    <!-- <include>com.example:your-library</include> -->
+                </includes>
+            </artifactSet>
+            <relocations>
+                <!-- Relocate Foundation to prevent conflicts -->
+                <relocation>
+                    <pattern>org.mineacademy.fo</pattern>
+                    <shadedPattern>your.plugin.main.package.lib</shadedPattern>
+                </relocation>
+            </relocations>
+        </configuration>
+    </plugin>
+    ```
+
+    <Warning>
+      **Do not skip this step!** Without proper shading configuration, Foundation's optional dependencies (WorldEdit, Citizens, Towny, etc.) will be bundled into your plugin jar, causing bloat and potential conflicts.
+    </Warning>
+  </Step>
+
+  <Step title="Build your project">
+    Run Maven to build your project:
+
+    ```bash
+    mvn clean package
+    ```
+
+    Your plugin jar will be created in the `target/` directory.
+  </Step>
+</Steps>
+
+## Gradle setup
+
+<Steps>
+  <Step title="Add JitPack repository">
+    Add JitPack to your `build.gradle` repositories:
+
+    ```groovy
+    repositories {
+        maven { url 'https://jitpack.io' }
+    }
+    ```
+  </Step>
+
+  <Step title="Add Foundation dependency">
+    Add Foundation to your dependencies. Replace `REPLACE_WITH_LATEST_VERSION` with the latest version:
+
+    ```groovy
+    dependencies {
+        implementation 'com.github.kangarko:Foundation:REPLACE_WITH_LATEST_VERSION'
+    }
+    ```
+  </Step>
+
+  <Step title="Configure Shadow plugin">
+    Add and configure the Shadow plugin for shading:
+
+    ```groovy
+    plugins {
+        id 'com.github.johnrengelman.shadow' version '8.1.1'
+    }
+
+    shadowJar {
+        // Only include Foundation
+        dependencies {
+            include(dependency('com.github.kangarko:Foundation:.*'))
+        }
+        
+        // Relocate to prevent conflicts
+        relocate 'org.mineacademy.fo', 'your.plugin.main.package.lib'
+    }
+    ```
+  </Step>
+
+  <Step title="Build your project">
+    Build using the shadow task:
+
+    ```bash
+    gradle shadowJar
+    ```
+  </Step>
+</Steps>
+
+## Shading additional libraries
+
+If you need to include other dependencies in your plugin jar:
+
+### Maven
+
+Add the dependency with `compile` scope and include it in the shade plugin:
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.example</groupId>
+        <artifactId>your-library</artifactId>
+        <version>1.0.0</version>
+        <scope>compile</scope>
+    </dependency>
+</dependencies>
+
+<!-- In maven-shade-plugin configuration -->
+<artifactSet>
+    <includes>
+        <include>com.github.kangarko:Foundation*</include>
+        <include>com.example:your-library</include>
+    </includes>
+</artifactSet>
+```
+
+### Gradle
+
+```groovy
+shadowJar {
+    dependencies {
+        include(dependency('com.github.kangarko:Foundation:.*'))
+        include(dependency('com.example:your-library:.*'))
+    }
+    
+    relocate 'org.mineacademy.fo', 'your.plugin.main.package.lib'
+    relocate 'com.example.library', 'your.plugin.main.package.lib.library'
+}
+```
+
+## Verifying installation
+
+After building, verify your setup:
+
+1. Check that your jar file size is reasonable (not bloated with unnecessary dependencies)
+2. Extract your jar and verify only Foundation is in the shaded package location
+3. Test your plugin on a server to ensure it loads correctly
+
+<Note>
+  A properly configured Foundation plugin jar should be relatively small. If your jar is over 50MB, you likely have unnecessary dependencies included.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quick start guide" icon="rocket" href="/quickstart">
+    Create your first plugin with Foundation
+  </Card>
+  
+  <Card title="Migration guide" icon="arrow-right-arrow-left" href="/migration">
+    Upgrade from JavaPlugin to SimplePlugin
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Build fails with "package org.mineacademy.fo does not exist"
+
+Ensure JitPack repository is added and you're using the correct version number from GitHub releases.
+
+### Jar file is too large
+
+You haven't configured shading properly. Review the `<includes>` section in your shade plugin configuration to ensure only necessary dependencies are included.
+
+### NoClassDefFoundError at runtime
+
+You may have excluded Foundation from shading. Verify Foundation is listed in your `<includes>` or shadow configuration.
+
+### Conflicts with other plugins
+
+Ensure you're relocating Foundation to your plugin's package using the `<relocations>` configuration.

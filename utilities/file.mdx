@@ -1,0 +1,381 @@
+---
+title: File utilities
+description: Utility methods for file operations, reading, writing, and JAR extraction
+---
+
+The `FileUtil` class provides comprehensive utilities for file operations including reading, writing, extracting from JAR files, and various file manipulation tasks.
+
+## Getting files
+
+### Create or get files
+
+```java
+// Get file from plugin folder (creates if doesn't exist)
+File file = FileUtil.getOrMakeFile("config.yml");
+
+// Just get file (may not exist)
+File file = FileUtil.getFile("data/players.yml");
+
+// Create file if it doesn't exist
+File file = FileUtil.createIfNotExists("logs/server.log");
+```
+
+### Get multiple files
+
+```java
+// Get all .yml files in directory
+File[] configs = FileUtil.getFiles("configs", "yml");
+
+// Get all .txt files
+File[] texts = FileUtil.getFiles("data", ".txt");
+
+for (File file : configs) {
+    Common.log("Found: " + file.getName());
+}
+```
+
+### File name extraction
+
+```java
+// Get file name without extension
+String name = FileUtil.getFileName("classes/Warrior.yml");
+// Result: "Warrior"
+
+String name = FileUtil.getFileName(new File("config.yml"));
+// Result: "config"
+```
+
+## Reading files
+
+### Read lines
+
+```java
+// Read all lines from file
+List<String> lines = FileUtil.readLines("config.yml");
+
+// Read from File object
+File file = new File("data.txt");
+List<String> lines = FileUtil.readLines(file);
+
+// Process lines
+for (String line : lines) {
+    Common.log(line);
+}
+```
+
+### Read from URL
+
+```java
+// Read from URL
+try {
+    URL url = new URL("https://example.com/data.txt");
+    List<String> lines = FileUtil.readLines(url);
+    
+    for (String line : lines) {
+        Common.log(line);
+    }
+} catch (IOException ex) {
+    Common.error(ex, "Failed to read from URL");
+}
+```
+
+## Writing files
+
+### Simple writing
+
+```java
+// Write lines to file (appends)
+FileUtil.write("logs/server.log", 
+    "Server started",
+    "Players online: 5"
+);
+
+// Write collection
+List<String> data = Arrays.asList("Line 1", "Line 2");
+FileUtil.write("data.txt", data);
+
+// Write to File object
+File file = new File("output.txt");
+FileUtil.write(file, "Content here");
+```
+
+### Formatted writing
+
+```java
+// Write with timestamp and optional prefix
+FileUtil.writeFormatted("logs/errors.log", "Error occurred!");
+// Result: [2024-01-15 14:30:45] Error occurred!
+
+// Write with custom prefix
+FileUtil.writeFormatted("logs/admin.log", "ADMIN", "Player banned");
+// Result: [2024-01-15 14:30:45] ADMIN: Player banned
+```
+
+### Advanced writing
+
+```java
+import java.nio.file.StandardOpenOption;
+
+// Truncate file before writing
+FileUtil.write(file, data, StandardOpenOption.TRUNCATE_EXISTING);
+
+// Append to file
+FileUtil.write(file, data, StandardOpenOption.APPEND);
+```
+
+## Extracting from JAR
+
+### Extract files
+
+```java
+// Extract file from plugin JAR
+File extracted = FileUtil.extract("config.yml");
+
+// Extract to different location
+File extracted = FileUtil.extract(
+    "defaults/config.yml",
+    "config.yml"
+);
+```
+
+<Note>
+Extracted files support variable replacement:
+- `{plugin_name}` - Plugin name
+- `{plugin_name_lower}` - Lowercase plugin name
+- `{file}` - File name
+</Note>
+
+### Extract raw files
+
+```java
+// Extract binary files (images, etc.)
+File image = FileUtil.extractRaw("icon.png");
+```
+
+### Extract folders
+
+```java
+// Extract entire folder from JAR
+FileUtil.extractFolderFromJar(
+    "languages/",
+    "languages"
+);
+```
+
+### Get internal file content
+
+```java
+// Read file content from JAR without extracting
+List<String> lines = FileUtil.getInternalFileContent("config.yml");
+
+if (lines != null) {
+    for (String line : lines) {
+        Common.log(line);
+    }
+}
+```
+
+## File operations
+
+### Delete recursively
+
+```java
+// Delete file/folder and all contents
+File folder = new File("old_data");
+FileUtil.deleteRecursivelly(folder);
+```
+
+### Create ZIP archive
+
+```java
+// Create ZIP from directory
+try {
+    FileUtil.zip(
+        "world",        // Source directory
+        "backups/world" // Destination (no .zip extension)
+    );
+    
+    Common.log("Backup created!");
+} catch (IOException ex) {
+    Common.error(ex, "Failed to create backup");
+}
+```
+
+## Examples
+
+### Configuration backup system
+
+```java
+public class ConfigBackup {
+    
+    public void backupConfigs() {
+        try {
+            // Create backup folder
+            String timestamp = TimeUtil.getFormattedDate()
+                .replace(" ", "_")
+                .replace(":", "-");
+            
+            String backupPath = "backups/config_" + timestamp;
+            
+            // Copy all config files
+            File[] configs = FileUtil.getFiles("", "yml");
+            
+            for (File config : configs) {
+                List<String> lines = FileUtil.readLines(config);
+                FileUtil.write(
+                    backupPath + "/" + config.getName(),
+                    lines
+                );
+            }
+            
+            // Create ZIP
+            FileUtil.zip(backupPath, backupPath);
+            
+            // Delete folder (keep only ZIP)
+            FileUtil.deleteRecursivelly(new File(backupPath));
+            
+            Common.log("Backup created: " + backupPath + ".zip");
+            
+        } catch (Exception ex) {
+            Common.error(ex, "Failed to backup configs");
+        }
+    }
+}
+```
+
+### Player data manager
+
+```java
+public class PlayerDataManager {
+    
+    private final String DATA_FOLDER = "playerdata";
+    
+    public void savePlayerData(UUID uuid, List<String> data) {
+        String path = DATA_FOLDER + "/" + uuid + ".txt";
+        FileUtil.write(path, data);
+    }
+    
+    public List<String> loadPlayerData(UUID uuid) {
+        String path = DATA_FOLDER + "/" + uuid + ".txt";
+        File file = FileUtil.getFile(path);
+        
+        if (file.exists()) {
+            return FileUtil.readLines(file);
+        }
+        
+        return new ArrayList<>();
+    }
+    
+    public void deletePlayerData(UUID uuid) {
+        String path = DATA_FOLDER + "/" + uuid + ".txt";
+        File file = FileUtil.getFile(path);
+        
+        if (file.exists()) {
+            file.delete();
+        }
+    }
+}
+```
+
+### Log rotation system
+
+```java
+public class LogManager {
+    
+    private static final int MAX_LOG_SIZE = 1024 * 1024; // 1MB
+    
+    public void log(String message) {
+        File logFile = FileUtil.getOrMakeFile("logs/latest.log");
+        
+        // Check if rotation needed
+        if (logFile.length() > MAX_LOG_SIZE) {
+            rotateLog(logFile);
+        }
+        
+        // Write to log
+        FileUtil.writeFormatted("logs/latest.log", "LOG", message);
+    }
+    
+    private void rotateLog(File currentLog) {
+        try {
+            // Read current log
+            List<String> lines = FileUtil.readLines(currentLog);
+            
+            // Save to dated file
+            String timestamp = TimeUtil.getFormattedDate()
+                .replace(" ", "_")
+                .replace(":", "-");
+            
+            FileUtil.write(
+                "logs/" + timestamp + ".log",
+                lines
+            );
+            
+            // Clear current log
+            currentLog.delete();
+            FileUtil.createIfNotExists("logs/latest.log");
+            
+        } catch (Exception ex) {
+            Common.error(ex, "Failed to rotate log");
+        }
+    }
+}
+```
+
+### Language file loader
+
+```java
+public class LanguageLoader {
+    
+    public void loadLanguages() {
+        // Extract default languages if not exist
+        if (!FileUtil.getFile("languages").exists()) {
+            FileUtil.extractFolderFromJar("languages/", "languages");
+        }
+        
+        // Load all language files
+        File[] langFiles = FileUtil.getFiles("languages", "yml");
+        
+        for (File langFile : langFiles) {
+            String locale = FileUtil.getFileName(langFile);
+            List<String> lines = FileUtil.readLines(langFile);
+            
+            Common.log("Loaded language: " + locale + 
+                      " (" + lines.size() + " lines)");
+        }
+    }
+}
+```
+
+### Update checker
+
+```java
+public class UpdateChecker {
+    
+    public void checkForUpdates(String versionUrl) {
+        try {
+            URL url = new URL(versionUrl);
+            List<String> lines = FileUtil.readLines(url);
+            
+            if (!lines.isEmpty()) {
+                String latestVersion = lines.get(0);
+                String currentVersion = SimplePlugin.getVersion();
+                
+                if (!latestVersion.equals(currentVersion)) {
+                    Common.log(
+                        "&eNew version available: " + latestVersion,
+                        "&eCurrent version: " + currentVersion
+                    );
+                }
+            }
+            
+        } catch (Exception ex) {
+            Common.log("Could not check for updates");
+        }
+    }
+}
+```
+
+<Tip>
+Use `FileUtil.writeFormatted()` for log files to automatically include timestamps.
+</Tip>

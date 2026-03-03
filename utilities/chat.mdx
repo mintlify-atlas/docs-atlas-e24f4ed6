@@ -1,0 +1,336 @@
+---
+title: Chat utilities
+description: Utility methods for chat formatting, text manipulation, and message analysis
+---
+
+The `ChatUtil` class provides comprehensive utilities for chat formatting, text centering, capitalization, similarity checking, and various text manipulation operations.
+
+## Text centering
+
+### Center messages
+
+```java
+// Center text in chat (default padding)
+String centered = ChatUtil.center("&6=== Welcome ===");
+
+// Center with custom character
+String centered = ChatUtil.center("Title", '=');
+// Result: "========= Title =========" (approximate)
+
+// Center with custom padding
+String centered = ChatUtil.center("Text", ' ', 200);
+```
+
+### Vertical centering
+
+```java
+// Center messages vertically in chat
+String[] centered = ChatUtil.verticalCenter(
+    "&6Welcome to the server!",
+    "&eEnjoy your stay"
+);
+
+// Send to player
+Common.tell(player, centered);
+```
+
+## Text capitalization
+
+### Capitalize first letter
+
+```java
+// Capitalize first letter of sentences
+String text = ChatUtil.capitalizeFirst("hello world. how are you?");
+// Result: "Hello world. How are you?"
+
+// Capitalize all words
+String text = ChatUtil.capitalize("hello world");
+// Result: "Hello World"
+
+// Capitalize fully (lowercase then capitalize)
+String text = ChatUtil.capitalizeFully("hELLO wORLD");
+// Result: "Hello World"
+```
+
+### Smart capitalization
+
+```java
+// Lowercase second character (fix typos)
+String fixed = ChatUtil.lowercaseSecondChar("HEllo");
+// Result: "Hello"
+```
+
+## Text manipulation
+
+### Insert dots
+
+```java
+// Add period if missing (ignores domains)
+String text = ChatUtil.insertDot("Hello world");
+// Result: "Hello world."
+
+String url = ChatUtil.insertDot("Visit google.com");
+// Result: "Visit google.com" (no dot added)
+```
+
+### Quote replacement
+
+```java
+// Quote special regex characters
+String quoted = ChatUtil.quoteReplacement("test()+.-_^");
+// Result: "test\(\)\+\.\-\_\^"
+```
+
+### Remove emoji
+
+```java
+// Strip emoji characters
+String clean = ChatUtil.removeEmoji("Hello 👋 World 🌍");
+// Result: "Hello  World "
+```
+
+### Replace diacritics
+
+```java
+// Remove accents from letters
+String plain = ChatUtil.replaceDiacritic("café");
+// Result: "cafe"
+
+String plain = ChatUtil.replaceDiacritic("Zürich");
+// Result: "Zurich"
+```
+
+## Text analysis
+
+### Caps detection
+
+```java
+// Get percentage of capital letters (0.0 to 1.0)
+double capsPercent = ChatUtil.getCapsPercentage("HELLO world");
+// Result: ~0.45 (45%)
+
+// Get longest caps sequence
+int capsInRow = ChatUtil.getCapsInRow("Hello WORLD test", ignoredWords);
+// Result: 5 ("WORLD")
+```
+
+### Similarity checking
+
+```java
+// Calculate similarity between messages (0.0 to 1.0)
+double similarity = ChatUtil.getSimilarityPercentage(
+    "Hello world",
+    "Hello world!"
+);
+// Result: ~0.95 (95% similar)
+
+// Use for spam detection
+if (similarity > 0.8) {
+    Common.tell(player, "&cPlease don't spam!");
+}
+```
+
+### Domain detection
+
+```java
+// Check if text contains URL
+boolean hasUrl = ChatUtil.isDomain("Visit google.com");
+// Result: true
+
+boolean hasUrl = ChatUtil.isDomain("https://example.com");
+// Result: true
+```
+
+### Interactive message detection
+
+```java
+// Check if message has interactive components
+boolean interactive = ChatUtil.isInteractive("[JSON]{...}");
+boolean interactive = ChatUtil.isInteractive("<toast>Achievement!");
+boolean interactive = ChatUtil.isInteractive("<actionbar>Health: 20");
+```
+
+## Gradients
+
+### Generate color gradients
+
+```java
+// Create gradient text (MC 1.16+)
+String gradient = ChatUtil.generateGradient(
+    "Rainbow Text",
+    "#FF0000", // Red
+    "#0000FF"  // Blue
+);
+
+// Using CompChatColor
+String gradient = ChatUtil.generateGradient(
+    "Gradient",
+    CompChatColor.RED,
+    CompChatColor.BLUE
+);
+
+// Using Color objects
+import java.awt.Color;
+String gradient = ChatUtil.generateGradient(
+    "Custom",
+    Color.ORANGE,
+    Color.PURPLE
+);
+```
+
+<Note>
+Gradient colors only work on Minecraft 1.16 and newer. On older versions, the original text is returned unchanged.
+</Note>
+
+## Examples
+
+### Chat filter system
+
+```java
+public class ChatFilter {
+    
+    private final List<String> allowedCapsWords = Arrays.asList(
+        "LOL", "OMG", "PVP"
+    );
+    
+    public String filterMessage(Player player, String message) {
+        // Check caps percentage
+        double capsPercent = ChatUtil.getCapsPercentage(message);
+        if (capsPercent > 0.7) {
+            int capsInRow = ChatUtil.getCapsInRow(message, allowedCapsWords);
+            
+            if (capsInRow > 5) {
+                Common.tell(player, "&cPlease don't use excessive caps!");
+                return null;
+            }
+        }
+        
+        // Auto-capitalize
+        message = ChatUtil.capitalizeFirst(message);
+        message = ChatUtil.insertDot(message);
+        
+        return message;
+    }
+}
+```
+
+### Spam detection
+
+```java
+public class SpamDetector {
+    
+    private final Map<UUID, String> lastMessages = new HashMap<>();
+    
+    public boolean isSpam(Player player, String message) {
+        String lastMsg = lastMessages.get(player.getUniqueId());
+        
+        if (lastMsg != null) {
+            double similarity = ChatUtil.getSimilarityPercentage(
+                message,
+                lastMsg
+            );
+            
+            if (similarity > 0.85) {
+                Common.tell(player, "&cPlease don't repeat messages!");
+                return true;
+            }
+        }
+        
+        lastMessages.put(player.getUniqueId(), message);
+        return false;
+    }
+}
+```
+
+### Centered title system
+
+```java
+public void sendTitle(Player player, String title, String... lines) {
+    List<String> messages = new ArrayList<>();
+    
+    // Add centered title
+    messages.add(ChatUtil.center("&6&l" + title, '='));
+    messages.add("");
+    
+    // Add lines
+    messages.addAll(Arrays.asList(lines));
+    messages.add("");
+    
+    // Add bottom line
+    messages.add(ChatUtil.center("", '='));
+    
+    // Vertically center in chat
+    String[] centered = ChatUtil.verticalCenter(messages);
+    
+    Common.tell(player, centered);
+}
+```
+
+### Gradient announcement
+
+```java
+public void announceEvent(String eventName) {
+    String gradient = ChatUtil.generateGradient(
+        eventName,
+        "#FFD700", // Gold
+        "#FF6347"  // Tomato red
+    );
+    
+    Common.broadcast(
+        "",
+        ChatUtil.center("&m                    "),
+        ChatUtil.center(gradient),
+        ChatUtil.center("&7Event starting soon!"),
+        ChatUtil.center("&m                    "),
+        ""
+    );
+}
+```
+
+### URL detector
+
+```java
+@EventHandler
+public void onChat(AsyncPlayerChatEvent event) {
+    String message = event.getMessage();
+    
+    // Split into words
+    for (String word : message.split(" ")) {
+        if (ChatUtil.isDomain(word)) {
+            if (!PlayerUtil.hasPerm(event.getPlayer(), "myplugin.url")) {
+                event.setCancelled(true);
+                Common.tell(event.getPlayer(), 
+                    "&cYou cannot post URLs!");
+                return;
+            }
+        }
+    }
+}
+```
+
+### Smart text formatter
+
+```java
+public String formatPlayerMessage(String message) {
+    // Remove emoji
+    message = ChatUtil.removeEmoji(message);
+    
+    // Remove accents
+    message = ChatUtil.replaceDiacritic(message);
+    
+    // Capitalize sentences
+    message = ChatUtil.capitalizeFirst(message);
+    
+    // Fix common typos (HEllo -> Hello)
+    message = ChatUtil.lowercaseSecondChar(message);
+    
+    // Add period if missing
+    message = ChatUtil.insertDot(message);
+    
+    return message;
+}
+```
+
+<Tip>
+Use `ChatUtil.getCapsPercentage()` and `ChatUtil.getSimilarityPercentage()` for intelligent chat moderation.
+</Tip>

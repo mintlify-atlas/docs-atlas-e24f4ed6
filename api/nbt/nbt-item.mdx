@@ -1,0 +1,375 @@
+---
+title: NBTItem
+description: Work with NBT data on ItemStacks with automatic synchronization
+---
+
+The `NBTItem` class provides access to vanilla and custom NBT tags on ItemStacks. It extends `NBTCompound` and implements `ReadWriteItemNBT`.
+
+<Warning>
+  The `NBTItem` class is deprecated. Use the modern `NBT.modify()` syntax instead, which is up to 400% faster and provides fewer ways to mess up code.
+</Warning>
+
+## Constructor
+
+<ParamField path="NBTItem(ItemStack item)" type="constructor">
+  Creates a new NBTItem from an ItemStack. The ItemStack will be cloned.
+  
+  <Expandable title="parameters">
+    <ParamField path="item" type="ItemStack" required>
+      The ItemStack to read NBT data from. Cannot be null, AIR, or have an amount of 0.
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+  NBTItem nbtItem = new NBTItem(sword);
+  ```
+</ParamField>
+
+<ParamField path="NBTItem(ItemStack item, boolean directApply)" type="constructor">
+  Creates a new NBTItem with optional direct application mode.
+  
+  <Expandable title="parameters">
+    <ParamField path="item" type="ItemStack" required>
+      The ItemStack to read NBT data from
+    </ParamField>
+    <ParamField path="directApply" type="boolean" required>
+      If true, all changes will be mapped to the original item. Changes to NBTItem will overwrite changes done to the original item.
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+  NBTItem nbtItem = new NBTItem(sword, true);
+  nbtItem.setString("CustomTag", "Value");
+  // Changes automatically applied to original sword
+  ```
+</ParamField>
+
+## Core methods
+
+### getItem
+
+<ParamField path="getItem()" type="ItemStack">
+  Returns the modified ItemStack with all NBT changes applied.
+  
+  ```java
+  NBTItem nbtItem = new NBTItem(sword);
+  nbtItem.setString("owner", "Steve");
+  nbtItem.setInteger("level", 5);
+  
+  ItemStack modifiedSword = nbtItem.getItem();
+  ```
+</ParamField>
+
+### hasNBTData
+
+<ParamField path="hasNBTData()" type="boolean">
+  Returns true if the item has NBT data. This should be checked before calling methods like remove.
+  
+  ```java
+  NBTItem nbtItem = new NBTItem(sword);
+  if (nbtItem.hasNBTData()) {
+      String owner = nbtItem.getString("owner");
+  }
+  ```
+</ParamField>
+
+### hasCustomNbtData
+
+<ParamField path="hasCustomNbtData()" type="boolean">
+  Returns true if the item has any tags not known for this item type (custom tags only).
+  
+  <Warning>
+    This method is deprecated. In Minecraft 1.20.5+, there are no vanilla tags, so this behaves the same as `hasNBTData()`.
+  </Warning>
+  
+  ```java
+  NBTItem nbtItem = new NBTItem(sword);
+  if (nbtItem.hasCustomNbtData()) {
+      Common.log("Item has custom NBT tags");
+  }
+  ```
+</ParamField>
+
+## NBT application methods
+
+### applyNBT
+
+<ParamField path="applyNBT(ItemStack item)" type="void">
+  Applies stored NBT tags to the provided ItemStack.
+  
+  <Warning>
+    This will completely override the current item's ItemMeta. To preserve original NBT tags, use `mergeNBT()` or `mergeCustomNBT()` instead.
+  </Warning>
+  
+  <Expandable title="parameters">
+    <ParamField path="item" type="ItemStack" required>
+      ItemStack that should get the new NBT data. Cannot be null or AIR.
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTItem template = new NBTItem(new ItemStack(Material.DIAMOND_SWORD));
+  template.setString("owner", "Steve");
+  template.setInteger("level", 10);
+  
+  ItemStack newSword = new ItemStack(Material.DIAMOND_SWORD);
+  template.applyNBT(newSword);
+  ```
+</ParamField>
+
+### mergeNBT
+
+<ParamField path="mergeNBT(ItemStack item)" type="void">
+  Merges all NBT tags to the provided ItemStack, preserving existing tags.
+  
+  <Expandable title="parameters">
+    <ParamField path="item" type="ItemStack" required>
+      ItemStack that should receive the merged NBT data
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTItem source = new NBTItem(enchantedSword);
+  source.setString("CustomTag", "Value");
+  
+  ItemStack target = new ItemStack(Material.DIAMOND_SWORD);
+  source.mergeNBT(target); // Preserves existing NBT on target
+  ```
+</ParamField>
+
+### mergeCustomNBT
+
+<ParamField path="mergeCustomNBT(ItemStack item)" type="void">
+  Merges only custom (non-vanilla) NBT tags to the provided ItemStack.
+  
+  <Expandable title="parameters">
+    <ParamField path="item" type="ItemStack" required>
+      ItemStack that should receive the custom NBT data. Cannot be null or AIR.
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTItem source = new NBTItem(customItem);
+  
+  ItemStack target = player.getInventory().getItemInMainHand();
+  source.mergeCustomNBT(target); // Only custom tags merged
+  ```
+</ParamField>
+
+### clearCustomNBT
+
+<ParamField path="clearCustomNBT()" type="void">
+  Removes all custom (non-vanilla) NBT tags from the NBTItem.
+  
+  <Note>
+    In Minecraft 1.20.5+, this clears all NBT data since there are no vanilla tags.
+  </Note>
+  
+  ```java
+  NBTItem nbtItem = new NBTItem(sword);
+  nbtItem.clearCustomNBT();
+  ItemStack cleanSword = nbtItem.getItem();
+  ```
+</ParamField>
+
+## ItemMeta integration
+
+### modifyMeta (BiConsumer)
+
+<ParamField path="modifyMeta(BiConsumer<ReadableNBT, ItemMeta> handler)" type="void">
+  Provides safe access to the ItemMeta of the internal ItemStack.
+  
+  Supported operations:
+  - Any get/set method of ItemMeta
+  - Any getter on NBTItem
+  
+  All changes made to the NBTItem during this scope will be reverted at the end.
+  
+  <Expandable title="parameters">
+    <ParamField path="handler" type="BiConsumer<ReadableNBT, ItemMeta>" required>
+      Consumer that receives read-only NBT and writable ItemMeta
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTItem nbtItem = new NBTItem(sword);
+  nbtItem.modifyMeta((nbt, meta) -> {
+      meta.setDisplayName("§6Legendary Sword");
+      
+      List<String> lore = new ArrayList<>();
+      lore.add("§7Owner: " + nbt.getString("owner"));
+      lore.add("§7Level: " + nbt.getInteger("level"));
+      meta.setLore(lore);
+  });
+  ```
+</ParamField>
+
+### modifyMeta (typed)
+
+<ParamField path="modifyMeta(Class<T> type, BiConsumer<ReadableNBT, T> handler)" type="void">
+  Provides safe access to a specific ItemMeta type.
+  
+  <Expandable title="parameters">
+    <ParamField path="type" type="Class<T extends ItemMeta>" required>
+      The specific ItemMeta class to cast to
+    </ParamField>
+    <ParamField path="handler" type="BiConsumer<ReadableNBT, T>" required>
+      Consumer that receives read-only NBT and the typed ItemMeta
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  NBTItem nbtItem = new NBTItem(skull);
+  nbtItem.modifyMeta(SkullMeta.class, (nbt, meta) -> {
+      meta.setOwner(nbt.getString("skullOwner"));
+  });
+  ```
+</ParamField>
+
+## Static conversion methods
+
+### convertItemtoNBT
+
+<ParamField path="convertItemtoNBT(ItemStack item)" type="NBTContainer">
+  Converts an ItemStack to NBTContainer with all its data (Material, Damage, Amount, Tags).
+  
+  <Expandable title="parameters">
+    <ParamField path="item" type="ItemStack" required>
+      The ItemStack to convert
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+  NBTContainer container = NBTItem.convertItemtoNBT(sword);
+  ```
+</ParamField>
+
+### convertNBTtoItem
+
+<ParamField path="convertNBTtoItem(NBTCompound comp)" type="ItemStack">
+  Converts an NBTCompound back to an ItemStack.
+  
+  <Expandable title="parameters">
+    <ParamField path="comp" type="NBTCompound" required>
+      The NBTCompound containing item data
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    Returns ItemStack or null if conversion fails
+  </Expandable>
+  
+  ```java
+  NBTContainer container = NBTItem.convertItemtoNBT(sword);
+  ItemStack reconstructed = NBTItem.convertNBTtoItem(container);
+  ```
+</ParamField>
+
+### convertItemArraytoNBT
+
+<ParamField path="convertItemArraytoNBT(ItemStack[] items)" type="NBTContainer">
+  Converts an ItemStack array to NBTContainer with all data.
+  
+  <Warning>
+    This is a custom implementation and won't work with vanilla code (Shulker content, etc.)
+  </Warning>
+  
+  <Expandable title="parameters">
+    <ParamField path="items" type="ItemStack[]" required>
+      The ItemStack array to convert
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  ItemStack[] inventory = player.getInventory().getContents();
+  NBTContainer container = NBTItem.convertItemArraytoNBT(inventory);
+  ```
+</ParamField>
+
+### convertNBTtoItemArray
+
+<ParamField path="convertNBTtoItemArray(NBTCompound comp)" type="ItemStack[]">
+  Converts an NBTCompound back to an ItemStack array.
+  
+  <Expandable title="parameters">
+    <ParamField path="comp" type="NBTCompound" required>
+      The NBTCompound containing array data
+    </ParamField>
+  </Expandable>
+  
+  <Expandable title="returns">
+    Returns ItemStack[] or null for invalid data. Empty slots are filled with AIR.
+  </Expandable>
+  
+  ```java
+  NBTContainer saved = NBTItem.convertItemArraytoNBT(inventory);
+  ItemStack[] restored = NBTItem.convertNBTtoItemArray(saved);
+  ```
+</ParamField>
+
+## Usage patterns
+
+### Basic NBT manipulation
+
+```java
+ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+NBTItem nbtItem = new NBTItem(sword);
+
+// Set custom data
+nbtItem.setString("owner", "Steve");
+nbtItem.setInteger("level", 5);
+nbtItem.setBoolean("legendary", true);
+
+// Get modified item
+ItemStack modifiedSword = nbtItem.getItem();
+player.getInventory().addItem(modifiedSword);
+```
+
+### Reading NBT data
+
+```java
+ItemStack item = player.getInventory().getItemInMainHand();
+NBTItem nbtItem = new NBTItem(item);
+
+if (nbtItem.hasNBTData()) {
+    String owner = nbtItem.getString("owner");
+    int level = nbtItem.getInteger("level");
+    
+    player.sendMessage("Owner: " + owner);
+    player.sendMessage("Level: " + level);
+}
+```
+
+### Direct apply mode
+
+```java
+ItemStack sword = player.getInventory().getItemInMainHand();
+NBTItem nbtItem = new NBTItem(sword, true);
+
+nbtItem.setInteger("uses", nbtItem.getInteger("uses") + 1);
+// Changes automatically applied to original sword
+```
+
+### Working with ItemMeta
+
+```java
+NBTItem nbtItem = new NBTItem(sword);
+nbtItem.setString("rarity", "legendary");
+
+nbtItem.modifyMeta((nbt, meta) -> {
+    String rarity = nbt.getString("rarity");
+    meta.setDisplayName("§6[" + rarity.toUpperCase() + "] Sword");
+});
+
+ItemStack result = nbtItem.getItem();
+```
+
+## See also
+
+- [NBTCompound](/api/nbt/nbt-compound) - Base class for NBT operations
+- [NBTEntity](/api/nbt/nbt-entity) - Work with entity NBT data
+- [NBTBlock](/api/nbt/nbt-block) - Store NBT data at block locations
+- [NBTFile](/api/nbt/nbt-file) - Read/write NBT data from files

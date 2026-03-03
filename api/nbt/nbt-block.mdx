@@ -1,0 +1,292 @@
+---
+title: NBTBlock
+description: Store NBT data at block locations using chunk persistence
+---
+
+The `NBTBlock` class provides a helper to store NBT data at block locations. Since non-BlockEntity blocks cannot have NBT data, this class stores the data in the chunk instead.
+
+<Warning>
+  NBTBlock is only available for Minecraft 1.16.4+. It will throw an `NbtApiException` on older versions.
+</Warning>
+
+<Note>
+  The data is stored at the location, not on the block itself. If the block is broken, changed, exploded, or moved, the data remains at that location.
+</Note>
+
+## Constructor
+
+<ParamField path="NBTBlock(Block block)" type="constructor">
+  Creates a new NBTBlock for the given block location.
+  
+  <Expandable title="parameters">
+    <ParamField path="block" type="Block" required>
+      The block whose location will store NBT data
+    </ParamField>
+  </Expandable>
+  
+  ```java
+  Block block = player.getTargetBlock(null, 5);
+  NBTBlock nbtBlock = new NBTBlock(block);
+  ```
+</ParamField>
+
+## Core methods
+
+### getData
+
+<ParamField path="getData()" type="NBTCompound">
+  Returns the NBTCompound for this block location. Creates a new compound if one doesn't exist.
+  
+  The data is stored in the chunk's persistent data container under `blocks.X_Y_Z` where X, Y, Z are the block coordinates.
+  
+  ```java
+  NBTBlock nbtBlock = new NBTBlock(block);
+  NBTCompound data = nbtBlock.getData();
+  
+  // Now you can read/write NBT data
+  data.setString("owner", "Steve");
+  data.setInteger("level", 5);
+  ```
+</ParamField>
+
+## Usage patterns
+
+### Store custom data at block location
+
+```java
+Block block = location.getBlock();
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+
+// Store custom data
+data.setString("owner", player.getName());
+data.setLong("placedTime", System.currentTimeMillis());
+data.setBoolean("protected", true);
+data.setInteger("level", 1);
+
+player.sendMessage("Block data saved!");
+```
+
+### Read block location data
+
+```java
+Block block = event.getBlock();
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+
+if (data.hasTag("owner")) {
+    String owner = data.getString("owner");
+    long placedTime = data.getLong("placedTime");
+    
+    player.sendMessage("This block was placed by " + owner);
+    player.sendMessage("Placed " + (System.currentTimeMillis() - placedTime) + "ms ago");
+} else {
+    player.sendMessage("No data stored at this location");
+}
+```
+
+### Check if location has data
+
+```java
+Block block = player.getTargetBlock(null, 5);
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+
+if (data.getKeys().isEmpty()) {
+    player.sendMessage("No NBT data at this location");
+} else {
+    player.sendMessage("Found " + data.getKeys().size() + " NBT keys");
+    
+    for (String key : data.getKeys()) {
+        player.sendMessage("  - " + key);
+    }
+}
+```
+
+### Remove data from location
+
+```java
+Block block = event.getBlock();
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+
+// Remove specific key
+if (data.hasTag("owner")) {
+    data.removeKey("owner");
+}
+
+// Or clear all data
+for (String key : new HashSet<>(data.getKeys())) {
+    data.removeKey(key);
+}
+
+player.sendMessage("Block data cleared");
+```
+
+### Create a claim system
+
+```java
+public class ClaimSystem {
+    
+    public void claimBlock(Player player, Block block) {
+        NBTBlock nbtBlock = new NBTBlock(block);
+        NBTCompound data = nbtBlock.getData();
+        
+        if (data.hasTag("claimer")) {
+            String owner = data.getString("claimer");
+            player.sendMessage("This block is already claimed by " + owner);
+            return;
+        }
+        
+        data.setString("claimer", player.getName());
+        data.setString("claimerUUID", player.getUniqueId().toString());
+        data.setLong("claimTime", System.currentTimeMillis());
+        
+        player.sendMessage("Block claimed!");
+    }
+    
+    public boolean canBreak(Player player, Block block) {
+        NBTBlock nbtBlock = new NBTBlock(block);
+        NBTCompound data = nbtBlock.getData();
+        
+        if (!data.hasTag("claimer")) {
+            return true; // Not claimed
+        }
+        
+        String claimerUUID = data.getString("claimerUUID");
+        return player.getUniqueId().toString().equals(claimerUUID);
+    }
+    
+    public void unclaimBlock(Block block) {
+        NBTBlock nbtBlock = new NBTBlock(block);
+        NBTCompound data = nbtBlock.getData();
+        
+        data.removeKey("claimer");
+        data.removeKey("claimerUUID");
+        data.removeKey("claimTime");
+    }
+}
+```
+
+### Track block upgrades
+
+```java
+public void upgradeBlock(Block block, Player player) {
+    NBTBlock nbtBlock = new NBTBlock(block);
+    NBTCompound data = nbtBlock.getData();
+    
+    int currentLevel = data.getOrDefault("upgradeLevel", 0);
+    int maxLevel = 10;
+    
+    if (currentLevel >= maxLevel) {
+        player.sendMessage("Block is already max level!");
+        return;
+    }
+    
+    int newLevel = currentLevel + 1;
+    data.setInteger("upgradeLevel", newLevel);
+    data.setString("lastUpgrader", player.getName());
+    data.setLong("lastUpgradeTime", System.currentTimeMillis());
+    
+    player.sendMessage("Block upgraded to level " + newLevel + "!");
+}
+
+public int getBlockLevel(Block block) {
+    NBTBlock nbtBlock = new NBTBlock(block);
+    NBTCompound data = nbtBlock.getData();
+    
+    return data.getOrDefault("upgradeLevel", 0);
+}
+```
+
+### Store complex data structures
+
+```java
+Block block = location.getBlock();
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+
+// Store a list of players who interacted
+NBTCompoundList visitors = data.getCompoundList("visitors");
+NBTListCompound visitor = visitors.addCompound();
+visitor.setString("name", player.getName());
+visitor.setString("uuid", player.getUniqueId().toString());
+visitor.setLong("time", System.currentTimeMillis());
+
+// Store custom configuration
+NBTCompound config = data.getOrCreateCompound("config");
+config.setBoolean("autoCollect", true);
+config.setInteger("radius", 5);
+config.setDouble("multiplier", 1.5);
+```
+
+### Migration from old data storage
+
+```java
+public void migrateBlockData(Block block, YourOldDataClass oldData) {
+    NBTBlock nbtBlock = new NBTBlock(block);
+    NBTCompound data = nbtBlock.getData();
+    
+    // Migrate old data to NBT
+    data.setString("owner", oldData.getOwner());
+    data.setInteger("level", oldData.getLevel());
+    data.setLong("createdTime", oldData.getCreatedTime());
+    
+    // Migrate complex structures
+    NBTCompound settings = data.getOrCreateCompound("settings");
+    settings.setBoolean("enabled", oldData.isEnabled());
+    settings.setString("mode", oldData.getMode().name());
+    
+    // Remove old data
+    oldData.delete();
+}
+```
+
+## Important notes
+
+<Warning>
+  Data persists at the location, not the block:
+  - If a block is broken, the data remains at that location
+  - If a new block is placed at the same location, it will have access to the old data
+  - If a block is moved (by pistons, etc.), the data stays at the original location
+</Warning>
+
+<Note>
+  The data is stored in the chunk's persistent data container:
+  - Data persists through chunk unloads/loads
+  - Data persists through server restarts
+  - Data is saved as part of the chunk data
+  - Each block location gets its own NBTCompound under the path `blocks.X_Y_Z`
+</Note>
+
+## Performance considerations
+
+```java
+// GOOD - Single access to NBT data
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+data.setString("key1", "value1");
+data.setString("key2", "value2");
+data.setString("key3", "value3");
+
+// AVOID - Multiple NBTBlock creations
+for (String key : keys) {
+    NBTBlock nbtBlock = new NBTBlock(block); // Creates new instance each time
+    NBTCompound data = nbtBlock.getData();
+    data.setString(key, values.get(key));
+}
+
+// BETTER - Reuse the data compound
+NBTBlock nbtBlock = new NBTBlock(block);
+NBTCompound data = nbtBlock.getData();
+for (String key : keys) {
+    data.setString(key, values.get(key));
+}
+```
+
+## See also
+
+- [NBTCompound](/api/nbt/nbt-compound) - Base class for NBT operations
+- [NBTChunk](/api/nbt/nbt-chunk) - Work with chunk NBT data
+- [NBTItem](/api/nbt/nbt-item) - Work with item NBT data
+- [NBTEntity](/api/nbt/nbt-entity) - Work with entity NBT data
