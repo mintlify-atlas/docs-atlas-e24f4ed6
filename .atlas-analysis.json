@@ -1,0 +1,210 @@
+{
+  "projectType": "framework",
+  "projectName": "Foundation",
+  "projectDescription": "A comprehensive framework for building Minecraft plugins with multi-version support from 1.2.5 to 1.21.x",
+  "theme": "maple",
+  "primaryColor": "#8B4513",
+  "lightColor": "#D2691E",
+  "darkColor": "#654321",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "migration"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/simple-plugin",
+              "core/multi-version-support",
+              "core/configuration",
+              "core/localization"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/commands",
+              "features/menus",
+              "features/conversations",
+              "features/database",
+              "features/nbt",
+              "features/packets",
+              "features/holograms",
+              "features/regions",
+              "features/bungee"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "utilities/common",
+              "utilities/player",
+              "utilities/item",
+              "utilities/entity",
+              "utilities/block",
+              "utilities/chat",
+              "utilities/file",
+              "utilities/math",
+              "utilities/reflection"
+            ]
+          },
+          {
+            "group": "Plugin Integrations",
+            "pages": [
+              "integrations/overview",
+              "integrations/vault",
+              "integrations/placeholderapi",
+              "integrations/worldguard",
+              "integrations/citizens",
+              "integrations/discordsrv"
+            ]
+          },
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "advanced/custom-events",
+              "advanced/async-tasks",
+              "advanced/debugging",
+              "advanced/performance",
+              "advanced/shading"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Plugin",
+            "pages": [
+              "api/plugin/simple-plugin",
+              "api/plugin/simple-settings",
+              "api/plugin/simple-localization"
+            ]
+          },
+          {
+            "group": "Commands",
+            "pages": [
+              "api/commands/simple-command",
+              "api/commands/command-group",
+              "api/commands/sub-command"
+            ]
+          },
+          {
+            "group": "Menus",
+            "pages": [
+              "api/menus/menu",
+              "api/menus/button",
+              "api/menus/item-creator"
+            ]
+          },
+          {
+            "group": "Database",
+            "pages": [
+              "api/database/simple-database",
+              "api/database/flat-database"
+            ]
+          },
+          {
+            "group": "NBT",
+            "pages": [
+              "api/nbt/nbt-item",
+              "api/nbt/nbt-entity",
+              "api/nbt/nbt-block",
+              "api/nbt/nbt-file"
+            ]
+          },
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/simple-hologram",
+              "api/models/simple-scoreboard",
+              "api/models/simple-time",
+              "api/models/hook-manager"
+            ]
+          },
+          {
+            "group": "Core Utilities",
+            "pages": [
+              "api/utils/common",
+              "api/utils/valid",
+              "api/utils/remain",
+              "api/utils/minecraft-version"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Common Use Cases",
+            "pages": [
+              "examples/first-plugin",
+              "examples/custom-command",
+              "examples/gui-menu",
+              "examples/database-storage",
+              "examples/config-management"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-version support (MC 1.2.5 - 1.21.x)",
+    "GUI menu system",
+    "Advanced command framework without plugin.yml",
+    "Auto-updating configuration with comments",
+    "Database abstraction (MySQL, SQLite, HikariCP)",
+    "NBT manipulation API",
+    "Packet utilities for cross-version compatibility",
+    "Conversation system for player interactions",
+    "Plugin integration hooks (Vault, Citizens, Discord, etc.)",
+    "Hologram and scoreboard APIs",
+    "Region and visualization tools",
+    "BungeeCord messaging support"
+  ],
+  "publicApiSurface": [
+    "SimplePlugin",
+    "SimpleCommand",
+    "SimpleCommandGroup",
+    "Menu",
+    "Button",
+    "SimpleSettings",
+    "SimpleLocalization",
+    "SimpleDatabase",
+    "SimpleFlatDatabase",
+    "SimpleConversation",
+    "NBTItem",
+    "NBTEntity",
+    "NBTBlock",
+    "Common",
+    "PlayerUtil",
+    "ItemUtil",
+    "EntityUtil",
+    "BlockUtil",
+    "ChatUtil",
+    "FileUtil",
+    "MathUtil",
+    "ReflectionUtil",
+    "Remain",
+    "MinecraftVersion",
+    "SimpleHologram",
+    "SimpleScoreboard",
+    "HookManager",
+    "PacketUtil",
+    "BungeeUtil",
+    "BlockVisualizer",
+    "VisualTool"
+  ]
+}
